@@ -159,11 +159,11 @@ function ArticleCard({
             ) : null}
             {authorName}
           </span>
-          {/* 统计组：靠右对齐，跨卡片右缘对齐 */}
+          {/* 统计组：靠右对齐，跨卡片右缘对齐；计数项（阅读/赞/评论）始终显示，0 也占位 */}
           <span className="article-card-stats">
-            {article.views ? <span>{article.views} 阅读</span> : null}
-            {article.likes ? <span>{article.likes} 赞</span> : null}
-            {article.commentsNum ? <span>{article.commentsNum} 评论</span> : null}
+            <span>{article.views} 阅读</span>
+            <span>{article.likes} 赞</span>
+            <span>{article.commentsNum} 评论</span>
             {/* 评分栏位始终保留（无评分显示灰色占位），保证跨卡片对齐 */}
             <span className={`card-score ${article.score && article.score !== '-.-' ? '' : 'no-score'}`}>
               {article.score && article.score !== '-.-' ? `${article.score} 分` : '-.- 分'}
