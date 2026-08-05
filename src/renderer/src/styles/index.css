@@ -796,13 +796,31 @@ body {
   gap: 4px 10px;
   font-size: 12px;
   color: var(--text-muted);
+  align-items: center;
+}
+
+/* 阅读页作者：头像 + 昵称 */
+.reader-author {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.reader-author-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #f0f1f5;
+  flex-shrink: 0;
 }
 
 .reader-score {
-  color: #b25e09;
-  background: #fdf3e3;
   border-radius: 4px;
   padding: 0 6px;
+  font-weight: 600;
 }
 
 .review-toggle {

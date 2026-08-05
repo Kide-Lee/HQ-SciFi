@@ -217,3 +217,15 @@ export function formatSize(n: number): string {
   if (n >= 10000) return `${(n / 10000).toFixed(1)} 万`
   return String(n)
 }
+
+/**
+ * 评分 → 颜色（红 → 紫 色相渐变）：0 分红 (0°)、10 分紫 (300°)，中间平滑过渡。
+ * 仅当评分无效（-.- / 空 / NaN）返回 null（调用方用灰色占位）；0.0 是真实评分，给红色。
+ */
+export function scoreColor(score: string | number | undefined): string | null {
+  const n = Number(score)
+  if (!Number.isFinite(n)) return null
+  // 0-10 映射到 0°-300°；0 分即 0° 纯红
+  const hue = Math.min(300, Math.max(0, (n / 10) * 300))
+  return `hsl(${hue}, 62%, 42%)`
+}

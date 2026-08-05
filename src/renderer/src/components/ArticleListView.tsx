@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { ARTICLE_ORDERS, useReaderStore } from '../stores/reader'
-import { cachedImageUrl, formatTs } from '../lib/sanitize'
+import { cachedImageUrl, formatTs, scoreColor } from '../lib/sanitize'
 import { ErrorBanner } from './ErrorBanner'
 import type { RemoteArticle } from '../../../shared/types'
 
@@ -135,6 +135,8 @@ function ArticleCard({
   // 封面：images[0] 优先（官方列表字段），cover 兜底；仅 http(s) 图片进缓存协议
   const coverRaw = (article.images && article.images[0]) || article.cover
   const cover = coverRaw && /^https?:\/\//i.test(coverRaw) ? cachedImageUrl(coverRaw) : undefined
+  const hasScore = !!article.score && article.score !== '-.-'
+  const scoreColorValue = scoreColor(article.score)
   return (
     <button className={`article-card ${active ? 'active' : ''}`} onClick={onOpen}>
       {cover ? (
@@ -164,9 +166,12 @@ function ArticleCard({
             <span>{article.views} 阅读</span>
             <span>{article.likes} 赞</span>
             <span>{article.commentsNum} 评论</span>
-            {/* 评分栏位始终保留（无评分显示灰色占位），保证跨卡片对齐 */}
-            <span className={`card-score ${article.score && article.score !== '-.-' ? '' : 'no-score'}`}>
-              {article.score && article.score !== '-.-' ? `${article.score} 分` : '-.- 分'}
+            {/* 评分栏位始终保留（无评分显示灰色占位），按红→紫色相着色 */}
+            <span
+              className={`card-score ${hasScore ? '' : 'no-score'}`}
+              style={hasScore && scoreColorValue ? { color: scoreColorValue } : undefined}
+            >
+              {hasScore ? `${article.score} 分` : '-.- 分'}
             </span>
             {article.created ? <span>{formatTs(article.created)}</span> : null}
           </span>

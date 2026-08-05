@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useReaderStore } from '../stores/reader'
 import { useAuthStore } from '../stores/auth'
-import { formatSize, formatTs, expandMediaTags, sanitizeHtml } from '../lib/sanitize'
+import { cachedImageUrl, formatSize, formatTs, expandMediaTags, sanitizeHtml, scoreColor } from '../lib/sanitize'
 import { ErrorBanner } from './ErrorBanner'
 import type { ArticleDetail } from '../../../shared/types'
 
@@ -11,6 +11,13 @@ function authorName(detail: ArticleDetail): string {
   const name =
     u.nickname ?? u.nick ?? u.nickName ?? u.userName ?? u.name ?? (u.uid != null ? `UID ${String(u.uid)}` : '')
   return String(name || '佚名')
+}
+
+/** 从详情/用户信息里提取作者头像 URL（http(s) 走缓存协议） */
+function authorAvatar(detail: ArticleDetail): string | undefined {
+  const u = detail.userJson ?? {}
+  const raw = String(u.avatar ?? u.headImg ?? u.headImgUrl ?? u.avatarUrl ?? '')
+  return raw && /^https?:\/\//i.test(raw) ? cachedImageUrl(raw) : undefined
 }
 
 /** 阅读视图：远端文章 HTML 正文 + 元信息；评审面板挂在右侧 */
@@ -79,11 +86,20 @@ export function ReaderView(): React.JSX.Element {
           <header className="reader-header">
             <h1 className="reader-title">{detail.title}</h1>
             <div className="reader-meta">
-              <span className="reader-author">{authorName(detail)}</span>
+              <span className="reader-author">
+                {authorAvatar(detail) ? (
+                  <img className="reader-author-avatar" src={authorAvatar(detail)} alt="" referrerPolicy="no-referrer" />
+                ) : null}
+                {authorName(detail)}
+              </span>
               {detail.size ? <span>· {formatSize(detail.size)} 字</span> : null}
               {detail.views ? <span>· {detail.views} 阅读</span> : null}
               {detail.likes ? <span>· {detail.likes} 赞</span> : null}
-              {detail.score && detail.score !== '-.-' ? <span className="reader-score">评分 {detail.score}</span> : null}
+              {detail.score && detail.score !== '-.-' ? (
+                <span className="reader-score" style={{ color: scoreColor(detail.score) ?? undefined }}>
+                  评分 {detail.score}
+                </span>
+              ) : null}
               {detail.created ? <span>· {formatTs(detail.created)}</span> : null}
             </div>
             {!isMine && (
