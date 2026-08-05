@@ -43,6 +43,11 @@ CREATE TABLE IF NOT EXISTS articles (
 );
 CREATE INDEX IF NOT EXISTS idx_articles_type ON articles(type);
 CREATE INDEX IF NOT EXISTS idx_articles_file_path ON articles(file_path);
+CREATE TABLE IF NOT EXISTS read_cache (
+  key TEXT PRIMARY KEY,
+  payload TEXT NOT NULL DEFAULT '',
+  fetched_at INTEGER NOT NULL DEFAULT 0
+);
 CREATE TABLE IF NOT EXISTS meta (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL DEFAULT ''
@@ -161,4 +166,30 @@ export function setMeta(key: string, value: string): void {
 export function getMeta(key: string): string | null {
   const r = getDb().prepare('SELECT value FROM meta WHERE key = ?').get(key) as { value: string } | undefined
   return r ? r.value : null
+}
+
+// ---------- 阅读缓存（M2：文章详情本地缓存，带 TTL） ----------
+
+/** 读取未过期缓存；过期/不存在返回 null */
+export function getReadCache<T>(key: string, ttlMs: number): T | null {
+  const r = getDb().prepare('SELECT payload, fetched_at FROM read_cache WHERE key = ?').get(key) as
+    | { payload: string; fetched_at: number }
+    | undefined
+  if (!r) return null
+  if (Date.now() - r.fetched_at > ttlMs) return null
+  try {
+    return JSON.parse(r.payload) as T
+  } catch {
+    return null
+  }
+}
+
+/** 写入阅读缓存 */
+export function setReadCache(key: string, payload: unknown): void {
+  getDb()
+    .prepare(
+      `INSERT INTO read_cache (key, payload, fetched_at) VALUES (?, ?, ?)
+       ON CONFLICT(key) DO UPDATE SET payload=excluded.payload, fetched_at=excluded.fetched_at`
+    )
+    .run(key, JSON.stringify(payload), Date.now())
 }

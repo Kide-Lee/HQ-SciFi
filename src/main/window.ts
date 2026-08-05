@@ -2,6 +2,7 @@ import { app, BrowserWindow } from 'electron'
 import { join } from 'node:path'
 import { registerIpcHandlers } from './ipc'
 import { initDb } from './db'
+import { registerImageProtocol } from './imgcache'
 
 /** electron-vite dev 模式下由环境变量注入渲染层 URL */
 function rendererUrl(): string {
@@ -52,6 +53,7 @@ export function createWindow(): BrowserWindow {
 export function initApp(): void {
   app.whenReady().then(() => {
     initDb()
+    registerImageProtocol()
     registerIpcHandlers()
     createWindow()
 

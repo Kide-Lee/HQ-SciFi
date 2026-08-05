@@ -79,9 +79,16 @@ function sanitizeSrcset(raw: string): string | null {
   return parts.length > 0 ? parts.join(', ') : null
 }
 
+/** 渲染层调用：把远端图片 URL 转成 hqsf-img:// 协议 URL（走主进程磁盘缓存；非 http(s) 原样返回） */
+export function cachedImageUrl(url: string): string {
+  if (!/^https?:\/\//i.test(url)) return url
+  return `hqsf-img://fetch?url=${encodeURIComponent(url)}`
+}
+
 /**
  * 净化 HTML 字符串，返回安全 HTML。
  * 不可信的 iframe/video 保留占位但剥除交互（iframe 直接移除，video 保留 controls 但 src 经协议校验）。
+ * 正文里的 http(s) 图片 src 会自动改写为 hqsf-img://（本地缓存协议）。
  */
 export function sanitizeHtml(raw: string): string {
   if (!raw) return ''
@@ -121,10 +128,27 @@ export function sanitizeHtml(raw: string): string {
               el.setAttribute('target', '_blank')
               el.setAttribute('rel', 'noopener noreferrer')
             }
+            // 正文图片（http/s）改写为本地缓存协议；data: 内嵌图保持原样
+            if (tag === 'IMG' && /^https?:\/\//i.test(attr.value)) {
+              attr.value = cachedImageUrl(attr.value)
+            }
           } else if (name === 'srcset') {
             const safe = sanitizeSrcset(attr.value)
             if (!safe) continue
-            attr.value = safe
+            // 响应式候选图同样改写为本地缓存协议
+            if (tag === 'IMG') {
+              attr.value = safe
+                .split(',')
+                .map((cand) => {
+                  const piece = cand.trim()
+                  const urlPart = piece.split(/\s+/)[0]
+                  if (!/^https?:\/\//i.test(urlPart)) return piece
+                  return `${cachedImageUrl(urlPart)} ${piece.slice(urlPart.length).trim()}`.trim()
+                })
+                .join(', ')
+            } else {
+              attr.value = safe
+            }
           }
           kept.push(attr.name)
         }
@@ -151,6 +175,32 @@ export function htmlToText(html: string): string {
   } catch {
     return ''
   }
+}
+
+/**
+ * 展开荒启正文的媒体标签（官方 markExpand 逻辑，api-research.md 实测）：
+ *   [music 163]id[/music 163]      → 网易云 iframe 播放器（id 仅数字）
+ *   [music qq]id[/music qq]        → QQ 音乐 iframe 播放器（id 仅数字）
+ *   [video bilibili]BVxx[/video bilibili] → B 站 iframe（仅 BV 号）
+ * 必须在 sanitizeHtml 之后调用（文本已在白名单内）；这里只生成受控 iframe：
+ * src 域名/路径固定、id 经严格校验，杜绝注入任意 URL。
+ */
+const MUSIC_163_IFRAME =
+  '<iframe class="hqsf-media" frameborder="no" border="0" marginwidth="0" marginheight="0" ' +
+  'width="330" height="86" src="https://music.163.com/outchain/player?type=2&id=$1&auto=0&height=66"></iframe>'
+const MUSIC_QQ_IFRAME =
+  '<iframe class="hqsf-media" frameborder="no" border="0" marginwidth="0" marginheight="0" ' +
+  'width="330" height="66" src="https://i.y.qq.com/n2/m/outchain/player/index.html?songid=$1"></iframe>'
+const BILI_IFRAME =
+  '<iframe class="hqsf-media hqsf-video" src="https://player.bilibili.com/player.html?bvid=$1" ' +
+  'scrolling="no" border="0" frameborder="no" width="100%" height="420" allowfullscreen="true"></iframe>'
+
+export function expandMediaTags(html: string): string {
+  if (!html) return ''
+  return html
+    .replace(/\[music\s+163\]\s*(\d{3,20})\s*\[\/music\s+163\]/g, MUSIC_163_IFRAME)
+    .replace(/\[music\s+qq\]\s*(\d{3,20})\s*\[\/music\s+qq\]/g, MUSIC_QQ_IFRAME)
+    .replace(/\[video\s+bilibili\]\s*(BV[0-9A-Za-z]{6,20})\s*\[\/video\s+bilibili\]/g, BILI_IFRAME)
 }
 
 /** 秒级时间戳 → 本地日期串（YYYY-MM-DD HH:mm） */

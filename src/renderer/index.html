@@ -7,10 +7,12 @@
     <!--
       CSP 说明：M0 阶段为兼容 vite dev（react-refresh 内联脚本 + HMR ws），
       采用较宽松策略；M1 安全任务中收紧为 production 级（剥离 unsafe-inline 与 ws:）。
+      M2：img-src 加 hqsf-img:（本地图片缓存协议）；frame-src 放行正文媒体标签
+      对应的官方播放器域名（网易云/QQ 音乐/B 站），其余 frame 一律拒绝。
     -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' ws: http: https:"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: hqsf-img:; font-src 'self' data:; connect-src 'self' ws: http: https:; frame-src https://music.163.com https://i.y.qq.com https://player.bilibili.com"
     />
   </head>
   <body>

@@ -121,6 +121,8 @@ export interface RemoteArticle {
   active?: Array<{ mid: number | string }> | null
   /** 字数（列表条目可选） */
   size?: number
+  /** 配图（列表条目，images[0] 为封面） */
+  images?: string[]
 }
 
 /** 文章详情（contentsInfo 裸对象；text 为完整 HTML 正文） */

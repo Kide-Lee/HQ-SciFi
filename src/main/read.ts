@@ -1,4 +1,5 @@
 import { apiRequest } from './net/api'
+import { getReadCache, setReadCache } from './db'
 import type {
   ArticleDetail,
   ArticleListOptions,
@@ -60,7 +61,8 @@ function toRemoteArticle(item: Record<string, unknown>, index: number): RemoteAr
     modified: normTs(item.modified),
     isAnonymous: !!item.isAnonymous,
     active: Array.isArray(item.active) ? (item.active as Array<{ mid: number | string }>) : null,
-    size: num(item.size) || undefined
+    size: num(item.size) || undefined,
+    images: Array.isArray(item.images) ? (item.images as unknown[]).map(String) : undefined
   }
 }
 
@@ -102,8 +104,12 @@ export async function listRemoteArticles(
   }
 }
 
-/** 拉取文章详情（完整 HTML 正文；需登录）。contentsInfo 响应为裸对象 */
+/** 拉取文章详情（完整 HTML 正文；需登录）。contentsInfo 响应为裸对象；结果本地缓存 1 小时 */
 export async function fetchRemoteArticle(token: string, cid: string): Promise<ArticleDetail> {
+  const cacheKey = `article:${cid}`
+  const cached = getReadCache<ArticleDetail>(cacheKey, 60 * 60 * 1000)
+  if (cached) return cached
+
   const obj = await apiRequest<Record<string, unknown>>('hqContents/contentsInfo', {
     method: 'GET',
     query: { key: cid, isMd: 0, token },
@@ -116,7 +122,7 @@ export async function fetchRemoteArticle(token: string, cid: string): Promise<Ar
   const authorId =
     str(obj.authorId) ||
     str((userJson && (userJson.uid ?? userJson.id)) ?? '')
-  return {
+  const detail: ArticleDetail = {
     cid,
     title: str(obj.title),
     text: str(obj.text),
@@ -134,6 +140,8 @@ export async function fetchRemoteArticle(token: string, cid: string): Promise<Ar
     active: Array.isArray(obj.active) ? (obj.active as Array<{ mid: number | string }>) : null,
     markdown: num(obj.markdown)
   }
+  setReadCache(cacheKey, detail)
+  return detail
 }
 
 /** 评审条目规整 */

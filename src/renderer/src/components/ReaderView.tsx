@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useReaderStore } from '../stores/reader'
 import { useAuthStore } from '../stores/auth'
-import { formatSize, formatTs, sanitizeHtml } from '../lib/sanitize'
+import { formatSize, formatTs, expandMediaTags, sanitizeHtml } from '../lib/sanitize'
 import { ErrorBanner } from './ErrorBanner'
 import type { ArticleDetail } from '../../../shared/types'
 
@@ -28,7 +28,7 @@ export function ReaderView(): React.JSX.Element {
     setShowReview(false)
   }, [detail?.cid])
 
-  const safeHtml = useMemo(() => (detail ? sanitizeHtml(detail.text) : ''), [detail])
+  const safeHtml = useMemo(() => (detail ? expandMediaTags(sanitizeHtml(detail.text)) : ''), [detail])
 
   const myUid = String(session?.userinfo?.uid ?? session?.userinfo?.id ?? '')
   const isMine = !!detail && myUid !== '' && String(detail.authorId) === myUid
