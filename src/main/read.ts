@@ -104,10 +104,10 @@ export async function listRemoteArticles(
   }
 }
 
-/** 拉取文章详情（完整 HTML 正文；需登录）。contentsInfo 响应为裸对象；结果本地缓存 1 小时 */
+/** 拉取文章详情（完整 HTML 正文；需登录）。contentsInfo 响应为裸对象；结果本地缓存（容量上限，不限期） */
 export async function fetchRemoteArticle(token: string, cid: string): Promise<ArticleDetail> {
   const cacheKey = `article:${cid}`
-  const cached = getReadCache<ArticleDetail>(cacheKey, 60 * 60 * 1000)
+  const cached = getReadCache<ArticleDetail>(cacheKey)
   if (cached) return cached
 
   const obj = await apiRequest<Record<string, unknown>>('hqContents/contentsInfo', {

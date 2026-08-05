@@ -168,15 +168,20 @@ export function getMeta(key: string): string | null {
   return r ? r.value : null
 }
 
-// ---------- 阅读缓存（M2：文章详情本地缓存，带 TTL） ----------
+// ---------- 阅读缓存（M2：文章详情本地缓存） ----------
+// 文章正文是文本、体量小，不做限时（TTL），只做容量上限；超限按写入时间删最旧。
 
-/** 读取未过期缓存；过期/不存在返回 null */
-export function getReadCache<T>(key: string, ttlMs: number): T | null {
-  const r = getDb().prepare('SELECT payload, fetched_at FROM read_cache WHERE key = ?').get(key) as
-    | { payload: string; fetched_at: number }
+/** 文章缓存总容量上限（16MB，足够容纳大量文章正文） */
+const READ_CACHE_MAX_BYTES = 16 * 1024 * 1024
+/** 清理时保留的目标水位（低于上限的 80%，避免频繁触发清理） */
+const READ_CACHE_TARGET = Math.floor(READ_CACHE_MAX_BYTES * 0.8)
+
+/** 读取缓存（不限期）；不存在返回 null */
+export function getReadCache<T>(key: string): T | null {
+  const r = getDb().prepare('SELECT payload FROM read_cache WHERE key = ?').get(key) as
+    | { payload: string }
     | undefined
   if (!r) return null
-  if (Date.now() - r.fetched_at > ttlMs) return null
   try {
     return JSON.parse(r.payload) as T
   } catch {
@@ -184,7 +189,7 @@ export function getReadCache<T>(key: string, ttlMs: number): T | null {
   }
 }
 
-/** 写入阅读缓存 */
+/** 写入阅读缓存；超容量上限时按 fetched_at 从旧到新删除直到水位以下 */
 export function setReadCache(key: string, payload: unknown): void {
   getDb()
     .prepare(
@@ -192,4 +197,20 @@ export function setReadCache(key: string, payload: unknown): void {
        ON CONFLICT(key) DO UPDATE SET payload=excluded.payload, fetched_at=excluded.fetched_at`
     )
     .run(key, JSON.stringify(payload), Date.now())
+  trimReadCache()
+}
+
+/** 总字节超限时删除最旧条目（逐条删，避免一次删太多） */
+function trimReadCache(): void {
+  for (;;) {
+    const row = getDb()
+      .prepare('SELECT COALESCE(SUM(LENGTH(payload)), 0) AS total FROM read_cache')
+      .get() as { total: number }
+    if (row.total <= READ_CACHE_TARGET) return
+    const oldest = getDb()
+      .prepare('SELECT key FROM read_cache ORDER BY fetched_at ASC LIMIT 1')
+      .get() as { key: string } | undefined
+    if (!oldest) return
+    getDb().prepare('DELETE FROM read_cache WHERE key = ?').run(oldest.key)
+  }
 }
