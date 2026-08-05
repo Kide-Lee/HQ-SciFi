@@ -1432,6 +1432,11 @@ body {
   color: #b25e09;
 }
 
+/* 无评分占位：灰色弱化，仍占位保证对齐 */
+.card-score.no-score {
+  color: #c4c9d2;
+}
+
 /* 加载哨兵区：无限滚动触发点；保持最小高度保证 IntersectionObserver 可观察 */
 .list-more {
   display: flex;

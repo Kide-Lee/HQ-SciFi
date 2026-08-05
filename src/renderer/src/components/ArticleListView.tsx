@@ -164,7 +164,10 @@ function ArticleCard({
             {article.views ? <span>{article.views} 阅读</span> : null}
             {article.likes ? <span>{article.likes} 赞</span> : null}
             {article.commentsNum ? <span>{article.commentsNum} 评论</span> : null}
-            {article.score && article.score !== '-.-' ? <span className="card-score">{article.score} 分</span> : null}
+            {/* 评分栏位始终保留（无评分显示灰色占位），保证跨卡片对齐 */}
+            <span className={`card-score ${article.score && article.score !== '-.-' ? '' : 'no-score'}`}>
+              {article.score && article.score !== '-.-' ? `${article.score} 分` : '-.- 分'}
+            </span>
             {article.created ? <span>{formatTs(article.created)}</span> : null}
           </span>
         </div>
