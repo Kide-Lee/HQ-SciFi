@@ -1,4 +1,4 @@
-import { app, BrowserWindow, clipboard, ipcMain } from 'electron'
+import { app, BrowserWindow, clipboard, ipcMain, shell } from 'electron'
 import {
   loginWithPassword,
   loginWithPhone,
@@ -7,7 +7,7 @@ import {
   getStoredToken,
   logout as doLogout
 } from './auth'
-import { getDocsRoot, listLocalDocs, readLocalFile, writeLocalFile, createLocalDraft, chooseDocsDir } from './fs'
+import { getDocsRoot, ensureDocsRoot, listLocalDocs, readLocalFile, writeLocalFile, createLocalDraft, chooseDocsDir } from './fs'
 import { pullRemote, pushToDraft, publish } from './sync'
 import { listArticles } from './db'
 
@@ -96,6 +96,17 @@ export function registerIpcHandlers(): void {
 
   // ---- 本地存档 ----
   ipcMain.handle('hqsf:get-docs-root', () => ok(getDocsRoot()))
+
+  // 在系统文件管理器中打开本地存档目录
+  ipcMain.handle('hqsf:open-docs-dir', async () => {
+    try {
+      const root = ensureDocsRoot()
+      const err = await shell.openPath(root)
+      return err ? fail(new Error(err)) : ok(null)
+    } catch (err) {
+      return fail(err)
+    }
+  })
 
   ipcMain.handle('hqsf:list-local-docs', () => {
     try {

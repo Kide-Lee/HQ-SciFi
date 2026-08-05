@@ -30,6 +30,7 @@ const api = {
 
   // ---- 本地存档 ----
   getDocsRoot: (): Promise<ApiResult<string>> => ipcRenderer.invoke('hqsf:get-docs-root'),
+  openDocsDir: (): Promise<ApiResult<null>> => ipcRenderer.invoke('hqsf:open-docs-dir'),
   listLocalDocs: (): Promise<ApiResult<LocalNode[]>> => ipcRenderer.invoke('hqsf:list-local-docs'),
   readLocalFile: (path: string): Promise<ApiResult<string>> => ipcRenderer.invoke('hqsf:read-local-file', path),
   writeLocalFile: (path: string, content: string): Promise<ApiResult<null>> =>

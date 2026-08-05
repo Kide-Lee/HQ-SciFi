@@ -37,6 +37,7 @@ export interface HqsfApi {
   syncPull: () => Promise<ApiResult<PullResult>>
   syncPush: (filePath: string, isDraft: boolean) => Promise<ApiResult<PushResult>>
   getDocsRoot: () => Promise<ApiResult<string>>
+  openDocsDir: () => Promise<ApiResult<null>>
   listLocalDocs: () => Promise<ApiResult<LocalNode[]>>
   readLocalFile: (path: string) => Promise<ApiResult<string>>
   writeLocalFile: (path: string, content: string) => Promise<ApiResult<null>>

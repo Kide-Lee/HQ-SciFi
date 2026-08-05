@@ -130,6 +130,17 @@ export function Sidebar(): React.JSX.Element {
               <button className="sync-btn" disabled={pulling} onClick={() => void pull()} title="从荒启拉取草稿与状态">
                 {pulling ? '同步中 …' : '⇅ 同步'}
               </button>
+              <button
+                className="sync-btn"
+                onClick={() => {
+                  void window.hqsf.openDocsDir().then((res) => {
+                    if (!res.ok) alert(`打开存档目录失败: ${res.error}`)
+                  })
+                }}
+                title="在系统文件管理器中打开本地存档目录"
+              >
+                📂 打开目录
+              </button>
               {lastPull && (
                 <span className="sync-summary">
                   拉取 {lastPull.pulled} · 冲突 {lastPull.conflicts}
