@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename } from 'node:path'
 import TurndownService from 'turndown'
 import { apiRequest, type ApiResponse } from './net/api'
@@ -183,7 +183,9 @@ export async function pullRemote(token: string, authorId: string): Promise<PullR
       }
 
       // ---- 草稿正文同步 ----
-      if (existing && existing.filePath) {
+      // 文件真实存在才算「已有本地副本」；被删除/失联时即使远端未更新也要重建
+      const fileExists = !!existing?.filePath && existsSync(existing.filePath)
+      if (existing && fileExists) {
         if (remoteModified <= existing.remoteModified) continue // 远端未更新
         if (isLocalDirty(existing)) {
           result.conflicts++
@@ -209,11 +211,18 @@ export async function pullRemote(token: string, authorId: string): Promise<PullR
           result.errors.push(`${title}: ${(err as Error).message}`)
         }
       } else {
-        // 新建（或索引有记录但本地文件失联）：以远端内容重建本地文件
+        // 新建，或索引有记录但本地文件失联/被删：以远端内容重建本地文件
         try {
           const { html, markdown } = await fetchFullText(token, cid)
           const md = markdown ? html : htmlToMd(html)
-          const filePath = createLocalDraft(root, title, md)
+          // 原路径当前不存在时写回原路径（保持索引关联），否则生成唯一新路径
+          let filePath: string
+          if (existing?.filePath && !existsSync(existing.filePath)) {
+            filePath = existing.filePath
+            writeFileSync(filePath, md, 'utf8')
+          } else {
+            filePath = createLocalDraft(root, title, md)
+          }
           upsertArticle({
             ...(existing ?? {
               cid,
