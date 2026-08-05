@@ -233,14 +233,9 @@ export async function pullRemote(token: string, authorId: string): Promise<PullR
         try {
           const { html, markdown } = await fetchFullText(token, cid)
           const md = markdown ? html : htmlToMd(html)
-          // 原路径当前不存在时写回原路径（保持索引关联），否则生成唯一新路径
-          let filePath: string
-          if (existing?.filePath && !existsSync(existing.filePath)) {
-            filePath = existing.filePath
-            writeFileSync(filePath, md, 'utf8')
-          } else {
-            filePath = createLocalDraft(root, title, md)
-          }
+          // 一律按当前命名规则生成新路径（纯标题，重名追加后缀）；
+          // 不写回历史带时间戳的旧路径，索引的 filePath 随之更新
+          const filePath = createLocalDraft(root, title, md)
           upsertArticle({
             ...(existing ?? {
               cid,
