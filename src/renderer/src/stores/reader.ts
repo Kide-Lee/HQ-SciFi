@@ -36,6 +36,11 @@ interface ReaderState {
   listLoading: boolean
   listError: string | null
   listOrder: string
+  /**
+   * 是否还有下一页。注意：selectContents 的 total 不可靠（实测 total=20 但第 2 页仍有数据），
+   * 用「本页返回条数 == limit」判断；首屏置 true 直至某页返回不足一页。
+   */
+  listHasMore: boolean
 
   openArticle: (cid: string) => Promise<void>
   closeArticle: () => void
@@ -66,6 +71,7 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
   listLoading: false,
   listError: null,
   listOrder: 'created',
+  listHasMore: true,
 
   openArticle: async (cid) => {
     if (get().readingCid === cid && get().detail) return
@@ -122,21 +128,26 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
   loadList: async (opts = {}) => {
     const append = opts.append ?? false
     const page = append ? get().listPage + 1 : 1
+    const limit = 20
     set({ listLoading: true, listError: null })
     try {
       const res = await window.hqsf.listRemoteArticles({
         searchParams: opts.searchParams,
         mid: opts.mid,
         order: opts.order ?? get().listOrder,
-        limit: 20,
+        limit,
         page
       })
       if (res.ok) {
+        const items = res.data.items
+        // selectContents 的 total 不可靠：返回不足一页才算没有更多
+        const hasMore = items.length >= limit
         set({
-          list: append ? [...get().list, ...res.data.items] : res.data.items,
+          list: append ? [...get().list, ...items] : items,
           listTotal: res.data.total,
           listPage: page,
-          listLoading: false
+          listLoading: false,
+          listHasMore: hasMore
         })
       } else {
         set({ listError: res.error, listLoading: false })
@@ -157,5 +168,6 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
     })
   },
 
-  clearList: () => set({ list: [], listTotal: 0, listPage: 1, listError: null })
+  clearList: () =>
+    set({ list: [], listTotal: 0, listPage: 1, listError: null, listHasMore: true })
 }))

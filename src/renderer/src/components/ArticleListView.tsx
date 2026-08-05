@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { ARTICLE_ORDERS, useReaderStore } from '../stores/reader'
 import { cachedImageUrl, formatTs } from '../lib/sanitize'
 import { ErrorBanner } from './ErrorBanner'
@@ -7,6 +7,7 @@ import type { RemoteArticle } from '../../../shared/types'
 /**
  * 文章列表视图（作品库/浏览入口）：
  * 拉取远端文章列表（contentsList 或 getMetaContents 分类），点击进入阅读视图。
+ * 懒加载：底部哨兵进入视口（提前 240px）自动加载下一页，无需按钮。
  * M3 将接入推荐/连载/活动等栏目，此组件作为通用列表载体。
  */
 export function ArticleListView({
@@ -23,16 +24,20 @@ export function ArticleListView({
   const listLoading = useReaderStore((s) => s.listLoading)
   const listError = useReaderStore((s) => s.listError)
   const listOrder = useReaderStore((s) => s.listOrder)
+  const listHasMore = useReaderStore((s) => s.listHasMore)
   const loadList = useReaderStore((s) => s.loadList)
   const setOrder = useReaderStore((s) => s.setOrder)
   const clearList = useReaderStore((s) => s.clearList)
   const openArticle = useReaderStore((s) => s.openArticle)
   const readingCid = useReaderStore((s) => s.readingCid)
 
-  const [loadingMore, setLoadingMore] = useState(false)
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
+  /** 防重入：加载进行中不重复触发（IntersectionObserver 回调无 state 闭包问题） */
+  const loadingRef = useRef(false)
 
   // 榜单（非时间排序）显示排名
   const isRanked = listOrder !== 'created'
+  const hasMore = listHasMore && list.length > 0
 
   // 切换栏目时重拉列表
   useEffect(() => {
@@ -41,12 +46,25 @@ export function ArticleListView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mid, JSON.stringify(searchParams)])
 
-  async function handleLoadMore(): Promise<void> {
-    if (listLoading || loadingMore) return
-    setLoadingMore(true)
-    await loadList({ mid, searchParams, append: true })
-    setLoadingMore(false)
-  }
+  // 无限滚动：哨兵进入视口（提前 240px）自动加载下一页
+  useEffect(() => {
+    const sentinel = sentinelRef.current
+    // 无更多、首屏加载中、或出错了都不触发自动加载
+    if (!sentinel || !hasMore || (listLoading && list.length === 0) || listError) return
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting || loadingRef.current || listLoading) return
+        loadingRef.current = true
+        void loadList({ mid, searchParams, append: true }).finally(() => {
+          loadingRef.current = false
+        })
+      },
+      { rootMargin: '240px 0px' }
+    )
+    obs.observe(sentinel)
+    return () => obs.disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mid, JSON.stringify(searchParams), listOrder, hasMore, listLoading, listError])
 
   return (
     <div className="article-list-view">
@@ -83,16 +101,14 @@ export function ArticleListView({
         ))}
       </div>
 
-      {list.length > 0 && list.length < listTotal && (
-        <div className="list-more">
-          <button className="toolbar-btn" onClick={() => void handleLoadMore()} disabled={listLoading || loadingMore}>
-            {loadingMore ? '加载中 …' : '加载更多'}
-          </button>
-          <span className="muted">
-            {list.length} / {listTotal}
-          </span>
-        </div>
-      )}
+      {/* 加载哨兵：滚近底部自动加载下一页 */}
+      <div className="list-more" ref={sentinelRef}>
+        {list.length > 0 && !listHasMore ? (
+          <span className="muted">已加载全部 {list.length} 篇</span>
+        ) : listLoading && list.length > 0 ? (
+          <span className="muted">加载中 …</span>
+        ) : null}
+      </div>
     </div>
   )
 }
