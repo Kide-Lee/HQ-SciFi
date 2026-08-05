@@ -154,6 +154,9 @@ export function EditorPane(): React.JSX.Element {
               {e}
             </div>
           ))}
+          <div className="sync-error-hint">
+            提示：若持续「文章暂未公开访问 / 该文章不存在」，多为登录态过期 —— 请点侧栏「退出」后重新登录再试
+          </div>
         </div>
       )}
 

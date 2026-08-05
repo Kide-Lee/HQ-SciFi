@@ -744,3 +744,12 @@ body {
   border-radius: 50%;
   object-fit: cover;
 }
+
+.sync-error-hint {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed #f0d0d0;
+  font-size: 11px;
+  color: #9a6b66;
+  line-height: 1.5;
+}
