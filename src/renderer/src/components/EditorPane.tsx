@@ -20,6 +20,7 @@ export function EditorPane(): React.JSX.Element {
   const close = useEditorStore((s) => s.close)
   const push = useDocsStore((s) => s.push)
   const pushing = useDocsStore((s) => s.pushing)
+  const refreshLocal = useDocsStore((s) => s.refreshLocal)
   const docError = useDocsStore((s) => s.error)
   const clearDocError = useDocsStore((s) => s.clearError)
   const lastPull = useDocsStore((s) => s.lastPull)
@@ -101,6 +102,8 @@ export function EditorPane(): React.JSX.Element {
       setShowNew(false)
       setNewTitle('')
       showToast('已新建本地草稿')
+      // 新文件已落盘：刷新本地目录树，让侧栏「本地存档」即时出现该草稿
+      await refreshLocal()
     }
   }
 

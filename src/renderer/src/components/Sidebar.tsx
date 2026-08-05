@@ -42,6 +42,13 @@ export function Sidebar(): React.JSX.Element {
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
+  // 打开/新建本地文档时自动展开「本地存档」组，确保当前文件在树中可见
+  useEffect(() => {
+    if (currentPath) {
+      setExpanded((prev) => (prev.has('local') ? prev : new Set(prev).add('local')))
+    }
+  }, [currentPath])
+
   useEffect(() => {
     void refreshLocal()
     void refreshArticles()
