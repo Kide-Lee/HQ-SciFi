@@ -159,11 +159,14 @@ function ArticleCard({
             ) : null}
             {authorName}
           </span>
-          {article.views ? <span>· {article.views} 阅读</span> : null}
-          {article.likes ? <span>· {article.likes} 赞</span> : null}
-          {article.commentsNum ? <span>· {article.commentsNum} 评论</span> : null}
-          {article.score && article.score !== '-.-' ? <span className="card-score">· 评分 {article.score}</span> : null}
-          {article.created ? <span>· {formatTs(article.created)}</span> : null}
+          {/* 统计组：靠右对齐，跨卡片右缘对齐 */}
+          <span className="article-card-stats">
+            {article.views ? <span>{article.views} 阅读</span> : null}
+            {article.likes ? <span>{article.likes} 赞</span> : null}
+            {article.commentsNum ? <span>{article.commentsNum} 评论</span> : null}
+            {article.score && article.score !== '-.-' ? <span className="card-score">{article.score} 分</span> : null}
+            {article.created ? <span>{formatTs(article.created)}</span> : null}
+          </span>
         </div>
       </div>
     </button>

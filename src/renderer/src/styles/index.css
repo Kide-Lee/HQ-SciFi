@@ -1403,6 +1403,20 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 统计组（阅读/赞/评论/时间）：靠右对齐，跨卡片右缘对齐 */
+.article-card-stats {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  color: var(--text-muted);
 }
 
 .author-avatar {
