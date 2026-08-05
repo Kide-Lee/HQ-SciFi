@@ -85,13 +85,31 @@ async function listRemote(token: string, authorId: string, type: string): Promis
   return items
 }
 
-/** 拉取全文（HTML；contentsInfo 需登录）。markdown==1 时 text 为 md 原文 */
+/**
+ * 拉取全文（HTML；contentsInfo 需登录）。markdown==1 时 text 为 md 原文。
+ * 「该文章不存在」是匿名访问时的响应（api-research.md 已注明），说明 token/cid 未生效：
+ * h5 详情接口为 GET + query 参数，此前用 POST form 被服务器忽略参数；改为 GET 优先、
+ * 失败自动回退 POST（两种形态都试，避免接口形态判断错一次就全部失败）。
+ */
 async function fetchFullText(token: string, cid: string): Promise<{ html: string; markdown: boolean }> {
-  const resp = await apiRequest<{ text?: string; markdown?: number }>('hqContents/contentsInfo', {
-    method: 'POST',
-    body: { token, cid }
-  })
-  return { html: resp.data?.text ?? '', markdown: (resp.data?.markdown ?? 0) === 1 }
+  const attempt = async (method: 'GET' | 'POST') => {
+    const resp = await apiRequest<{ text?: string; markdown?: number }>('hqContents/contentsInfo', {
+      method,
+      query: method === 'GET' ? { token, cid } : undefined,
+      body: method === 'POST' ? { token, cid } : undefined
+    })
+    return { html: resp.data?.text ?? '', markdown: (resp.data?.markdown ?? 0) === 1 }
+  }
+  try {
+    return await attempt('GET')
+  } catch (err) {
+    const first = (err as Error).message
+    try {
+      return await attempt('POST')
+    } catch (err2) {
+      throw new Error(`contentsInfo 失败（GET/POST 均试过）: [GET] ${first} | [POST] ${(err2 as Error).message}`)
+    }
+  }
 }
 
 const turndown = new TurndownService({
