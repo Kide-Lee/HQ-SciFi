@@ -142,4 +142,7 @@
 - [ ] gpt 对话接口的请求/响应格式（SSE 或轮询）
 - [ ] `review/reviewTask` 任务化评审的规则（评分体系如何结算；页面文案已见分配算法说明）
 - [ ] `contentsAdd` 返回 `data:1` 而非 cid 时，客户端新建→回查匹配 cid 的可靠策略（标题+modified 匹配）
-- [ ] `addReview` 提交体的五维字段名与 UI 新标签（设定/情节/思想性）的映射
+- [x] `addReview` 提交体的五维字段名与 UI 新标签映射（**2026-08 官方 h5 包静态核对**：UI 标签 设定/文笔/人物/情节/思想 对应字段 `dianzi/wenbi/renwu/jiezou/liyi`；提交为 **GET + params JSON**，参数 `{dianzi,wenbi,renwu,jiezou,liyi, zonghe(选填), dianziScore,wenbiScore,renwuScore,jiezouScore,liyiScore(0-10), cid, activeid, score}`，其中 `score` 为逗号分隔分数串（顺序 dianzi,wenbi,jiezou,renwu,liyi）；edit 带 `id`；校验：五维评语各 ≥10 字）
+- [x] `reviewList` 过滤参数（官方 h5 包核对：GET，`searchParams={cid}` 或 `{activeid}` 或 `{}` + `limit/order/page`，匿名可读；条目含 `score` 分数串、`articleInfo`、`userJson`、`attitudeType`、`isAi`、`joy/helpful/earnest` 计数）
+- [x] `attitude` 参数（`{token, id(评审id), type}`，type 0=joy 开心 / 1=helpful 有用 / 2=earnest 认真）
+- [x] 作品库分类列表取数（官方 h5 包核对：分类页 `getMetaContents` `{mid}` 或 `contentsList {type:"post"}` + `order`：score/likes/commentsNum/views/created/replyTime；分类树 = `metasList type=category` 拿 mid）

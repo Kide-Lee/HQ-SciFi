@@ -3,15 +3,18 @@ import { SECTION_LABELS, TopSection, useUiStore } from '../stores/ui'
 import { useAuthStore } from '../stores/auth'
 import { useDocsStore } from '../stores/docs'
 import { useEditorStore } from '../stores/editor'
+import { useReaderStore } from '../stores/reader'
 import type { ArticleRow } from '../../../shared/types'
 
 const SECTIONS: TopSection[] = ['writing', 'recommend', 'serial', 'activity', 'library']
 
-const SECTION_TREE: Record<Exclude<TopSection, 'writing'>, string[]> = {
+/** 作品库分类节点（M2 动态拉取 metasList type=category 后填充） */
+const LIBRARY_DEFAULT = ['原创作品', '科幻杂谈', '官方公告', '外文翻译']
+
+const SECTION_TREE: Record<Exclude<TopSection, 'writing' | 'library'>, string[]> = {
   recommend: ['AI模型', '精选'],
   serial: ['合集', '连载'],
-  activity: ['荒启练笔第二十四期', '荒启练笔第二十三期', '荒启练笔第二十二期', '……'],
-  library: ['原创作品', '科幻杂谈', '官方公告', '外文翻译']
+  activity: ['荒启练笔第二十四期', '荒启练笔第二十三期', '荒启练笔第二十二期', '……']
 }
 
 /** 远端四态分组定义 */
@@ -27,6 +30,7 @@ export function Sidebar(): React.JSX.Element {
   const selectedId = useUiStore((s) => s.selectedId)
   const setSection = useUiStore((s) => s.setSection)
   const setSelectedId = useUiStore((s) => s.setSelectedId)
+  const openList = useUiStore((s) => s.openList)
 
   const session = useAuthStore((s) => s.session)
   const logout = useAuthStore((s) => s.logout)
@@ -39,8 +43,13 @@ export function Sidebar(): React.JSX.Element {
   const lastPull = useDocsStore((s) => s.lastPull)
   const openDoc = useEditorStore((s) => s.open)
   const currentPath = useEditorStore((s) => s.currentPath)
+  const openArticle = useReaderStore((s) => s.openArticle)
+  const closeArticle = useReaderStore((s) => s.closeArticle)
+  const readingCid = useReaderStore((s) => s.readingCid)
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  /** 作品库分类（metasList type=category 实测返回 mid，作为列表过滤参数） */
+  const [libraryCats, setLibraryCats] = useState<Array<{ mid: number | string; name: string }>>([])
 
   // 打开/新建本地文档时自动展开「本地存档」组，确保当前文件在树中可见
   useEffect(() => {
@@ -54,6 +63,17 @@ export function Sidebar(): React.JSX.Element {
     void refreshArticles()
   }, [refreshLocal, refreshArticles])
 
+  // 首次进入作品库时拉真实分类列表（含 mid）
+  useEffect(() => {
+    if (section === 'library' && libraryCats.length === 0) {
+      void window.hqsf.listCategories().then((res) => {
+        if (res.ok && res.data.length > 0) {
+          setLibraryCats(res.data.map((c) => ({ mid: c.mid, name: c.name })))
+        }
+      })
+    }
+  }, [section, libraryCats.length])
+
   async function handleOpenLocal(path: string): Promise<void> {
     setSelectedId(path)
     await openDoc(path)
@@ -65,8 +85,13 @@ export function Sidebar(): React.JSX.Element {
       return
     }
     setSelectedId(`remote:${row.cid}`)
-    // M1 无本地文件的远端文章（待审核/已发布/已拒绝）阅读视图 M2 接入
-    alert(`「${row.title}」的阅读视图将在 M2 接入`)
+    void openArticle(row.cid)
+  }
+
+  /** 打开作品库分类列表 */
+  function handleOpenLibraryCat(name: string, mid?: number | string): void {
+    closeArticle()
+    openList({ title: name, ...(mid != null ? { mid } : { searchParams: { type: 'post' } }) })
   }
 
   const info = session?.userinfo ?? {}
@@ -122,7 +147,10 @@ export function Sidebar(): React.JSX.Element {
             <button
               key={key}
               className={`nav-item ${section === key ? 'active' : ''}`}
-              onClick={() => setSection(key)}
+              onClick={() => {
+                closeArticle()
+                setSection(key)
+              }}
             >
               {SECTION_LABELS[key]}
             </button>
@@ -210,12 +238,28 @@ export function Sidebar(): React.JSX.Element {
               </div>
             ))}
           </div>
+        ) : section === 'library' ? (
+          (libraryCats.length > 0
+            ? libraryCats.map((c) => ({ mid: c.mid as number | string | undefined, name: c.name }))
+            : LIBRARY_DEFAULT.map((n) => ({ mid: undefined, name: n }))
+          ).map((cat) => (
+            <button
+              key={cat.name}
+              className={`tree-node ${selectedId === cat.name ? 'active' : ''}`}
+              onClick={() => handleOpenLibraryCat(cat.name, cat.mid)}
+            >
+              {cat.name}
+            </button>
+          ))
         ) : (
-          SECTION_TREE[section as Exclude<TopSection, 'writing'>].map((node) => (
+          SECTION_TREE[section as Exclude<TopSection, 'writing' | 'library'>].map((node) => (
             <button
               key={node}
               className={`tree-node ${selectedId === node ? 'active' : ''}`}
-              onClick={() => setSelectedId(node)}
+              onClick={() => {
+                closeArticle()
+                setSelectedId(node)
+              }}
             >
               {node}
             </button>

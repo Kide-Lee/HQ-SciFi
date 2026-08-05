@@ -91,3 +91,127 @@ export interface LocalNode {
   isDir: boolean
   children?: LocalNode[]
 }
+
+// ---------- 阅读与评审（M2 读审一体） ----------
+
+/** 文章列表条目（contentsList data 项，字段见 api-research.md） */
+export interface RemoteArticle {
+  cid: string
+  title: string
+  type: string
+  status: string
+  /** 评分（"3.9" / 未评 "-.-"） */
+  score: string
+  /** 400 字纯文本摘要（无 HTML 标签） */
+  text: string
+  authorId: string
+  authorInfo?: Record<string, unknown>
+  category?: unknown
+  tag?: unknown
+  collection?: unknown
+  cover?: string
+  introduction?: string
+  views: number
+  likes: number
+  commentsNum: number
+  created: number
+  modified: number
+  isAnonymous?: boolean
+  /** 关联活动（active[0].mid） */
+  active?: Array<{ mid: number | string }> | null
+  /** 字数（列表条目可选） */
+  size?: number
+}
+
+/** 文章详情（contentsInfo 裸对象；text 为完整 HTML 正文） */
+export interface ArticleDetail {
+  cid: string
+  title: string
+  /** 完整正文（Quill HTML，isMd:0） */
+  text: string
+  score: string
+  authorId: string
+  userJson?: Record<string, unknown>
+  views: number
+  likes: number
+  commentsNum: number
+  created: number
+  modified: number
+  size?: number
+  isAnonymous?: boolean
+  category?: unknown
+  active?: Array<{ mid: number | string }> | null
+  markdown?: number
+}
+
+/** 文章列表拉取选项（contentsList / getMetaContents） */
+export interface ArticleListOptions {
+  /** searchParams JSON 对象（type/category/mid/authorId 等，服务端过滤） */
+  searchParams?: Record<string, unknown>
+  /** 分类 mid（走 getMetaContents 拉分类文章） */
+  mid?: number | string
+  limit?: number
+  page?: number
+  order?: string
+  searchKey?: string
+}
+
+/** 评审条目（reviewList data 项） */
+export interface ReviewItem {
+  id: number | string
+  /** 被评审文章 cid */
+  cid?: number | string
+  activeid?: number | string
+  isAi?: number
+  attitudeType?: number
+  /** 综合得分 */
+  actualscore?: string
+  /** 逗号分隔五维分数串（dianzi,wenbi,jiezou,renwu,liyi） */
+  score?: string
+  /** 五维评语（dianzi=设定 / wenbi=文笔 / renwu=人物 / jiezou=情节 / liyi=思想性） */
+  dianzi?: string
+  wenbi?: string
+  renwu?: string
+  jiezou?: string
+  liyi?: string
+  /** 综合评价（选填） */
+  zonghe?: string
+  /** 态度计数（joy 开心 / helpful 有用 / earnest 认真） */
+  joy?: number
+  helpful?: number
+  earnest?: number
+  userJson?: Record<string, unknown>
+  /** 被评审文章信息（reviewList 的 articleInfo） */
+  articleInfo?: Record<string, unknown>
+  created?: number
+}
+
+/** 提交/编辑评审载荷（addReview / editReview 的 params JSON） */
+export interface ReviewPayload {
+  /** 五维评语（各 ≥10 字） */
+  dianzi: string
+  wenbi: string
+  renwu: string
+  jiezou: string
+  liyi: string
+  /** 综合评价（选填） */
+  zonghe?: string
+  /** 五维评分 0-10 */
+  dianziScore: number
+  wenbiScore: number
+  renwuScore: number
+  jiezouScore: number
+  liyiScore: number
+  /** 目标文章 cid */
+  cid: string
+  /** 关联活动 mid（无活动传 0） */
+  activeid?: number | string
+  /** 编辑已有评审时传评审 id */
+  id?: number | string
+}
+
+/** 评审提交结果 */
+export interface ReviewSubmitResult {
+  ok: boolean
+  error?: string
+}

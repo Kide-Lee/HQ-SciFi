@@ -1,20 +1,32 @@
 import type {
   ApiResult,
+  ArticleDetail,
+  ArticleListOptions,
   ArticleRow,
   LocalNode,
   LoginResult,
   PullResult,
   PushResult,
+  RemoteArticle,
+  ReviewItem,
+  ReviewPayload,
+  ReviewSubmitResult,
   UserSession
 } from '../shared/types'
 
 export type {
   ApiResult,
+  ArticleDetail,
+  ArticleListOptions,
   ArticleRow,
   LocalNode,
   LoginResult,
   PullResult,
   PushResult,
+  RemoteArticle,
+  ReviewItem,
+  ReviewPayload,
+  ReviewSubmitResult,
   UserSession
 }
 
@@ -44,6 +56,16 @@ export interface HqsfApi {
   createLocalDraft: (title: string, content: string) => Promise<ApiResult<string>>
   chooseDocsDir: () => Promise<ApiResult<string | null>>
   listArticles: () => Promise<ApiResult<ArticleRow[]>>
+  listRemoteArticles: (opts?: ArticleListOptions) => Promise<ApiResult<{ items: RemoteArticle[]; total: number }>>
+  getRemoteArticle: (cid: string) => Promise<ApiResult<ArticleDetail>>
+  listReviews: (opts?: { cid?: string; activeid?: number | string; limit?: number; page?: number; order?: string }) => Promise<
+    ApiResult<{ items: ReviewItem[]; total: number }>
+  >
+  submitReview: (payload: ReviewPayload) => Promise<ApiResult<ReviewSubmitResult>>
+  setReviewAttitude: (reviewId: number | string, type: number) => Promise<ApiResult<ReviewSubmitResult>>
+  listCategories: () => Promise<
+    ApiResult<Array<{ mid: number | string; name: string; slug: string; description?: string; count?: number }>>
+  >
 }
 
 declare global {

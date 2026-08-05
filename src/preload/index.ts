@@ -1,5 +1,19 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { ApiResult, ArticleRow, LocalNode, LoginResult, PullResult, PushResult, UserSession } from '../shared/types'
+import type {
+  ApiResult,
+  ArticleDetail,
+  ArticleListOptions,
+  ArticleRow,
+  LocalNode,
+  LoginResult,
+  PullResult,
+  PushResult,
+  RemoteArticle,
+  ReviewItem,
+  ReviewPayload,
+  ReviewSubmitResult,
+  UserSession
+} from '../shared/types'
 
 /**
  * 暴露给渲染进程的白名单 API（window.hqsf）。
@@ -40,7 +54,24 @@ const api = {
   chooseDocsDir: (): Promise<ApiResult<string | null>> => ipcRenderer.invoke('hqsf:choose-docs-dir'),
 
   // ---- 四态索引 ----
-  listArticles: (): Promise<ApiResult<ArticleRow[]>> => ipcRenderer.invoke('hqsf:list-articles')
+  listArticles: (): Promise<ApiResult<ArticleRow[]>> => ipcRenderer.invoke('hqsf:list-articles'),
+
+  // ---- 阅读（M2） ----
+  listRemoteArticles: (opts?: ArticleListOptions): Promise<ApiResult<{ items: RemoteArticle[]; total: number }>> =>
+    ipcRenderer.invoke('hqsf:list-remote-articles', opts),
+  getRemoteArticle: (cid: string): Promise<ApiResult<ArticleDetail>> =>
+    ipcRenderer.invoke('hqsf:get-remote-article', cid),
+
+  // ---- 评审（M2） ----
+  listReviews: (opts?: { cid?: string; activeid?: number | string; limit?: number; page?: number; order?: string }): Promise<
+    ApiResult<{ items: ReviewItem[]; total: number }>
+  > => ipcRenderer.invoke('hqsf:list-reviews', opts),
+  submitReview: (payload: ReviewPayload): Promise<ApiResult<ReviewSubmitResult>> =>
+    ipcRenderer.invoke('hqsf:submit-review', payload),
+  setReviewAttitude: (reviewId: number | string, type: number): Promise<ApiResult<ReviewSubmitResult>> =>
+    ipcRenderer.invoke('hqsf:set-review-attitude', reviewId, type),
+  listCategories: (): Promise<ApiResult<Array<{ mid: number | string; name: string; slug: string; description?: string; count?: number }>>> =>
+    ipcRenderer.invoke('hqsf:list-categories')
 }
 
 export type HqsfApi = typeof api
