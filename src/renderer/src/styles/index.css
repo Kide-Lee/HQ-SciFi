@@ -1276,39 +1276,36 @@ body {
   font: inherit;
   cursor: pointer;
   overflow: hidden;
-  position: relative;
 }
 
-/* 榜单排名徽章 */
+/* 榜单排名序号列（不遮挡标题，作为卡片左侧独立列） */
 .article-rank {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  z-index: 5;
-  min-width: 22px;
-  height: 22px;
-  padding: 0 6px;
-  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  flex-shrink: 0;
+  min-width: 44px;
+  padding: 0 8px;
+  font-size: 15px;
   font-weight: 700;
-  color: #fff;
-  background: #9aa3b2;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  color: #9aa3b2;
+  border-right: 1px solid var(--border);
+  background: #fafbfc;
 }
 
 .article-rank.top-1 {
-  background: linear-gradient(135deg, #f6c945, #e0a800);
+  color: #e0a800;
+  background: linear-gradient(180deg, #fff8e1, #fdf0c0);
 }
 
 .article-rank.top-2 {
-  background: linear-gradient(135deg, #c9d2dc, #a3aebc);
+  color: #a3aebc;
+  background: linear-gradient(180deg, #f3f5f8, #e8ecf1);
 }
 
 .article-rank.top-3 {
-  background: linear-gradient(135deg, #e2a76f, #c97f3d);
+  color: #c97f3d;
+  background: linear-gradient(180deg, #fdf0e6, #f8e2d0);
 }
 
 .article-card:hover {
