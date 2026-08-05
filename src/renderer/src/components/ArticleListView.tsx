@@ -31,6 +31,9 @@ export function ArticleListView({
 
   const [loadingMore, setLoadingMore] = useState(false)
 
+  // 榜单（非时间排序）显示排名
+  const isRanked = listOrder !== 'created'
+
   // 切换栏目时重拉列表
   useEffect(() => {
     clearList()
@@ -69,8 +72,14 @@ export function ArticleListView({
         {!listLoading && list.length === 0 && !listError && (
           <div className="list-empty muted">（该栏目暂无文章）</div>
         )}
-        {list.map((a) => (
-          <ArticleCard key={a.cid} article={a} active={readingCid === a.cid} onOpen={() => void openArticle(a.cid)} />
+        {list.map((a, idx) => (
+          <ArticleCard
+            key={a.cid}
+            article={a}
+            rank={isRanked ? idx + 1 : undefined}
+            active={readingCid === a.cid}
+            onOpen={() => void openArticle(a.cid)}
+          />
         ))}
       </div>
 
@@ -90,10 +99,13 @@ export function ArticleListView({
 
 function ArticleCard({
   article,
+  rank,
   active,
   onOpen
 }: {
   article: RemoteArticle
+  /** 榜单排名（非时间排序时传入，1 起） */
+  rank?: number
   active: boolean
   onOpen: () => void
 }): React.JSX.Element {
@@ -106,9 +118,14 @@ function ArticleCard({
   const cover = coverRaw && /^https?:\/\//i.test(coverRaw) ? cachedImageUrl(coverRaw) : undefined
   return (
     <button className={`article-card ${active ? 'active' : ''}`} onClick={onOpen}>
+      {rank != null && (
+        <span className={`article-rank ${rank <= 3 ? `top-${rank}` : ''}`} title={`第 ${rank} 名`}>
+          {rank}
+        </span>
+      )}
       {cover ? (
         <div className="article-card-cover">
-          <img src={cachedImageUrl(cover)} alt="" loading="lazy" referrerPolicy="no-referrer" />
+          <img src={cover} alt="" loading="lazy" referrerPolicy="no-referrer" />
         </div>
       ) : null}
       <div className="article-card-body">

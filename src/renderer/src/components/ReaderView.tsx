@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useReaderStore } from '../stores/reader'
 import { useAuthStore } from '../stores/auth'
 import { formatSize, formatTs, expandMediaTags, sanitizeHtml } from '../lib/sanitize'
@@ -29,6 +29,24 @@ export function ReaderView(): React.JSX.Element {
   }, [detail?.cid])
 
   const safeHtml = useMemo(() => (detail ? expandMediaTags(sanitizeHtml(detail.text)) : ''), [detail])
+  const bodyRef = useRef<HTMLElement | null>(null)
+
+  // 横长图处理：宽/高比 ≥ 2 的图放大高度、宽度溢出裁掉（object-fit: cover 由 CSS 实现）
+  useEffect(() => {
+    const body = bodyRef.current
+    if (!body) return
+    const imgs = Array.from(body.querySelectorAll('img'))
+    if (imgs.length === 0) return
+    const markWide = (img: HTMLImageElement): void => {
+      if (img.naturalWidth > 0 && img.naturalWidth / img.naturalHeight >= 2) {
+        img.classList.add('reader-img-wide')
+      }
+    }
+    for (const img of imgs) {
+      if (img.complete) markWide(img)
+      else img.addEventListener('load', () => markWide(img), { once: true })
+    }
+  }, [safeHtml, detail?.cid])
 
   const myUid = String(session?.userinfo?.uid ?? session?.userinfo?.id ?? '')
   const isMine = !!detail && myUid !== '' && String(detail.authorId) === myUid
@@ -75,6 +93,7 @@ export function ReaderView(): React.JSX.Element {
             )}
           </header>
           <article
+            ref={bodyRef}
             className="reader-body"
             // 正文已经 sanitizeHtml 白名单净化，无脚本/事件/危险协议
             dangerouslySetInnerHTML={{ __html: safeHtml }}
