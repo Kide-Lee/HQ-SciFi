@@ -423,8 +423,10 @@ body {
 }
 
 .sync-summary {
+  display: block;
   font-size: 11px;
   color: var(--text-muted);
+  padding: 2px 8px 8px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

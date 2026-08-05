@@ -141,13 +141,15 @@ export function Sidebar(): React.JSX.Element {
               >
                 📂 打开目录
               </button>
-              {lastPull && (
-                <span className="sync-summary">
-                  拉取 {lastPull.pulled} · 冲突 {lastPull.conflicts}
-                  {lastPull.errors.length > 0 ? ` · ${lastPull.errors.length} 处失败（详情见编辑器顶部）` : ''}
-                </span>
-              )}
             </div>
+            {lastPull && (
+              <div className="sync-summary">
+                拉取 {lastPull.pulled} · 冲突 {lastPull.conflicts}
+                {lastPull.errors.length > 0
+                  ? ` · 失败 ${lastPull.errors.length} 处（详情见编辑器顶部）`
+                  : ''}
+              </div>
+            )}
 
             {/* 本地存档 */}
             <div className="tree-group">
