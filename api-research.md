@@ -28,7 +28,7 @@
 | `apiLogin` | `{nickName, appLoginType, headImgUrl, openId/accessToken}` | 第三方登录，`appLoginType` 取值 `qq` / `weixin` / `SINAWEIBO` |
 | `getScan` / `setScan` / `getScanStatus` | — | 扫码登录（客户端可考虑实现） |
 | `signOut` | `token` | 退出登录 |
-| `userInfo` / `userData` / `userStatus` | `token` | 用户信息/状态 |
+| `userInfo` / `userData` / `userStatus` | `key`（uid） | 用户信息/状态。注意：**参数是 `key`=uid 而非 token**（GET，已从 h5 实测）；token 校验不能靠它 |
 | `regConfig` / `userRegister` / `getInvitationCode` | — | 注册相关（有邀请码机制 `isInvite:1`） |
 
 ## 3. 写作与发布（hqContents/、hqForum/）
@@ -39,7 +39,7 @@
   - `type` 取值：`post`（已发布）、`post_draft`（草稿）、`waiting`（待审核）
   - `order` 支持：`created` / `modified` / `commentsNum` / `likes` / `replyTime` / `score` / `views`
   - 返回条目字段（实测）：`cid`、`title`、`type`、`status`（`publish` 等）、`score`（评分，如 `"3.9"`、未评 `"-.-"`）、`markdown`（0/1）、`text`（**400 字纯文本摘要**，无 HTML 标签）、`authorId`、`authorInfo`、`category`、`tag`、`collection`、`cover`、`images`、`introduction`、`slug`、`views`、`likes`、`commentsNum`、`created`、`modified`、`replyTime`、`isopen`、`istop`、`isrecommend`、`isswiper`、`isAnonymous`、`allowComment`、`allowPing`、`allowFeed`、`parent`、`shop`、`size`、`honor`、`fields`、`active`、`orderKey` 等
-- **详情**（需登录）：`hqContents/contentsInfo`，参数 `{token, cid}`（匿名访问返回「该文章不存在」）。完整正文（HTML）与其余字段在此获取
+- **详情**（需登录）：`hqContents/contentsInfo`，**GET**，参数 `{key, isMd, token}`（`key` 即文章 cid；`isMd:0` 固定。已从 h5 `pages-contents-info` chunk 实测确认；**参数名是 `key` 而非 `cid`/`id`**）。匿名/参数错时返回「该文章不存在」。完整正文（HTML）与其余字段在此获取
 - **新增/更新**（需登录）：`hqContents/contentsAdd` / `contentsUpdate`，POST 参数（从官方编辑器 edit.html 确认）：
   ```js
   {

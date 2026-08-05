@@ -87,29 +87,16 @@ async function listRemote(token: string, authorId: string, type: string): Promis
 
 /**
  * 拉取全文（HTML；contentsInfo 需登录）。markdown==1 时 text 为 md 原文。
- * 「该文章不存在」是匿名访问时的响应（api-research.md 已注明）。
- * GET/POST 均试仍失败时，再叠加参数名 cid/id 组合（共 4 种），全部失败则报汇总信息，
- * 便于区分「接口形态」「参数名」「token 有效性」三类问题。
+ * 参数已从 h5 前端包实测确认（pages-contents-info chunk）：
+ *   GET hqContents/contentsInfo?key=<cid>&isMd=0&token=<token>
+ * 此前用 cid/id 作参数名，服务器查不到文章 → 报「该文章不存在」。
  */
 async function fetchFullText(token: string, cid: string): Promise<{ html: string; markdown: boolean }> {
-  const errors: string[] = []
-  const methods = ['GET', 'POST'] as const
-  const keys = ['cid', 'id'] as const
-  for (const method of methods) {
-    for (const key of keys) {
-      try {
-        const resp = await apiRequest<{ text?: string; markdown?: number }>('hqContents/contentsInfo', {
-          method,
-          query: method === 'GET' ? { token, [key]: cid } : undefined,
-          body: method === 'POST' ? { token, [key]: cid } : undefined
-        })
-        return { html: resp.data?.text ?? '', markdown: (resp.data?.markdown ?? 0) === 1 }
-      } catch (err) {
-        errors.push(`[${method}/${key}] ${(err as Error).message}`)
-      }
-    }
-  }
-  throw new Error(`contentsInfo 拉取失败（4 种组合均试）: ${errors.join(' | ')}`)
+  const resp = await apiRequest<{ text?: string; markdown?: number }>('hqContents/contentsInfo', {
+    method: 'GET',
+    query: { key: cid, isMd: 0, token }
+  })
+  return { html: resp.data?.text ?? '', markdown: (resp.data?.markdown ?? 0) === 1 }
 }
 
 const turndown = new TurndownService({
