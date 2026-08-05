@@ -62,9 +62,7 @@ export function ArticleListView({
         </div>
       </div>
 
-      {listError && (
-        <ErrorBanner title="列表加载失败" message={listError} hint="若持续报错，多为登录态过期 —— 请点侧栏「退出」后重新登录再试" />
-      )}
+      {listError && <ErrorBanner title="列表加载失败" message={listError} />}
 
       <div className="article-list">
         {listLoading && list.length === 0 && <div className="list-empty muted">加载中 …</div>}

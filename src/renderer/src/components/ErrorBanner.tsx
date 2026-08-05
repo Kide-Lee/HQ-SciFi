@@ -1,10 +1,25 @@
 import { useState } from 'react'
 
 /**
- * 统一错误提示条（M2 收尾：合并「同步失败」与「阅读/列表/评审」两套报错展示）。
- * 形态：标题 + 主消息 + 明细行（可选）+ 复制报错按钮 + 提示语（可选）+ 关闭（可选）。
- * 复制内容 = 标题 + 全部明细/消息，便于反馈给开发排查。
+ * 按错误内容推断提示语，避免无差别提示「登录态过期」误导排查：
+ * - 网络/服务端异常（404/Not Found/网络请求失败）→ 提示重试
+ * - 登录相关（未登录/登录态/该文章不存在/文章暂未公开）→ 提示重新登录
+ * - 其余 → 提示复制报错反馈
  */
+export function errorHint(message: string | undefined): string {
+  const msg = message ?? ''
+  if (/404|Not Found|网络请求失败|服务器|超时|timeout/i.test(msg)) {
+    return '接口或网络异常，可稍后重试；若仍失败请复制报错反馈'
+  }
+  if (/未登录|登录态|登录已过期|该文章不存在|文章暂未公开|token/i.test(msg)) {
+    return '登录态可能已过期 —— 请点侧栏「退出」后重新登录再试'
+  }
+  return '请复制报错反馈给开发者排查'
+}
+
+/** 统一错误提示条（M2 收尾：合并「同步失败」与「阅读/列表/评审」两套报错展示）。
+ * 形态：标题 + 主消息 + 明细行（可选）+ 复制报错按钮 + 提示语（可选）+ 关闭（可选）。
+ * 复制内容 = 标题 + 全部明细/消息，便于反馈给开发排查。 */
 export function ErrorBanner({
   title = '操作失败',
   message,
@@ -18,16 +33,17 @@ export function ErrorBanner({
   message?: string
   /** 多条明细（同步失败逐条） */
   details?: string[]
-  /** 底部提示语（如登录态过期引导） */
+  /** 底部提示语；不传时按错误内容自动推断（errorHint） */
   hint?: string
   /** 关闭按钮回调；不传则不显示关闭按钮 */
   onDismiss?: () => void
 }): React.JSX.Element {
   const [copied, setCopied] = useState(false)
   const lines = details.length > 0 ? details : message ? [message] : []
+  const hintText = hint ?? errorHint(message ?? (details[0] ?? ''))
 
   async function handleCopy(): Promise<void> {
-    const text = [title, ...lines, hint ?? ''].filter(Boolean).join('\n')
+    const text = [title, ...lines, hintText ?? ''].filter(Boolean).join('\n')
     try {
       const res = await window.hqsf.copyText(text)
       if (res.ok) {
@@ -61,7 +77,7 @@ export function ErrorBanner({
           {line}
         </div>
       ))}
-      {hint && <div className="error-banner-hint">{hint}</div>}
+      {hintText && <div className="error-banner-hint">{hintText}</div>}
     </div>
   )
 }

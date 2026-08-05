@@ -139,11 +139,7 @@ export function EditorPane(): React.JSX.Element {
       </div>
 
       {pullErrors.length > 0 && (
-        <ErrorBanner
-          title={`同步失败 ${pullErrors.length} 处`}
-          details={pullErrors}
-          hint="提示：若持续「文章暂未公开访问 / 该文章不存在」，多为登录态过期 —— 请点侧栏「退出」后重新登录再试"
-        />
+        <ErrorBanner title={`同步失败 ${pullErrors.length} 处`} details={pullErrors} />
       )}
 
       {showNew && (

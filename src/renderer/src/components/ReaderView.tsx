@@ -45,7 +45,7 @@ export function ReaderView(): React.JSX.Element {
     return (
       <main className="main-area">
         <div className="reader-error">
-          <ErrorBanner title="阅读失败" message={detailError ?? '未找到文章'} hint="若持续报错，多为登录态过期 —— 请点侧栏「退出」后重新登录再试" />
+          <ErrorBanner title="阅读失败" message={detailError ?? '未找到文章'} />
           <button className="toolbar-btn" onClick={closeArticle}>
             返回
           </button>

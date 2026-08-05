@@ -80,7 +80,7 @@ export async function listRemoteArticles(
 
   if (opts.mid != null) {
     query.searchParams = JSON.stringify({ mid: opts.mid })
-    const resp = await apiRequest<ListData>('hqContents/getMetaContents', {
+    const resp = await apiRequest<ListData>('hqMetas/selectContents', {
       method: 'GET',
       query
     })
