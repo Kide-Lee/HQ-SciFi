@@ -1393,8 +1393,25 @@ body {
   font-size: 11px;
   color: var(--text-muted);
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
   gap: 4px 10px;
+}
+
+/* 作者：小圆头像 + 昵称 */
+.article-card-author {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.author-avatar {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #f0f1f5;
+  flex-shrink: 0;
 }
 
 .card-score {

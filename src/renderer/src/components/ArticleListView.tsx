@@ -129,6 +129,9 @@ function ArticleCard({
   const authorName = String(
     author?.nickname ?? author?.nick ?? author?.nickName ?? author?.name ?? (article.authorId ? `UID ${article.authorId}` : '佚名')
   )
+  // 作者头像（authorInfo.avatar；仅 http(s) 走缓存协议）
+  const avatarRaw = String(author?.avatar ?? author?.headImg ?? author?.avatarUrl ?? '')
+  const avatar = avatarRaw && /^https?:\/\//i.test(avatarRaw) ? cachedImageUrl(avatarRaw) : undefined
   // 封面：images[0] 优先（官方列表字段），cover 兜底；仅 http(s) 图片进缓存协议
   const coverRaw = (article.images && article.images[0]) || article.cover
   const cover = coverRaw && /^https?:\/\//i.test(coverRaw) ? cachedImageUrl(coverRaw) : undefined
@@ -150,7 +153,12 @@ function ArticleCard({
         </div>
         {article.text && <div className="article-card-excerpt">{article.text}</div>}
         <div className="article-card-meta">
-          <span>{authorName}</span>
+          <span className="article-card-author">
+            {avatar ? (
+              <img className="author-avatar" src={avatar} alt="" loading="lazy" referrerPolicy="no-referrer" />
+            ) : null}
+            {authorName}
+          </span>
           {article.views ? <span>· {article.views} 阅读</span> : null}
           {article.likes ? <span>· {article.likes} 赞</span> : null}
           {article.commentsNum ? <span>· {article.commentsNum} 评论</span> : null}
