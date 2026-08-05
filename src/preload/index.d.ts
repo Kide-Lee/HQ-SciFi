@@ -28,6 +28,7 @@ export interface AppInfo {
 export interface HqsfApi {
   ping: () => Promise<string>
   getAppInfo: () => Promise<AppInfo>
+  copyText: (text: string) => Promise<ApiResult<null>>
   loginPassword: (name: string, password: string) => Promise<ApiResult<LoginResult>>
   sendSmsCode: (phone: string) => Promise<ApiResult<{ ok: boolean; error?: string }>>
   loginPhone: (phone: string, code: string) => Promise<ApiResult<LoginResult>>

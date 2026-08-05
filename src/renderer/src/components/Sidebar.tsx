@@ -133,19 +133,10 @@ export function Sidebar(): React.JSX.Element {
               {lastPull && (
                 <span className="sync-summary">
                   拉取 {lastPull.pulled} · 冲突 {lastPull.conflicts}
-                  {lastPull.errors.length > 0 ? ` · ${lastPull.errors.length} 处失败` : ''}
+                  {lastPull.errors.length > 0 ? ` · ${lastPull.errors.length} 处失败（详情见编辑器顶部）` : ''}
                 </span>
               )}
             </div>
-            {lastPull && lastPull.errors.length > 0 && (
-              <div className="sync-errors">
-                {lastPull.errors.map((e, i) => (
-                  <div key={i} className="sync-error">
-                    {e}
-                  </div>
-                ))}
-              </div>
-            )}
 
             {/* 本地存档 */}
             <div className="tree-group">

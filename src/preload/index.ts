@@ -11,6 +11,7 @@ const api = {
   ping: (): Promise<string> => ipcRenderer.invoke('hqsf:ping'),
   getAppInfo: (): Promise<{ version: string; platform: string; arch: string; packaged: boolean }> =>
     ipcRenderer.invoke('hqsf:get-app-info'),
+  copyText: (text: string): Promise<ApiResult<null>> => ipcRenderer.invoke('hqsf:copy-text', text),
 
   // ---- 认证 ----
   loginPassword: (name: string, password: string): Promise<ApiResult<LoginResult>> =>

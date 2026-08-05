@@ -686,26 +686,56 @@ body {
   z-index: 100;
 }
 
-/* ===== M1 修复：同步错误明细 + 头像 ===== */
-.sync-errors {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 4px 8px;
-  margin-bottom: 6px;
+/* ===== M1 修复：同步错误明细（编辑器顶部）+ 头像 ===== */
+.sync-error-banner {
+  margin: 0 16px;
+  margin-top: 10px;
+  padding: 8px 12px;
   background: #fdf3f3;
   border: 1px solid #f5d5d5;
-  border-radius: 6px;
-  max-height: 120px;
-  overflow-y: auto;
+  border-radius: 8px;
 }
 
-.sync-error {
+.sync-error-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.sync-error-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #b03a2e;
+}
+
+.copy-btn {
+  padding: 3px 10px;
+  border: 1px solid #e0b4b4;
+  border-radius: 5px;
+  background: #fff;
+  font: inherit;
   font-size: 11px;
   color: #b03a2e;
-  line-height: 1.5;
+  cursor: pointer;
+}
+
+.copy-btn:hover {
+  background: #fbeaea;
+}
+
+.sync-error-line {
+  font-size: 11px;
+  color: #b03a2e;
+  line-height: 1.6;
   word-break: break-all;
   user-select: text;
+  padding: 2px 0;
+  border-top: 1px dashed #f0d0d0;
+}
+
+.sync-error-line:first-of-type {
+  border-top: none;
 }
 
 .avatar-img {

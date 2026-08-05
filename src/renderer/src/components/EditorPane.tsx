@@ -22,6 +22,7 @@ export function EditorPane(): React.JSX.Element {
   const pushing = useDocsStore((s) => s.pushing)
   const docError = useDocsStore((s) => s.error)
   const clearDocError = useDocsStore((s) => s.clearError)
+  const lastPull = useDocsStore((s) => s.lastPull)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
@@ -31,6 +32,9 @@ export function EditorPane(): React.JSX.Element {
   const [showNew, setShowNew] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [toast, setToast] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+
+  const pullErrors = lastPull?.errors ?? []
 
   // 切换文档时重建编辑器实例
   useEffect(() => {
@@ -100,6 +104,12 @@ export function EditorPane(): React.JSX.Element {
     }
   }
 
+  async function copyErrors(): Promise<void> {
+    await window.hqsf.copyText(pullErrors.join('\n'))
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   const statusLabel = dirty ? '未保存' : synced ? '已同步' : '本地草稿'
   const pushingNow = pushing === currentPath
 
@@ -130,6 +140,22 @@ export function EditorPane(): React.JSX.Element {
           {currentPath ? currentPath.split('/').pop() : ''}
         </span>
       </div>
+
+      {pullErrors.length > 0 && (
+        <div className="sync-error-banner">
+          <div className="sync-error-head">
+            <span className="sync-error-title">同步失败 {pullErrors.length} 处</span>
+            <button className="copy-btn" onClick={() => void copyErrors()}>
+              {copied ? '已复制 ✓' : '复制报错'}
+            </button>
+          </div>
+          {pullErrors.map((e, i) => (
+            <div key={i} className="sync-error-line">
+              {e}
+            </div>
+          ))}
+        </div>
+      )}
 
       {showNew && (
         <div className="new-draft-bar">

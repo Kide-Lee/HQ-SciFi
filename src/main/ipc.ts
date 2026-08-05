@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, clipboard, ipcMain } from 'electron'
 import {
   loginWithPassword,
   loginWithPhone,
@@ -22,6 +22,12 @@ function fail(error: unknown) {
 
 export function registerIpcHandlers(): void {
   ipcMain.handle('hqsf:ping', () => 'pong')
+
+  // 复制文本到系统剪贴板（渲染层 sandbox 下 navigator.clipboard 不可靠，走主进程）
+  ipcMain.handle('hqsf:copy-text', (_e, text: string) => {
+    clipboard.writeText(String(text ?? ''))
+    return ok(null)
+  })
 
   ipcMain.handle('hqsf:get-app-info', () => ({
     version: app.getVersion(),
