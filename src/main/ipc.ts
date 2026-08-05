@@ -1,4 +1,5 @@
 import { app, BrowserWindow, clipboard, ipcMain } from 'electron'
+import { apiRequest } from './net/api'
 import {
   loginWithPassword,
   loginWithPhone,
@@ -77,6 +78,12 @@ export function registerIpcHandlers(): void {
     const token = getStoredToken()
     const uid = String(getSession()?.userinfo?.uid ?? '')
     if (!token || !uid) return fail(new Error('未登录，无法同步'))
+    // token 自检：userInfo 需登录，失败即 token 无效（contentsInfo 报「该文章不存在」的主因）
+    try {
+      await apiRequest('hqUsers/userInfo', { method: 'POST', body: { token } })
+    } catch (err) {
+      return fail(new Error(`登录状态已失效（${(err as Error).message}），请退出后重新登录`))
+    }
     try {
       return ok(await pullRemote(token, uid))
     } catch (err) {
