@@ -768,6 +768,15 @@ body {
   user-select: text;
 }
 
+/* 阅读内容最大宽度：大屏上避免行过长，标题/正文/底部统一限宽居中 */
+.reader-main .reader-header,
+.reader-main .reader-body,
+.reader-main .reader-footer {
+  max-width: 760px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .reader-header {
   margin-bottom: 20px;
   border-bottom: 1px solid var(--border);
