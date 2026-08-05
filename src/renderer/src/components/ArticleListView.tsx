@@ -118,18 +118,20 @@ function ArticleCard({
   const cover = coverRaw && /^https?:\/\//i.test(coverRaw) ? cachedImageUrl(coverRaw) : undefined
   return (
     <button className={`article-card ${active ? 'active' : ''}`} onClick={onOpen}>
-      {rank != null && (
-        <span className={`article-rank ${rank <= 3 ? `top-${rank}` : ''}`} title={`第 ${rank} 名`}>
-          {rank}
-        </span>
-      )}
       {cover ? (
         <div className="article-card-cover">
           <img src={cover} alt="" loading="lazy" referrerPolicy="no-referrer" />
         </div>
       ) : null}
       <div className="article-card-body">
-        <div className="article-card-title">{article.title}</div>
+        <div className="article-card-title">
+          {rank != null && (
+            <span className={`article-rank ${rank <= 3 ? `top-${rank}` : ''}`} title={`第 ${rank} 名`}>
+              {rank}
+            </span>
+          )}
+          <span className="article-card-title-text">{article.title}</span>
+        </div>
         {article.text && <div className="article-card-excerpt">{article.text}</div>}
         <div className="article-card-meta">
           <span>{authorName}</span>
