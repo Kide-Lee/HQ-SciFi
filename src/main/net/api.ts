@@ -24,14 +24,23 @@ export class ApiError extends Error {
 }
 
 /**
- * 通用请求封装：统一走 Chromium 网络栈（net.fetch，支持系统代理），
- * 遵循荒启响应约定 { code, msg, data, total }（code:1 成功）。
+ * 通用请求封装：统一走 Chromium 网络栈（net.fetch，支持系统代理）。
+ * 默认遵循荒启响应约定 { code, msg, data, total }（code:1 成功）；
+ * options.raw 时跳过约定校验，直接返回解析后的 JSON（用于裸对象响应的接口，如 contentsInfo）。
  */
 export async function apiRequest<T = unknown>(
   path: string,
+  options: ApiRequestOptions & { raw: true }
+): Promise<T>
+export async function apiRequest<T = unknown>(
+  path: string,
+  options?: ApiRequestOptions
+): Promise<ApiResponse<T>>
+export async function apiRequest<T = unknown>(
+  path: string,
   options: ApiRequestOptions = {}
-): Promise<ApiResponse<T>> {
-  const { method = 'GET', query, body, headers } = options
+): Promise<ApiResponse<T> | T> {
+  const { method = 'GET', query, body, headers, raw = false } = options
   const url = new URL(path, API_BASE)
 
   const finalHeaders: Record<string, string> = {
@@ -65,15 +74,24 @@ export async function apiRequest<T = unknown>(
   }
 
   const text = await res.text()
-  let json: ApiResponse<T>
+  let json: Record<string, unknown>
   try {
     json = JSON.parse(text)
   } catch {
     throw new Error(`接口返回非 JSON（HTTP ${res.status}）: ${text.slice(0, 200)}`)
   }
 
-  if (json.code !== 1) {
-    throw new ApiError(json.code ?? -1, json.msg || `接口错误（code=${json.code}）`)
+  // raw 模式：不校验 code，直接返回解析后的对象
+  if (raw) return json as T
+
+  const typed = json as unknown as ApiResponse<T>
+  if (typed.code !== 1) {
+    // code 缺失或非 1：错误信息带响应原文片段，便于定位（contentsInfo 等裸对象接口会走到这）
+    const snippet = text.slice(0, 200)
+    throw new ApiError(
+      typed.code ?? -1,
+      typed.msg || `接口错误（code=${typed.code ?? 'undefined'}）: ${snippet}`
+    )
   }
-  return json
+  return typed
 }

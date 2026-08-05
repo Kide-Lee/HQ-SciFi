@@ -87,16 +87,25 @@ async function listRemote(token: string, authorId: string, type: string): Promis
 
 /**
  * 拉取全文（HTML；contentsInfo 需登录）。markdown==1 时 text 为 md 原文。
- * 参数已从 h5 前端包实测确认（pages-contents-info chunk）：
+ * 已从 h5 前端包实测确认（pages-contents-info chunk）：
  *   GET hqContents/contentsInfo?key=<cid>&isMd=0&token=<token>
- * 此前用 cid/id 作参数名，服务器查不到文章 → 报「该文章不存在」。
+ * 响应**不遵循 {code,msg,data} 约定**：成功返回裸文章对象 {title,text,...}（h5 以 data.title
+ * 判断成功），失败返回 {msg:'该文章不存在'} 之类 —— 用 raw 模式解析，自行判断成功与否。
  */
 async function fetchFullText(token: string, cid: string): Promise<{ html: string; markdown: boolean }> {
-  const resp = await apiRequest<{ text?: string; markdown?: number }>('hqContents/contentsInfo', {
+  const obj = await apiRequest<Record<string, unknown>>('hqContents/contentsInfo', {
     method: 'GET',
-    query: { key: cid, isMd: 0, token }
+    query: { key: cid, isMd: 0, token },
+    raw: true
   })
-  return { html: resp.data?.text ?? '', markdown: (resp.data?.markdown ?? 0) === 1 }
+  if (obj && typeof obj.title === 'string') {
+    return {
+      html: typeof obj.text === 'string' ? obj.text : '',
+      markdown: obj.markdown === 1
+    }
+  }
+  const msg = typeof obj?.msg === 'string' ? obj.msg : ''
+  throw new Error(msg || `contentsInfo 返回异常: ${JSON.stringify(obj).slice(0, 200)}`)
 }
 
 const turndown = new TurndownService({

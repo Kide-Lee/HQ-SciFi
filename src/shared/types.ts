@@ -11,6 +11,11 @@ export interface ApiRequestOptions {
   /** POST form 表单字段（params/token 等，值会被 String() 序列化） */
   body?: Record<string, unknown>
   headers?: Record<string, string>
+  /**
+   * raw 模式：跳过 {code,msg,data} 约定校验，直接返回解析后的 JSON 对象。
+   * 用于响应不遵循约定、成功响应为裸对象（如 hqContents/contentsInfo 返回文章对象）的接口。
+   */
+  raw?: boolean
 }
 
 /** IPC 返回约定：成功 { ok:true, data }，失败 { ok:false, error } */
