@@ -1207,8 +1207,10 @@ body {
 }
 
 /* 文章列表 */
+/* 注意：顶部 padding 为 0 —— list-toolbar sticky 贴顶时不能有 padding/负 margin 抵消，
+   否则工具栏背景与视口顶之间会露出滚动中的卡片 */
 .list-content {
-  padding: 16px 24px;
+  padding: 0 24px 16px;
   position: relative;
 }
 
@@ -1227,10 +1229,8 @@ body {
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-  padding: 10px 0;
-  margin: -16px -24px 0;
-  padding-left: 24px;
-  padding-right: 24px;
+  padding: 10px 24px;
+  margin: 0 -24px;
   background: var(--bg);
   border-bottom: 1px solid var(--border);
 }
