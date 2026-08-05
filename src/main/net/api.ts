@@ -1,4 +1,5 @@
 import { net } from 'electron'
+import type { ApiRequestOptions } from '../../shared/types'
 
 /** 荒启 API 基址（已实测确认，详见 api-research.md） */
 export const API_BASE = 'https://api.huangqisf.com/'
@@ -10,14 +11,7 @@ export interface ApiResponse<T = unknown> {
   total?: number
 }
 
-export interface ApiRequestOptions {
-  method?: 'GET' | 'POST'
-  /** GET 查询参数（searchParams/limit/page/order/searchKey 等） */
-  query?: Record<string, unknown>
-  /** POST form 表单字段（params/token 等，值会被 String() 序列化） */
-  body?: Record<string, unknown>
-  headers?: Record<string, string>
-}
+export { type ApiRequestOptions }
 
 export class ApiError extends Error {
   constructor(

@@ -7,6 +7,9 @@ directories:
 files:
   - out/**
 asar: true
+# better-sqlite3 原生 .node 必须在 asar 外，Electron 才能加载
+asarUnpack:
+  - node_modules/better-sqlite3/**
 compression: normal
 
 # 窗口标题等显示名（中文），安装器显示名用 shortcutName
