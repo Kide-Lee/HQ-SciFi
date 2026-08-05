@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>荒启科幻</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      CSP 说明：M0 阶段为兼容 vite dev（react-refresh 内联脚本 + HMR ws），
+      采用较宽松策略；M1 安全任务中收紧为 production 级（剥离 unsafe-inline 与 ws:）。
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' ws: http: https:"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

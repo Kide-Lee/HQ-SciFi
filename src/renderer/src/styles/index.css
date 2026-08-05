@@ -1,0 +1,250 @@
+/* ===== 主题变量（M4 设置面板将在此切换颜色/字号/字体） ===== */
+:root {
+  --bg: #f7f8fa;
+  --bg-sidebar: #ffffff;
+  --bg-card: #ffffff;
+  --text: #1f2329;
+  --text-muted: #8a919f;
+  --accent: #4a6cf7;
+  --accent-soft: #eef1fe;
+  --border: #e5e7eb;
+  --radius: 8px;
+  --font: system-ui, -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif;
+  --font-size: 14px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font);
+  font-size: var(--font-size);
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+/* ===== 布局 ===== */
+.app-shell {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ===== 左侧栏 ===== */
+.sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-top {
+  padding: 16px 12px 8px;
+}
+
+.user-card {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px;
+  border-radius: var(--radius);
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.user-meta {
+  min-width: 0;
+}
+
+.nickname {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.intro {
+  color: var(--text-muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-sections {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nav-item,
+.tree-node {
+  text-align: left;
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: var(--text);
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  width: 100%;
+}
+
+.nav-item:hover,
+.tree-node:hover {
+  background: #f0f1f5;
+}
+
+.nav-item.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.tree-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 12px 8px;
+  border-top: 1px solid var(--border);
+}
+
+.tree-node {
+  font-size: 13px;
+  color: #444a54;
+}
+
+.tree-node.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.sidebar-bottom {
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+}
+
+.settings-btn {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  font: inherit;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.settings-btn:hover {
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+/* ===== 主界面 ===== */
+.main-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.main-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.main-header h1 {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.crumb {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.placeholder-card,
+.probe-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+}
+
+.placeholder-card h2 {
+  font-size: 15px;
+  margin-bottom: 6px;
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.probe-info {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.probe-btn {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.probe-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.probe-result {
+  margin-top: 12px;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--text);
+  background: #f6f7f9;
+  border-radius: 6px;
+  padding: 10px 12px;
+  white-space: pre-wrap;
+  user-select: text;
+}

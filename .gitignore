@@ -1,0 +1,11 @@
+node_modules/
+dist/
+out/
+*.log
+.DS_Store
+*.tsbuildinfo
+.env.local
+.env.*.local
+
+# Electron 单实例锁残留（npm run dev 生成）
+Singleton*

@@ -1,0 +1,37 @@
+appId: com.huangqisf.client
+productName: HuangqiSciFi
+executableName: huangqi-scifi
+directories:
+  buildResources: resources
+  output: dist
+files:
+  - out/**
+asar: true
+compression: normal
+
+# 窗口标题等显示名（中文），安装器显示名用 shortcutName
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: 荒启科幻
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+
+linux:
+  target:
+    - target: deb
+      arch: [x64]
+    - target: AppImage
+      arch: [x64]
+  category: Utility
+  maintainer: hqsf <hqsf1904@163.com>
+  synopsis: 荒启科幻桌面客户端
+  description: 荒启科幻（huangqisf.com）桌面客户端 —— 写作-阅读-评审 一站式方案。
+  executableName: huangqi-scifi
+  syncDesktopName: true
