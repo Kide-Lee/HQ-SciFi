@@ -685,3 +685,32 @@ body {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
   z-index: 100;
 }
+
+/* ===== M1 修复：同步错误明细 + 头像 ===== */
+.sync-errors {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px 8px;
+  margin-bottom: 6px;
+  background: #fdf3f3;
+  border: 1px solid #f5d5d5;
+  border-radius: 6px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.sync-error {
+  font-size: 11px;
+  color: #b03a2e;
+  line-height: 1.5;
+  word-break: break-all;
+  user-select: text;
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}

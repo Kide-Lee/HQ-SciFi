@@ -62,8 +62,14 @@ export function Sidebar(): React.JSX.Element {
     alert(`「${row.title}」的阅读视图将在 M2 接入`)
   }
 
-  const nickname = String(session?.userinfo?.nickname ?? session?.userinfo?.nick ?? '用户')
-  const uid = session?.userinfo?.uid ? `UID ${String(session.userinfo.uid)}` : '已登录'
+  const info = session?.userinfo ?? {}
+  // 字段名以荒启实测为准，做多形态容错（昵称/头像/uid）
+  const nickname = String(
+    info.nickname ?? info.nick ?? info.nickName ?? info.userName ?? info.name ?? '用户'
+  )
+  const uidValue = info.uid ?? info.id ?? info.userId
+  const uid = uidValue != null ? `UID ${String(uidValue)}` : '已登录'
+  const avatar = info.avatar ?? info.headImg ?? info.headImgUrl ?? info.avatarUrl
 
   const groups: Record<string, ArticleRow[]> = {
     post_draft: [],
@@ -88,7 +94,13 @@ export function Sidebar(): React.JSX.Element {
     <aside className="sidebar">
       <div className="sidebar-top">
         <div className="user-card">
-          <div className="avatar">{nickname.slice(0, 1)}</div>
+          <div className="avatar">
+            {avatar ? (
+              <img className="avatar-img" src={String(avatar)} alt="" referrerPolicy="no-referrer" />
+            ) : (
+              nickname.slice(0, 1)
+            )}
+          </div>
           <div className="user-meta">
             <div className="nickname">{nickname}</div>
             <div className="intro">{uid}</div>
@@ -119,12 +131,21 @@ export function Sidebar(): React.JSX.Element {
                 {pulling ? '同步中 …' : '⇅ 同步'}
               </button>
               {lastPull && (
-                <span className="sync-summary" title={lastPull.errors.join('\n') || undefined}>
+                <span className="sync-summary">
                   拉取 {lastPull.pulled} · 冲突 {lastPull.conflicts}
                   {lastPull.errors.length > 0 ? ` · ${lastPull.errors.length} 处失败` : ''}
                 </span>
               )}
             </div>
+            {lastPull && lastPull.errors.length > 0 && (
+              <div className="sync-errors">
+                {lastPull.errors.map((e, i) => (
+                  <div key={i} className="sync-error">
+                    {e}
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* 本地存档 */}
             <div className="tree-group">

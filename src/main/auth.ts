@@ -18,6 +18,19 @@ function extractIdentity(data: unknown): { token?: string; uid?: string; nicknam
   return { token, uid, nickname }
 }
 
+/**
+ * 规范化用户信息：合并响应顶层（剔除 token）与 userinfo 嵌套层，
+ * 供渲染层按实际字段名（nickname/nick/userName/avatar/headImg/uid…）容错展示。
+ */
+function normalizeUserinfo(data: unknown): Record<string, unknown> {
+  if (data == null || typeof data !== 'object') return {}
+  const d = data as Record<string, unknown>
+  const nested =
+    typeof d.userinfo === 'object' && d.userinfo != null ? (d.userinfo as Record<string, unknown>) : {}
+  const { token: _token, ...rest } = d
+  return { ...nested, ...rest }
+}
+
 export async function loginWithPassword(name: string, password: string): Promise<LoginResult> {
   try {
     const resp = await apiRequest('hqUsers/userLogin', {
@@ -26,9 +39,10 @@ export async function loginWithPassword(name: string, password: string): Promise
     })
     const { token, uid, nickname } = extractIdentity(resp.data)
     if (!token) return { ok: false, error: '登录响应缺少 token（接口结构可能变化）' }
-    const userinfo: Record<string, unknown> = {}
-    if (uid) userinfo.uid = uid
-    if (nickname) userinfo.nickname = nickname
+    // 顶层 uid 缺失时（uid 嵌在 userinfo 下），从规范化的 userinfo 再补一次
+    const userinfo = normalizeUserinfo(resp.data)
+    if (uid && userinfo.uid == null) userinfo.uid = uid
+    if (nickname && userinfo.nickname == null) userinfo.nickname = nickname
     saveSession({ token, userinfo })
     return { ok: true, userinfo, insecure: !isStrongEncryption() }
   } catch (err) {
@@ -56,9 +70,10 @@ export async function loginWithPhone(phone: string, code: string): Promise<Login
     })
     const { token, uid, nickname } = extractIdentity(resp.data)
     if (!token) return { ok: false, error: '登录响应缺少 token（接口结构可能变化）' }
-    const userinfo: Record<string, unknown> = {}
-    if (uid) userinfo.uid = uid
-    if (nickname) userinfo.nickname = nickname
+    // 顶层 uid 缺失时（uid 嵌在 userinfo 下），从规范化的 userinfo 再补一次
+    const userinfo = normalizeUserinfo(resp.data)
+    if (uid && userinfo.uid == null) userinfo.uid = uid
+    if (nickname && userinfo.nickname == null) userinfo.nickname = nickname
     saveSession({ token, userinfo })
     return { ok: true, userinfo, insecure: !isStrongEncryption() }
   } catch (err) {
