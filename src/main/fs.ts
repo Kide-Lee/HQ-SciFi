@@ -111,14 +111,13 @@ export function sanitizeFileName(name: string): string {
   return cleaned || '未命名'
 }
 
-/** 生成不重名的文件路径：标题 + 时间戳后缀（design.md 命名建议） */
+/** 生成不重名的文件路径：纯标题；已存在同名时追加 (1)/(2)… 后缀（不覆盖、不带日期） */
 export function uniqueFilePath(root: string, title: string, ext = '.md'): string {
   const safe = sanitizeFileName(title)
-  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
-  let candidate = join(root, `${safe} ${stamp}${ext}`)
+  let candidate = join(root, `${safe}${ext}`)
   let i = 1
   while (existsSync(candidate)) {
-    candidate = join(root, `${safe} ${stamp} (${i})${ext}`)
+    candidate = join(root, `${safe} (${i})${ext}`)
     i++
   }
   return candidate
