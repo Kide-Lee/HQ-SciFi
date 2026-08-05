@@ -33,10 +33,17 @@ export function ArticleListView({
   const clearList = useReaderStore((s) => s.clearList)
   const openArticle = useReaderStore((s) => s.openArticle)
   const readingCid = useReaderStore((s) => s.readingCid)
+  const reviewTaskByCid = useReaderStore((s) => s.reviewTaskByCid)
+  const loadReviewTasks = useReaderStore((s) => s.loadReviewTasks)
 
   const sentinelRef = useRef<HTMLDivElement | null>(null)
   /** 防重入：加载进行中不重复触发（IntersectionObserver 回调无 state 闭包问题） */
   const loadingRef = useRef(false)
+
+  // 评审任务集合：登录后全局拉一次（幂等），命中任务的文章卡片做强调标记
+  useEffect(() => {
+    void loadReviewTasks()
+  }, [loadReviewTasks])
 
   // 榜单（非时间排序）显示排名
   const isRanked = listOrder !== 'created'
@@ -101,6 +108,7 @@ export function ArticleListView({
             article={a}
             rank={isRanked ? idx + 1 : undefined}
             active={readingCid === a.cid}
+            taskStatus={reviewTaskByCid[a.cid]}
             onOpen={() => void openArticle(a.cid)}
           />
         ))}
@@ -122,12 +130,15 @@ function ArticleCard({
   article,
   rank,
   active,
+  taskStatus,
   onOpen
 }: {
   article: RemoteArticle
   /** 榜单排名（非时间排序时传入，1 起） */
   rank?: number
   active: boolean
+  /** 评审任务状态：0 待评审（强调高亮）/ 1 已完成（弱标记）/ 未定义 = 非任务文章 */
+  taskStatus?: number
   onOpen: () => void
 }): React.JSX.Element {
   const author = article.authorInfo as Record<string, unknown> | undefined
@@ -142,8 +153,13 @@ function ArticleCard({
   const cover = coverRaw && /^https?:\/\//i.test(coverRaw) ? cachedImageUrl(coverRaw) : undefined
   const hasScore = !!article.score && article.score !== '-.-'
   const scoreColorValue = scoreColor(article.score)
+  const isTaskTodo = taskStatus === 0
+  const isTaskDone = taskStatus !== undefined && taskStatus !== 0
   return (
-    <button className={`article-card ${active ? 'active' : ''}`} onClick={onOpen}>
+    <button
+      className={`article-card ${active ? 'active' : ''} ${isTaskTodo ? 'task-todo' : ''} ${isTaskDone ? 'task-done' : ''}`}
+      onClick={onOpen}
+    >
       {cover ? (
         <div className="article-card-cover">
           <img src={cover} alt="" loading="lazy" referrerPolicy="no-referrer" />
@@ -151,6 +167,8 @@ function ArticleCard({
       ) : null}
       <div className="article-card-body">
         <div className="article-card-title">
+          {isTaskTodo && <span className="task-badge task-badge-todo" title="评审任务：待评审">待评审</span>}
+          {isTaskDone && <span className="task-badge task-badge-done" title="评审任务：已评审">已评审</span>}
           <span className="article-card-title-text">{article.title}</span>
           {rank != null && (
             <span className={`article-rank ${rank <= 3 ? `top-${rank}` : ''}`} title={`第 ${rank} 名`}>

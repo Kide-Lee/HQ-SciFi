@@ -42,6 +42,12 @@ interface ReaderState {
    */
   listHasMore: boolean
 
+  // ---- 评审任务（文章卡片强调） ----
+  /** cid → 任务状态（0 待评审 / 1 已完成），空对象 = 未拉取或非任务文章 */
+  reviewTaskByCid: Record<string, number>
+  /** 拉取当前账号评审任务（幂等：已拉过则跳过；失败静默，不影响列表） */
+  loadReviewTasks: () => Promise<void>
+
   openArticle: (cid: string) => Promise<void>
   closeArticle: () => void
   loadReviews: (cid: string) => Promise<void>
@@ -72,6 +78,8 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
   listError: null,
   listOrder: 'created',
   listHasMore: true,
+
+  reviewTaskByCid: {},
 
   openArticle: async (cid) => {
     if (get().readingCid === cid && get().detail) return
@@ -171,5 +179,20 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
   },
 
   clearList: () =>
-    set({ list: [], listTotal: 0, listPage: 1, listError: null, listHasMore: true })
+    set({ list: [], listTotal: 0, listPage: 1, listError: null, listHasMore: true }),
+
+  loadReviewTasks: async () => {
+    // 幂等：已拉取过则不再重复请求
+    if (Object.keys(get().reviewTaskByCid).length > 0) return
+    try {
+      const res = await window.hqsf.listReviewTasks()
+      if (res.ok) {
+        const map: Record<string, number> = {}
+        for (const t of res.data) map[t.cid] = t.status
+        set({ reviewTaskByCid: map })
+      }
+    } catch {
+      // 任务拉取失败静默：不影响文章列表浏览
+    }
+  }
 }))

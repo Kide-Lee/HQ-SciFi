@@ -247,3 +247,17 @@ export interface ReviewSubmitResult {
   ok: boolean
   error?: string
 }
+
+// ---------- 评审任务（reviewTask，M3 文章卡片强调） ----------
+
+/** 评审任务条目（review/reviewTask，按 uid 查：status 0=待评审 / 1=已完成） */
+export interface ReviewTaskItem {
+  /** 被评审文章 cid */
+  cid: string
+  /** 0 待评审 / 1 已完成（非 0 视为已完成） */
+  status: number
+  /** 关联活动 mid（练笔期次） */
+  activeid?: number | string
+  activeName?: string
+  articleTitle?: string
+}

@@ -1390,6 +1390,38 @@ body {
   overflow: hidden;
 }
 
+/* 评审任务强调（M3）：待评审高亮 + 已评审弱标记 */
+.article-card.task-todo {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 1px 6px var(--accent-soft);
+  background: var(--accent-soft);
+}
+
+.article-card.task-done {
+  border-color: var(--border);
+}
+
+.task-badge {
+  flex-shrink: 0;
+  font-size: 11px;
+  line-height: 1;
+  padding: 3px 7px;
+  border-radius: 8px;
+  margin-right: 6px;
+  align-self: center;
+}
+
+.task-badge-todo {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.task-badge-done {
+  background: var(--border);
+  color: var(--text-muted);
+}
+
 /* 榜单排名徽章（标题行内，紧凑圆角，不遮挡） */
 .article-rank {
   flex-shrink: 0;

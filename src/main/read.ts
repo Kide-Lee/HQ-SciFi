@@ -8,7 +8,8 @@ import type {
   RemoteArticle,
   ReviewItem,
   ReviewPayload,
-  ReviewSubmitResult
+  ReviewSubmitResult,
+  ReviewTaskItem
 } from '../shared/types'
 
 /**
@@ -169,6 +170,31 @@ export async function listGptModels(token: string | null): Promise<GptModel[]> {
     price: num(m.price),
     source: str(m.source)
   }))
+}
+
+/** 拉取当前账号的评审任务（review/reviewTask，按 uid；status 0=待评审 / 1=已完成） */
+export async function listReviewTasks(token: string | null, uid: number | string): Promise<ReviewTaskItem[]> {
+  const query: Record<string, unknown> = {
+    uid,
+    limit: 100,
+    page: 1
+  }
+  if (token) query.token = token
+  const resp = await apiRequest<ListData>('review/reviewTask', {
+    method: 'GET',
+    query
+  })
+  return (resp.data ?? []).map((t) => {
+    const contentJson = (t.contentJson as Record<string, unknown> | undefined) ?? {}
+    const activeJson = (t.activeJson as Record<string, unknown> | undefined) ?? {}
+    return {
+      cid: str(t.cid ?? contentJson.cid ?? contentJson.id ?? ''),
+      status: num(t.status),
+      activeid: t.activeid != null ? str(t.activeid) : undefined,
+      activeName: str(activeJson.name),
+      articleTitle: str(contentJson.title)
+    }
+  })
 }
 
 /** 拉取文章详情（完整 HTML 正文；需登录）。contentsInfo 响应为裸对象；结果本地缓存（容量上限，不限期） */

@@ -14,6 +14,7 @@ import type {
   ReviewItem,
   ReviewPayload,
   ReviewSubmitResult,
+  ReviewTaskItem,
   UserSession
 } from '../shared/types'
 
@@ -79,7 +80,9 @@ const api = {
   /** metas 栏目条目（type=serial/collection/active/tag 等，连载/活动树） */
   listMetas: (type: string): Promise<ApiResult<MetaInfo[]>> => ipcRenderer.invoke('hqsf:list-metas', type),
   /** AI 模型列表（推荐栏目「AI模型」） */
-  listGptModels: (): Promise<ApiResult<GptModel[]>> => ipcRenderer.invoke('hqsf:list-gpt-models')
+  listGptModels: (): Promise<ApiResult<GptModel[]>> => ipcRenderer.invoke('hqsf:list-gpt-models'),
+  /** 当前账号的评审任务（待评审/已完成文章列表） */
+  listReviewTasks: (): Promise<ApiResult<ReviewTaskItem[]>> => ipcRenderer.invoke('hqsf:list-review-tasks')
 }
 
 export type HqsfApi = typeof api

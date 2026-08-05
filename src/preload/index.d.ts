@@ -13,6 +13,7 @@ import type {
   ReviewItem,
   ReviewPayload,
   ReviewSubmitResult,
+  ReviewTaskItem,
   UserSession
 } from '../shared/types'
 
@@ -31,6 +32,7 @@ export type {
   ReviewItem,
   ReviewPayload,
   ReviewSubmitResult,
+  ReviewTaskItem,
   UserSession
 }
 
@@ -72,6 +74,7 @@ export interface HqsfApi {
   >
   listMetas: (type: string) => Promise<ApiResult<MetaInfo[]>>
   listGptModels: () => Promise<ApiResult<GptModel[]>>
+  listReviewTasks: () => Promise<ApiResult<ReviewTaskItem[]>>
 }
 
 declare global {

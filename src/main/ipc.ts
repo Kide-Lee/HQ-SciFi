@@ -9,7 +9,7 @@ import {
 } from './auth'
 import { getDocsRoot, ensureDocsRoot, listLocalDocs, readLocalFile, writeLocalFile, createLocalDraft, chooseDocsDir } from './fs'
 import { pullRemote, pushToDraft, publish } from './sync'
-import { listRemoteArticles, fetchRemoteArticle, listReviews, submitReview, setReviewAttitude, listCategories, listMetas, listGptModels } from './read'
+import { listRemoteArticles, fetchRemoteArticle, listReviews, submitReview, setReviewAttitude, listCategories, listMetas, listGptModels, listReviewTasks } from './read'
 import { listArticles } from './db'
 import type { ArticleListOptions, ReviewPayload } from '../shared/types'
 
@@ -249,6 +249,20 @@ export function registerIpcHandlers(): void {
     const token = getStoredToken()
     try {
       return ok(await listGptModels(token))
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  // 评审任务（当前账号被分配的评审文章；uid 从会话取，渲染层不可伪造）
+  ipcMain.handle('hqsf:list-review-tasks', async () => {
+    const token = getStoredToken()
+    const rawUid = getSession()?.userinfo?.uid ?? getSession()?.userinfo?.id
+    const uidNum = Number(rawUid)
+    const uid = Number.isFinite(uidNum) && uidNum > 0 ? uidNum : String(rawUid ?? '')
+    if (!uid) return ok([])
+    try {
+      return ok(await listReviewTasks(token, uid))
     } catch (err) {
       return fail(err)
     }
