@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useReaderStore } from '../stores/reader'
 import { useAuthStore } from '../stores/auth'
 import { formatSize, formatTs, sanitizeHtml } from '../lib/sanitize'
+import { ErrorBanner } from './ErrorBanner'
 import type { ArticleDetail } from '../../../shared/types'
 
 /** 从详情/用户信息里提取作者展示名（与侧栏同样的多字段容错） */
@@ -44,7 +45,7 @@ export function ReaderView(): React.JSX.Element {
     return (
       <main className="main-area">
         <div className="reader-error">
-          <p>{detailError ?? '未找到文章'}</p>
+          <ErrorBanner title="阅读失败" message={detailError ?? '未找到文章'} hint="若持续报错，多为登录态过期 —— 请点侧栏「退出」后重新登录再试" />
           <button className="toolbar-btn" onClick={closeArticle}>
             返回
           </button>
@@ -188,13 +189,20 @@ function ReviewPanel(): React.JSX.Element {
         <span className="review-count">{reviews.length} 条</span>
       </div>
 
-      {submitMessage && (
-        <div className={`review-msg ${submitMessage.startsWith('提交失败') ? 'err' : ''}`}>
+      {submitMessage && !submitMessage.startsWith('提交失败') && (
+        <div className="review-msg">
           {submitMessage}
           <button className="dismiss" onClick={clearSubmitMessage}>
             ✕
           </button>
         </div>
+      )}
+      {submitMessage && submitMessage.startsWith('提交失败') && (
+        <ErrorBanner
+          title="评审提交失败"
+          message={submitMessage.replace(/^提交失败:\s*/, '')}
+          onDismiss={clearSubmitMessage}
+        />
       )}
 
       {/* 已有评审 */}

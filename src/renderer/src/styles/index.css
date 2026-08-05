@@ -636,26 +636,6 @@ body {
   font-size: 14px;
 }
 
-.editor-error {
-  margin: 8px 16px 0;
-  padding: 8px 12px;
-  background: #fdecec;
-  color: #c0392b;
-  border-radius: 6px;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.editor-error .dismiss {
-  border: none;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  font-size: 13px;
-}
-
 .editor-close {
   position: fixed;
   right: 16px;
@@ -688,8 +668,8 @@ body {
   z-index: 100;
 }
 
-/* ===== M1 修复：同步错误明细（编辑器顶部）+ 头像 ===== */
-.sync-error-banner {
+/* ===== M1/M2 统一：错误提示条（ErrorBanner：同步失败 / 阅读失败 / 列表加载失败 / 评审提交失败 共用） ===== */
+.error-banner {
   margin: 0 16px;
   margin-top: 10px;
   padding: 8px 12px;
@@ -698,17 +678,33 @@ body {
   border-radius: 8px;
 }
 
-.sync-error-head {
+.error-banner-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 6px;
+  gap: 8px;
 }
 
-.sync-error-title {
+.error-banner-title {
   font-size: 12px;
   font-weight: 600;
   color: #b03a2e;
+}
+
+.error-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.error-banner-actions .dismiss {
+  border: none;
+  background: transparent;
+  color: #b03a2e;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px;
 }
 
 .copy-btn {
@@ -726,7 +722,7 @@ body {
   background: #fbeaea;
 }
 
-.sync-error-line {
+.error-banner-line {
   font-size: 11px;
   color: #b03a2e;
   line-height: 1.6;
@@ -736,7 +732,7 @@ body {
   border-top: 1px dashed #f0d0d0;
 }
 
-.sync-error-line:first-of-type {
+.error-banner-line:first-of-type {
   border-top: none;
 }
 
@@ -747,7 +743,7 @@ body {
   object-fit: cover;
 }
 
-.sync-error-hint {
+.error-banner-hint {
   margin-top: 6px;
   padding-top: 6px;
   border-top: 1px dashed #f0d0d0;
@@ -919,16 +915,28 @@ body {
   margin-top: 28px;
 }
 
-.reader-loading,
+.reader-loading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
 .reader-error {
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-muted);
-  font-size: 14px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 24px;
+}
+
+.reader-error .error-banner {
+  width: min(100%, 640px);
+  margin: 0;
 }
 
 /* 评审面板 */
@@ -970,11 +978,6 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-}
-
-.review-msg.err {
-  background: #fdecec;
-  color: #c0392b;
 }
 
 .review-msg .dismiss {
@@ -1219,14 +1222,6 @@ body {
   border-color: var(--accent);
   color: var(--accent);
   background: var(--accent-soft);
-}
-
-.list-error {
-  padding: 8px 12px;
-  background: #fdecec;
-  color: #c0392b;
-  border-radius: 6px;
-  font-size: 13px;
 }
 
 .article-list {

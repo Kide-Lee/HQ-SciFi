@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ARTICLE_ORDERS, useReaderStore } from '../stores/reader'
 import { formatTs } from '../lib/sanitize'
+import { ErrorBanner } from './ErrorBanner'
 import type { RemoteArticle } from '../../../shared/types'
 
 /**
@@ -61,7 +62,9 @@ export function ArticleListView({
         </div>
       </div>
 
-      {listError && <div className="list-error">{listError}</div>}
+      {listError && (
+        <ErrorBanner title="列表加载失败" message={listError} hint="若持续报错，多为登录态过期 —— 请点侧栏「退出」后重新登录再试" />
+      )}
 
       <div className="article-list">
         {listLoading && list.length === 0 && <div className="list-empty muted">加载中 …</div>}

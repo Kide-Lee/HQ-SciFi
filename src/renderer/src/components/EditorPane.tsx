@@ -5,6 +5,7 @@ import { basicSetup } from 'codemirror'
 import { markdown } from '@codemirror/lang-markdown'
 import { useEditorStore } from '../stores/editor'
 import { useDocsStore } from '../stores/docs'
+import { ErrorBanner } from './ErrorBanner'
 
 /** 编辑器视图：CodeMirror 6 编辑本地 md + 工具栏（同步到草稿/发布/保存） */
 export function EditorPane(): React.JSX.Element {
@@ -33,7 +34,6 @@ export function EditorPane(): React.JSX.Element {
   const [showNew, setShowNew] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [toast, setToast] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
 
   const pullErrors = lastPull?.errors ?? []
 
@@ -107,12 +107,6 @@ export function EditorPane(): React.JSX.Element {
     }
   }
 
-  async function copyErrors(): Promise<void> {
-    await window.hqsf.copyText(pullErrors.join('\n'))
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
   const statusLabel = dirty ? '未保存' : synced ? '已同步' : '本地草稿'
   const pushingNow = pushing === currentPath
 
@@ -145,22 +139,11 @@ export function EditorPane(): React.JSX.Element {
       </div>
 
       {pullErrors.length > 0 && (
-        <div className="sync-error-banner">
-          <div className="sync-error-head">
-            <span className="sync-error-title">同步失败 {pullErrors.length} 处</span>
-            <button className="copy-btn" onClick={() => void copyErrors()}>
-              {copied ? '已复制 ✓' : '复制报错'}
-            </button>
-          </div>
-          {pullErrors.map((e, i) => (
-            <div key={i} className="sync-error-line">
-              {e}
-            </div>
-          ))}
-          <div className="sync-error-hint">
-            提示：若持续「文章暂未公开访问 / 该文章不存在」，多为登录态过期 —— 请点侧栏「退出」后重新登录再试
-          </div>
-        </div>
+        <ErrorBanner
+          title={`同步失败 ${pullErrors.length} 处`}
+          details={pullErrors}
+          hint="提示：若持续「文章暂未公开访问 / 该文章不存在」，多为登录态过期 —— 请点侧栏「退出」后重新登录再试"
+        />
       )}
 
       {showNew && (
@@ -181,15 +164,14 @@ export function EditorPane(): React.JSX.Element {
       )}
 
       {(error || docError) && (
-        <div className="editor-error">
-          {error ?? docError}
-          <button className="dismiss" onClick={() => {
+        <ErrorBanner
+          title="操作失败"
+          message={error ?? docError ?? ''}
+          onDismiss={() => {
             useEditorStore.setState({ error: null })
             clearDocError()
-          }}>
-            ✕
-          </button>
-        </div>
+          }}
+        />
       )}
 
       <div className="editor-body">
