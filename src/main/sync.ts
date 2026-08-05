@@ -87,25 +87,43 @@ async function listRemote(token: string, authorId: string, type: string): Promis
 
 /**
  * 拉取全文（HTML；contentsInfo 需登录）。markdown==1 时 text 为 md 原文。
- * 已从 h5 前端包实测确认（pages-contents-info chunk）：
- *   GET hqContents/contentsInfo?key=<cid>&isMd=0&token=<token>
- * 响应**不遵循 {code,msg,data} 约定**：成功返回裸文章对象 {title,text,...}（h5 以 data.title
- * 判断成功），失败返回 {msg:'该文章不存在'} 之类 —— 用 raw 模式解析，自行判断成功与否。
+ * 已从 h5 前端包实测确认两种调用形态：
+ * - 编辑页（h5/hybrid/html/edit.html）：POST { key, token } —— 作者拉自己的文章/草稿，**草稿只能走这个**
+ * - 阅读页（pages-contents-info）：GET { key, isMd:0, token } —— 公开文章
+ * GET 对未公开草稿返回「文章暂未公开访问」，因此 POST 优先、GET 回退。
+ * 响应不遵循 {code,msg,data} 约定：成功返回裸文章对象 {title,text,...}，失败 {msg:'…'}。
  */
 async function fetchFullText(token: string, cid: string): Promise<{ html: string; markdown: boolean }> {
-  const obj = await apiRequest<Record<string, unknown>>('hqContents/contentsInfo', {
-    method: 'GET',
-    query: { key: cid, isMd: 0, token },
-    raw: true
-  })
-  if (obj && typeof obj.title === 'string') {
-    return {
-      html: typeof obj.text === 'string' ? obj.text : '',
-      markdown: obj.markdown === 1
+  const attempts: Array<() => Promise<Record<string, unknown>>> = [
+    () =>
+      apiRequest<Record<string, unknown>>('hqContents/contentsInfo', {
+        method: 'POST',
+        body: { key: cid, token },
+        raw: true
+      }),
+    () =>
+      apiRequest<Record<string, unknown>>('hqContents/contentsInfo', {
+        method: 'GET',
+        query: { key: cid, isMd: 0, token },
+        raw: true
+      })
+  ]
+  let lastError = '未知错误'
+  for (const attempt of attempts) {
+    try {
+      const obj = await attempt()
+      if (obj && typeof obj.title === 'string') {
+        return {
+          html: typeof obj.text === 'string' ? obj.text : '',
+          markdown: obj.markdown === 1
+        }
+      }
+      lastError = typeof obj?.msg === 'string' ? obj.msg : JSON.stringify(obj).slice(0, 200)
+    } catch (err) {
+      lastError = (err as Error).message
     }
   }
-  const msg = typeof obj?.msg === 'string' ? obj.msg : ''
-  throw new Error(msg || `contentsInfo 返回异常: ${JSON.stringify(obj).slice(0, 200)}`)
+  throw new Error(`contentsInfo 拉取失败（POST/GET 均试）: ${lastError}`)
 }
 
 const turndown = new TurndownService({
