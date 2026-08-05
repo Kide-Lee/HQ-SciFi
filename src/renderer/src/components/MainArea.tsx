@@ -26,13 +26,9 @@ export function MainArea(): React.JSX.Element {
   if (section === 'library') {
     return (
       <main className="main-area">
-        <header className="main-header">
-          <h1>{SECTION_LABELS[section]}</h1>
-          {selectedId && <span className="crumb"> / {selectedId}</span>}
-        </header>
         <div className="main-content list-content">
           <ArticleListView
-            title={listContext?.title ?? selectedId ?? '全部文章'}
+            title={`${SECTION_LABELS[section]} · ${listContext?.title ?? selectedId ?? '全部文章'}`}
             mid={listContext?.mid}
             searchParams={listContext?.searchParams}
           />

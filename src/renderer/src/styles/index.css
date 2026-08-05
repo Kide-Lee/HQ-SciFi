@@ -1209,7 +1209,7 @@ body {
   gap: 12px;
 }
 
-/* 排序按钮冻结在顶部（随主区滚动保持可见） */
+/* 排序按钮冻结在顶部（随主区滚动保持可见），标题与按钮合并同一行 */
 .list-toolbar {
   position: sticky;
   top: 0;
@@ -1235,6 +1235,7 @@ body {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
+  margin-left: auto;
 }
 
 .order-btn {
@@ -1360,6 +1361,7 @@ body {
 }
 
 .article-card-title-text {
+  flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;

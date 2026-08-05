@@ -141,12 +141,12 @@ function ArticleCard({
       ) : null}
       <div className="article-card-body">
         <div className="article-card-title">
+          <span className="article-card-title-text">{article.title}</span>
           {rank != null && (
             <span className={`article-rank ${rank <= 3 ? `top-${rank}` : ''}`} title={`第 ${rank} 名`}>
               {rank}
             </span>
           )}
-          <span className="article-card-title-text">{article.title}</span>
         </div>
         {article.text && <div className="article-card-excerpt">{article.text}</div>}
         <div className="article-card-meta">
