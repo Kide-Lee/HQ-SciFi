@@ -12,9 +12,9 @@ const ALLOWED_TAGS = new Set([
   'VIDEO', 'SOURCE' // iframe/script/style/object/embed 一律移除（见 walk）
 ])
 
-/** 标签 → 允许属性（src/href 另做协议校验）；未列出的标签不保留任何属性 */
+/** 标签 → 允许属性（src/href/srcset 另做协议校验）；未列出的标签不保留任何属性 */
 const ALLOWED_ATTR: Record<string, Set<string>> = {
-  IMG: new Set(['src', 'alt', 'title', 'width', 'height']),
+  IMG: new Set(['src', 'srcset', 'alt', 'title', 'width', 'height', 'loading']),
   A: new Set(['href', 'title', 'target', 'rel']),
   VIDEO: new Set(['src', 'controls', 'poster']),
   SOURCE: new Set(['src', 'type']),
@@ -26,16 +26,57 @@ const ALLOWED_ATTR: Record<string, Set<string>> = {
   LI: new Set(['value'])
 }
 
+/** data: 内嵌图最大字节数（base64 解码后），防超大字符串塞爆 DOM */
+const MAX_DATA_IMAGE_BYTES = 2 * 1024 * 1024
+
+/**
+ * data:image 内嵌图是否放行（仅用于 src，禁止 href）。
+ * 只允许常见位图（png/jpeg/gif/webp/avif/bmp）；svg+xml 可能含脚本，一律拒绝。
+ */
+/**
+ * data:image 内嵌图是否放行（仅用于 src，禁止 href）。
+ * 只允许常见位图（png/jpeg/gif/webp/avif/bmp）；svg+xml 可能含脚本，一律拒绝。
+ * 注意：base64 内容区分大小写，本函数必须接收未做 toLowerCase 的原始值。
+ */
+function isSafeDataImage(raw: string): boolean {
+  const m = /^data:image\/(png|jpe?g|gif|webp|avif|bmp);base64,([a-z0-9+/=\s]+)$/i.exec(raw)
+  if (!m) return false
+  try {
+    // 渲染层无 Buffer：用 atob 解码统计字节数（Latin1 每字符 1 字节）
+    const b64 = m[2].replace(/\s/g, '')
+    const decoded = atob(b64)
+    return decoded.length <= MAX_DATA_IMAGE_BYTES
+  } catch {
+    return false
+  }
+}
+
 function isSafeUrl(raw: string): boolean {
-  // 先剔除 ASCII 控制字符（tab/换行/回车/NUL 等），防止 javascript:\t 之类绕过协议校验
-  const url = raw.replace(/[\u0000-\u001f\u007f]/g, '').trim().toLowerCase()
+  // 先剔除 ASCII 控制字符（tab/换行/回车/NUL 等），防止 javascript:\t 之类绕过协议校验。
+  // 注意：不能 toLowerCase 整串 —— data: 内嵌图的 base64 内容区分大小写。
+  const url = raw.replace(/[\u0000-\u001f\u007f]/g, '').trim()
   if (!url) return false
+  // data:image 内嵌图（仅位图；svg 拒绝）
+  if (/^data:/i.test(url)) return isSafeDataImage(url)
   // 允许 http(s) 与相对路径/站内资源（CDN 图片为 https://cdn.huangqisf.com/…）
-  if (url.startsWith('http://') || url.startsWith('https://')) return true
+  if (/^https?:\/\//i.test(url)) return true
   if (url.startsWith('/')) return true
   if (url.startsWith('./') || url.startsWith('../')) return true
-  if (/^[a-z0-9-]+:/i.test(url) && !url.startsWith('http')) return false // 拦截 javascript:/data: 等
+  if (/^[a-z][a-z0-9+.-]*:/i.test(url)) return false // 拦截 javascript: 等其它协议
   return true
+}
+
+/** srcset 校验：逗号分隔的候选列表，逐项校验 URL（形如 "https://… 1x, https://… 2x"） */
+function sanitizeSrcset(raw: string): string | null {
+  const parts: string[] = []
+  for (const cand of raw.split(',')) {
+    const piece = cand.trim()
+    if (!piece) continue
+    const urlPart = piece.split(/\s+/)[0]
+    if (!urlPart || !isSafeUrl(urlPart)) return null
+    parts.push(piece)
+  }
+  return parts.length > 0 ? parts.join(', ') : null
 }
 
 /**
@@ -80,6 +121,10 @@ export function sanitizeHtml(raw: string): string {
               el.setAttribute('target', '_blank')
               el.setAttribute('rel', 'noopener noreferrer')
             }
+          } else if (name === 'srcset') {
+            const safe = sanitizeSrcset(attr.value)
+            if (!safe) continue
+            attr.value = safe
           }
           kept.push(attr.name)
         }
