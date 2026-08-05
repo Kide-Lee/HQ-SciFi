@@ -3,6 +3,8 @@ import { getReadCache, setReadCache } from './db'
 import type {
   ArticleDetail,
   ArticleListOptions,
+  GptModel,
+  MetaInfo,
   RemoteArticle,
   ReviewItem,
   ReviewPayload,
@@ -66,7 +68,7 @@ function toRemoteArticle(item: Record<string, unknown>, index: number): RemoteAr
   }
 }
 
-/** 拉取文章列表：分类（mid）走 getMetaContents，其余走 contentsList */
+/** 拉取文章列表：精选（choice）走 choiceList，分类（mid）走 selectContents，其余走 contentsList */
 export async function listRemoteArticles(
   token: string | null,
   opts: ArticleListOptions = {}
@@ -75,10 +77,22 @@ export async function listRemoteArticles(
   const page = opts.page ?? 1
   const query: Record<string, unknown> = {
     limit,
-    page,
-    ...(opts.order ? { order: opts.order } : {})
+    page
   }
+  // choiceList 固定顺序（实测 order 参数无效），不加 order；其余接口 order 生效
+  if (!opts.choice && opts.order) query.order = opts.order
   if (token) query.token = token
+
+  if (opts.choice) {
+    const resp = await apiRequest<ListData>('hqContents/choiceList', {
+      method: 'GET',
+      query
+    })
+    return {
+      items: (resp.data ?? []).map((it, i) => toRemoteArticle(it, i)),
+      total: num(resp.total) || (resp.data ?? []).length
+    }
+  }
 
   if (opts.mid != null) {
     query.searchParams = JSON.stringify({ mid: opts.mid })
@@ -102,6 +116,59 @@ export async function listRemoteArticles(
     items: (resp.data ?? []).map((it, i) => toRemoteArticle(it, i)),
     total: num(resp.total) || (resp.data ?? []).length
   }
+}
+
+/** 拉取 metas 栏目条目（M3：连载/活动/作品库/tag 树）。metasList 公开 */
+export async function listMetas(
+  token: string | null,
+  type: string
+): Promise<MetaInfo[]> {
+  const query: Record<string, unknown> = {
+    searchParams: JSON.stringify({ type }),
+    limit: 100,
+    page: 1,
+    order: 'order'
+  }
+  if (token) query.token = token
+  const resp = await apiRequest<ListData>('hqMetas/metasList', {
+    method: 'GET',
+    query
+  })
+  return (resp.data ?? []).map((m) => ({
+    mid: str(m.mid ?? m.id ?? ''),
+    type: str(m.type),
+    name: str(m.name),
+    slug: str(m.slug),
+    description: str(m.description),
+    imgurl: str(m.imgurl),
+    count: num(m.count),
+    deadline: normTs(m.deadline),
+    isReview: num(m.isReview)
+  }))
+}
+
+/** 拉取 AI 模型列表（推荐栏目「AI模型」，gpt/gptList，公开） */
+export async function listGptModels(token: string | null): Promise<GptModel[]> {
+  const query: Record<string, unknown> = {
+    searchParams: JSON.stringify({}),
+    limit: 100,
+    page: 1,
+    order: 'created'
+  }
+  if (token) query.token = token
+  const resp = await apiRequest<ListData>('gpt/gptList', {
+    method: 'GET',
+    query
+  })
+  return (resp.data ?? []).map((m) => ({
+    id: str(m.id ?? m.mid ?? ''),
+    name: str(m.name),
+    intro: str(m.intro),
+    avatar: str(m.avatar),
+    type: num(m.type),
+    price: num(m.price),
+    source: str(m.source)
+  }))
 }
 
 /** 拉取文章详情（完整 HTML 正文；需登录）。contentsInfo 响应为裸对象；结果本地缓存（容量上限，不限期） */

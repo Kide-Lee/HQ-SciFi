@@ -146,16 +146,46 @@ export interface ArticleDetail {
   markdown?: number
 }
 
-/** 文章列表拉取选项（contentsList / getMetaContents） */
+/** 文章列表拉取选项（contentsList / selectContents / choiceList） */
 export interface ArticleListOptions {
   /** searchParams JSON 对象（type/category/mid/authorId 等，服务端过滤） */
   searchParams?: Record<string, unknown>
-  /** 分类 mid（走 getMetaContents 拉分类文章） */
+  /** 分类 mid（走 selectContents 拉分类文章；作品库/连载/活动/tag 通用） */
   mid?: number | string
+  /** 精选源（choiceList；公开、固定顺序、分页生效） */
+  choice?: boolean
   limit?: number
   page?: number
   order?: string
   searchKey?: string
+}
+
+// ---------- 栏目与模型（M3 内容浏览） ----------
+
+/** metas 栏目条目（hqMetas/metasList，类型 category/serial/collection/active/tag） */
+export interface MetaInfo {
+  mid: number | string
+  type: string
+  name: string
+  slug: string
+  description?: string
+  imgurl?: string
+  /** 关联文章数（实测多为 0，列表取数走 selectContents） */
+  count?: number
+  deadline?: number
+  isReview?: number
+}
+
+/** AI 模型条目（gpt/gptList；对应推荐栏目「AI模型」） */
+export interface GptModel {
+  id: number | string
+  name: string
+  intro: string
+  avatar?: string
+  /** type 0=通用助手 / 1=专项大师（润色/翻译等） */
+  type: number
+  price: number
+  source: string
 }
 
 /** 评审条目（reviewList data 项） */

@@ -78,6 +78,18 @@ npm run build:win    # 构建并打包 Windows（NSIS）
 
 完成验证后，将结果回填到本文件「状态」小节，并把 design.md M2 行状态更新为最终交付。
 
+**M3 内容（已实现，代码完成）**：五大栏目全部接入真实数据。推荐 = 精选（choiceList，公开 62 篇、固定顺序）+ AI模型（gptList，8 个模型卡片）；连载 = 连载/合集（metasList type=serial/collection → selectContents）；活动 = 练笔期次（metasList type=active，mid 即 activeid → selectContents）；作品库沿用 M2。`selectContents` 是分类/连载/活动/tag 的统一取数接口（分页 + order 排序均生效）。ArticleListView 为通用文章列表载体（无限滚动 + 排序），GptListView 为 AI 模型卡片。
+
+**M3 验证清单（需正常桌面环境 + 真实账号）**：
+
+1. 侧栏「推荐」→「精选」：文章列表加载（无排序按钮，固定顺序，无限滚动分页 62 篇）；「AI模型」：8 张模型卡片（头像/名称/简介/来源）。
+2. 侧栏「连载」→ 展开「连载 / 合集」两组 → 点击具体连载（如「大道之行也」）→ 该连载文章列表（排序按钮可用）→ 点击章节进入阅读视图。
+3. 侧栏「活动」→ 展开「练笔活动」→ 点击具体期次（如「荒启科幻练笔第二十四期」）→ 该期参赛文章列表。
+4. 侧栏「作品库」→ 分类列表（M2 回归，不受影响）。
+5. 接口事实（已实测）：`metasList` 的 type 有 category(4)/active(27)/serial(16)/collection(25)/tag(19)；`selectContents` 按 mid 拉文章（活动/连载/合集/tag 通用）；`contentsList` 的 active 过滤不生效（total 恒为全站数），活动文章必须走 `selectContents`；`choiceList` 无 total、order 参数无效（固定顺序）。
+
+完成验证后，将结果回填到本文件「状态」小节，并把 design.md M3 行状态更新为最终交付。
+
 ## 开发环境已知问题（沙箱）
 
 本项目的开发/构建在受限沙箱中完成，以下结论为已排查确认的事实，供后续开发参考：

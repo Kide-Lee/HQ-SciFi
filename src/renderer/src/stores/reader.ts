@@ -49,7 +49,7 @@ interface ReaderState {
   setAttitude: (reviewId: number | string, type: number) => Promise<void>
   clearSubmitMessage: () => void
 
-  loadList: (opts?: { searchParams?: Record<string, unknown>; mid?: number | string; order?: string; append?: boolean }) => Promise<void>
+  loadList: (opts?: { searchParams?: Record<string, unknown>; mid?: number | string; order?: string; append?: boolean; choice?: boolean }) => Promise<void>
   setOrder: (order: string) => void
   clearList: () => void
 }
@@ -134,7 +134,8 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
       const res = await window.hqsf.listRemoteArticles({
         searchParams: opts.searchParams,
         mid: opts.mid,
-        order: opts.order ?? get().listOrder,
+        choice: opts.choice,
+        order: opts.order ?? (opts.choice ? undefined : get().listOrder),
         limit,
         page
       })
@@ -164,7 +165,8 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
     void get().loadList({
       order,
       mid: ctx?.mid,
-      searchParams: ctx?.searchParams
+      searchParams: ctx?.searchParams,
+      choice: ctx?.choice
     })
   },
 

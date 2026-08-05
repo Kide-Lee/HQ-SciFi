@@ -9,7 +9,7 @@ import {
 } from './auth'
 import { getDocsRoot, ensureDocsRoot, listLocalDocs, readLocalFile, writeLocalFile, createLocalDraft, chooseDocsDir } from './fs'
 import { pullRemote, pushToDraft, publish } from './sync'
-import { listRemoteArticles, fetchRemoteArticle, listReviews, submitReview, setReviewAttitude, listCategories } from './read'
+import { listRemoteArticles, fetchRemoteArticle, listReviews, submitReview, setReviewAttitude, listCategories, listMetas, listGptModels } from './read'
 import { listArticles } from './db'
 import type { ArticleListOptions, ReviewPayload } from '../shared/types'
 
@@ -230,6 +230,25 @@ export function registerIpcHandlers(): void {
     const token = getStoredToken()
     try {
       return ok(await listCategories(token))
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  // ---- 内容浏览（M3：栏目树与 AI 模型） ----
+  ipcMain.handle('hqsf:list-metas', async (_e, type: string) => {
+    const token = getStoredToken()
+    try {
+      return ok(await listMetas(token, String(type ?? '')))
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  ipcMain.handle('hqsf:list-gpt-models', async () => {
+    const token = getStoredToken()
+    try {
+      return ok(await listGptModels(token))
     } catch (err) {
       return fail(err)
     }

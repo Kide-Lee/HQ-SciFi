@@ -14,10 +14,14 @@ export const SECTION_LABELS: Record<TopSection, string> = {
 export interface ListContext {
   /** 列表标题 */
   title: string
-  /** 分类 mid（走 getMetaContents） */
+  /** 内容形态：articles 文章列表（默认）/ gpt AI 模型卡片 */
+  kind?: 'articles' | 'gpt'
+  /** 分类/连载/活动 mid（走 selectContents） */
   mid?: number | string
   /** searchParams 过滤（contentsList） */
   searchParams?: Record<string, unknown>
+  /** 精选源（choiceList，推荐栏目） */
+  choice?: boolean
 }
 
 interface UiState {

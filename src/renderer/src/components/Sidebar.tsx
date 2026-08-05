@@ -4,18 +4,24 @@ import { useAuthStore } from '../stores/auth'
 import { useDocsStore } from '../stores/docs'
 import { useEditorStore } from '../stores/editor'
 import { useReaderStore } from '../stores/reader'
-import type { ArticleRow } from '../../../shared/types'
+import type { ArticleRow, MetaInfo } from '../../../shared/types'
 
 const SECTIONS: TopSection[] = ['writing', 'recommend', 'serial', 'activity', 'library']
 
 /** 作品库分类节点（M2 动态拉取 metasList type=category 后填充） */
 const LIBRARY_DEFAULT = ['原创作品', '科幻杂谈', '官方公告', '外文翻译']
 
-const SECTION_TREE: Record<Exclude<TopSection, 'writing' | 'library'>, string[]> = {
-  recommend: ['AI模型', '精选'],
-  serial: ['合集', '连载'],
-  activity: ['荒启练笔第二十四期', '荒启练笔第二十三期', '荒启练笔第二十二期', '……']
-}
+/** 推荐栏目：固定子节点（精选=choiceList / AI模型=gptList） */
+const RECOMMEND_NODES = [
+  { key: 'choice', label: '精选' },
+  { key: 'gpt', label: 'AI模型' }
+] as const
+
+/** 连载栏目：两组 metas（serial=连载 / collection=合集） */
+const SERIAL_GROUPS: Array<{ type: string; label: string }> = [
+  { type: 'serial', label: '连载' },
+  { type: 'collection', label: '合集' }
+]
 
 /** 远端四态分组定义 */
 const REMOTE_GROUPS: Array<{ key: ArticleRow['type']; label: string }> = [
@@ -50,6 +56,12 @@ export function Sidebar(): React.JSX.Element {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   /** 作品库分类（metasList type=category 实测返回 mid，作为列表过滤参数） */
   const [libraryCats, setLibraryCats] = useState<Array<{ mid: number | string; name: string }>>([])
+  /** 连载栏目：serial/collection 两组 metas */
+  const [serialMetas, setSerialMetas] = useState<Record<string, MetaInfo[]>>({})
+  /** 活动栏目：active metas（练笔期次） */
+  const [activeMetas, setActiveMetas] = useState<MetaInfo[]>([])
+  /** metas 拉取失败标记（避免反复重试） */
+  const [metasError, setMetasError] = useState<string | null>(null)
 
   // 打开/新建本地文档时自动展开「本地存档」组，确保当前文件在树中可见
   useEffect(() => {
@@ -74,6 +86,37 @@ export function Sidebar(): React.JSX.Element {
     }
   }, [section, libraryCats.length])
 
+  // 切换栏目时重置 metas 拉取错误（避免一个栏目的失败阻塞另一个栏目）
+  useEffect(() => {
+    setMetasError(null)
+  }, [section])
+
+  // 首次进入连载/活动栏目时拉 metas（serial+collection / active），失败提示一次
+  useEffect(() => {
+    if (section === 'serial' && Object.keys(serialMetas).length === 0 && !metasError) {
+      void Promise.all(
+        SERIAL_GROUPS.map((g) =>
+          window.hqsf.listMetas(g.type).then((res) => ({ type: g.type, res }))
+        )
+      ).then((results) => {
+        const next: Record<string, MetaInfo[]> = {}
+        let failed: string | null = null
+        for (const { type, res } of results) {
+          if (res.ok) next[type] = res.data
+          else failed = res.error
+        }
+        setSerialMetas(next)
+        if (failed) setMetasError(failed)
+      })
+    }
+    if (section === 'activity' && activeMetas.length === 0 && !metasError) {
+      void window.hqsf.listMetas('active').then((res) => {
+        if (res.ok) setActiveMetas(res.data)
+        else setMetasError(res.error)
+      })
+    }
+  }, [section, serialMetas, activeMetas, metasError])
+
   async function handleOpenLocal(path: string): Promise<void> {
     setSelectedId(path)
     await openDoc(path)
@@ -92,6 +135,19 @@ export function Sidebar(): React.JSX.Element {
   function handleOpenLibraryCat(name: string, mid?: number | string): void {
     closeArticle()
     openList({ title: name, ...(mid != null ? { mid } : { searchParams: { type: 'post' } }) })
+  }
+
+  /** 打开连载/活动/题材等 metas 栏目文章列表（mid 走 selectContents） */
+  function handleOpenMeta(name: string, mid: number | string): void {
+    closeArticle()
+    openList({ title: name, mid })
+  }
+
+  /** 打开推荐子节点：精选（choiceList）/ AI模型（gpt 卡片） */
+  function handleOpenRecommend(key: 'choice' | 'gpt'): void {
+    closeArticle()
+    if (key === 'choice') openList({ title: '精选', choice: true })
+    else openList({ title: 'AI模型', kind: 'gpt' })
   }
 
   const info = session?.userinfo ?? {}
@@ -238,7 +294,80 @@ export function Sidebar(): React.JSX.Element {
               </div>
             ))}
           </div>
-        ) : section === 'library' ? (
+        ) : section === 'recommend' ? (
+          RECOMMEND_NODES.map((node) => (
+            <button
+              key={node.key}
+              className={`tree-node ${selectedId === node.label ? 'active' : ''}`}
+              onClick={() => handleOpenRecommend(node.key)}
+            >
+              {node.label}
+            </button>
+          ))
+        ) : section === 'serial' ? (
+          <div className="tree-area-inner">
+            {metasError && <div className="tree-empty muted">栏目加载失败：{metasError}</div>}
+            {SERIAL_GROUPS.map((g) => {
+              const metas = serialMetas[g.type]
+              const has = metas && metas.length > 0
+              return (
+                <div className="tree-group" key={g.type}>
+                  <button
+                    className="tree-group-title"
+                    onClick={() => toggleExpand(`serial:${g.type}`)}
+                  >
+                    <span className="caret">{expanded.has(`serial:${g.type}`) ? '▾' : '▸'}</span> {g.label}
+                    {has && <span className="count">{metas!.length}</span>}
+                  </button>
+                  {expanded.has(`serial:${g.type}`) && (
+                    <div className="tree-group-body">
+                      {!has && <div className="tree-empty muted">（加载中 …）</div>}
+                      {has &&
+                        metas!.map((m) => (
+                          <button
+                            key={m.mid}
+                            className={`tree-node ${selectedId === m.name ? 'active' : ''}`}
+                            onClick={() => handleOpenMeta(m.name, m.mid)}
+                            title={m.description || m.name}
+                          >
+                            {m.name}
+                          </button>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        ) : section === 'activity' ? (
+          <div className="tree-area-inner">
+            {metasError && <div className="tree-empty muted">栏目加载失败：{metasError}</div>}
+            <div className="tree-group">
+              <button
+                className="tree-group-title"
+                onClick={() => toggleExpand('activity')}
+              >
+                <span className="caret">{expanded.has('activity') ? '▾' : '▸'}</span> 练笔活动
+                {activeMetas.length > 0 && <span className="count">{activeMetas.length}</span>}
+              </button>
+              {expanded.has('activity') && (
+                <div className="tree-group-body">
+                  {activeMetas.length === 0 && <div className="tree-empty muted">（加载中 …）</div>}
+                  {activeMetas.map((m) => (
+                    <button
+                      key={m.mid}
+                      className={`tree-node ${selectedId === m.name ? 'active' : ''}`}
+                      onClick={() => handleOpenMeta(m.name, m.mid)}
+                      title={m.description || m.name}
+                    >
+                      {m.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
           (libraryCats.length > 0
             ? libraryCats.map((c) => ({ mid: c.mid as number | string | undefined, name: c.name }))
             : LIBRARY_DEFAULT.map((n) => ({ mid: undefined, name: n }))
@@ -249,19 +378,6 @@ export function Sidebar(): React.JSX.Element {
               onClick={() => handleOpenLibraryCat(cat.name, cat.mid)}
             >
               {cat.name}
-            </button>
-          ))
-        ) : (
-          SECTION_TREE[section as Exclude<TopSection, 'writing' | 'library'>].map((node) => (
-            <button
-              key={node}
-              className={`tree-node ${selectedId === node ? 'active' : ''}`}
-              onClick={() => {
-                closeArticle()
-                setSelectedId(node)
-              }}
-            >
-              {node}
             </button>
           ))
         )}

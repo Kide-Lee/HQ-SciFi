@@ -3,8 +3,10 @@ import type {
   ArticleDetail,
   ArticleListOptions,
   ArticleRow,
+  GptModel,
   LocalNode,
   LoginResult,
+  MetaInfo,
   PullResult,
   PushResult,
   RemoteArticle,
@@ -19,8 +21,10 @@ export type {
   ArticleDetail,
   ArticleListOptions,
   ArticleRow,
+  GptModel,
   LocalNode,
   LoginResult,
+  MetaInfo,
   PullResult,
   PushResult,
   RemoteArticle,
@@ -66,6 +70,8 @@ export interface HqsfApi {
   listCategories: () => Promise<
     ApiResult<Array<{ mid: number | string; name: string; slug: string; description?: string; count?: number }>>
   >
+  listMetas: (type: string) => Promise<ApiResult<MetaInfo[]>>
+  listGptModels: () => Promise<ApiResult<GptModel[]>>
 }
 
 declare global {

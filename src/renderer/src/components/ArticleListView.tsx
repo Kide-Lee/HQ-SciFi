@@ -13,11 +13,14 @@ import type { RemoteArticle } from '../../../shared/types'
 export function ArticleListView({
   title,
   mid,
-  searchParams
+  searchParams,
+  choice = false
 }: {
   title: string
   mid?: number | string
   searchParams?: Record<string, unknown>
+  /** 精选源（choiceList）：固定顺序，无排序按钮 */
+  choice?: boolean
 }): React.JSX.Element {
   const list = useReaderStore((s) => s.list)
   const listTotal = useReaderStore((s) => s.listTotal)
@@ -42,9 +45,9 @@ export function ArticleListView({
   // 切换栏目时重拉列表
   useEffect(() => {
     clearList()
-    void loadList({ mid, searchParams, order: 'created' })
+    void loadList({ mid, searchParams, choice, order: choice ? undefined : 'created' })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mid, JSON.stringify(searchParams)])
+  }, [mid, JSON.stringify(searchParams), choice])
 
   // 无限滚动：哨兵进入视口（提前 240px）自动加载下一页
   useEffect(() => {
@@ -55,7 +58,7 @@ export function ArticleListView({
       (entries) => {
         if (!entries[0]?.isIntersecting || loadingRef.current || listLoading) return
         loadingRef.current = true
-        void loadList({ mid, searchParams, append: true }).finally(() => {
+        void loadList({ mid, searchParams, choice, append: true }).finally(() => {
           loadingRef.current = false
         })
       },
@@ -64,23 +67,25 @@ export function ArticleListView({
     obs.observe(sentinel)
     return () => obs.disconnect()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mid, JSON.stringify(searchParams), listOrder, hasMore, listLoading, listError])
+  }, [mid, JSON.stringify(searchParams), choice, listOrder, hasMore, listLoading, listError])
 
   return (
     <div className="article-list-view">
       <div className="list-toolbar">
         <span className="list-title">{title}</span>
-        <div className="list-orders">
-          {ARTICLE_ORDERS.map((o) => (
-            <button
-              key={o.key}
-              className={`order-btn ${listOrder === o.key ? 'active' : ''}`}
-              onClick={() => setOrder(o.key)}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
+        {!choice && (
+          <div className="list-orders">
+            {ARTICLE_ORDERS.map((o) => (
+              <button
+                key={o.key}
+                className={`order-btn ${listOrder === o.key ? 'active' : ''}`}
+                onClick={() => setOrder(o.key)}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {listError && <ErrorBanner title="列表加载失败" message={listError} />}

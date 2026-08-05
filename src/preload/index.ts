@@ -4,8 +4,10 @@ import type {
   ArticleDetail,
   ArticleListOptions,
   ArticleRow,
+  GptModel,
   LocalNode,
   LoginResult,
+  MetaInfo,
   PullResult,
   PushResult,
   RemoteArticle,
@@ -71,7 +73,13 @@ const api = {
   setReviewAttitude: (reviewId: number | string, type: number): Promise<ApiResult<ReviewSubmitResult>> =>
     ipcRenderer.invoke('hqsf:set-review-attitude', reviewId, type),
   listCategories: (): Promise<ApiResult<Array<{ mid: number | string; name: string; slug: string; description?: string; count?: number }>>> =>
-    ipcRenderer.invoke('hqsf:list-categories')
+    ipcRenderer.invoke('hqsf:list-categories'),
+
+  // ---- 内容浏览（M3） ----
+  /** metas 栏目条目（type=serial/collection/active/tag 等，连载/活动树） */
+  listMetas: (type: string): Promise<ApiResult<MetaInfo[]>> => ipcRenderer.invoke('hqsf:list-metas', type),
+  /** AI 模型列表（推荐栏目「AI模型」） */
+  listGptModels: (): Promise<ApiResult<GptModel[]>> => ipcRenderer.invoke('hqsf:list-gpt-models')
 }
 
 export type HqsfApi = typeof api

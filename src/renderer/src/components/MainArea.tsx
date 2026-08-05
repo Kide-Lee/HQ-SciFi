@@ -3,8 +3,9 @@ import { useReaderStore } from '../stores/reader'
 import { EditorPane } from './EditorPane'
 import { ReaderView } from './ReaderView'
 import { ArticleListView } from './ArticleListView'
+import { GptListView } from './GptListView'
 
-/** 主界面：写作视图（M1 编辑器）/ 阅读视图（M2 读审一体）/ 栏目列表（M3 扩展载体） */
+/** 主界面：写作视图（M1 编辑器）/ 阅读视图（M2 读审一体）/ 栏目列表（M2 作品库 / M3 推荐·连载·活动） */
 export function MainArea(): React.JSX.Element {
   const section = useUiStore((s) => s.section)
   const selectedId = useUiStore((s) => s.selectedId)
@@ -22,16 +23,22 @@ export function MainArea(): React.JSX.Element {
     return <ReaderView />
   }
 
-  // 作品库：文章列表（M2 浏览入口；M3 将扩展推荐/连载/活动等栏目）
-  if (section === 'library') {
+  // 栏目列表：作品库分类 / 推荐（精选、AI模型）/ 连载（合集、连载）/ 活动（练笔期次）
+  // M3：listContext 存在时渲染对应列表；kind=gpt 渲染 AI 模型卡片
+  if (section === 'library' || section === 'recommend' || section === 'serial' || section === 'activity') {
     return (
       <main className="main-area">
         <div className="main-content list-content">
-          <ArticleListView
-            title={`${SECTION_LABELS[section]} · ${listContext?.title ?? selectedId ?? '全部文章'}`}
-            mid={listContext?.mid}
-            searchParams={listContext?.searchParams}
-          />
+          {listContext?.kind === 'gpt' ? (
+            <GptListView title={listContext.title} />
+          ) : (
+            <ArticleListView
+              title={`${SECTION_LABELS[section]} · ${listContext?.title ?? selectedId ?? '全部文章'}`}
+              mid={listContext?.mid}
+              searchParams={listContext?.searchParams}
+              choice={listContext?.choice}
+            />
+          )}
         </div>
       </main>
     )
@@ -46,7 +53,7 @@ export function MainArea(): React.JSX.Element {
       <div className="main-content">
         <div className="placeholder-card">
           <h2>{selectedId ?? SECTION_LABELS[section]}</h2>
-          <p className="muted">该栏目将在 M3 接入（内容浏览）。</p>
+          <p className="muted">该栏目将在后续版本接入。</p>
         </div>
       </div>
     </main>
