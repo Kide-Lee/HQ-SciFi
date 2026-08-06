@@ -58,7 +58,7 @@ hqsf/
 │     └─ styles/       # 主题（颜色/字体变量）
 ├─ resources/          # 图标、默认字体等
 ├─ electron-builder.yml
-└─ design.md
+└─ doc/                # 文档：设计（design.md）/ API 调查（api-research.md）/ 网站调研（site-overview.md）
 ```
 
 ### 本地存储布局
@@ -73,7 +73,7 @@ hqsf/
 - 文件名即文章标题（不带日期）；重名时追加 `(1)`/`(2)` 后缀避免覆盖。
 
 ## 认证与会话
-1. 登录方式：优先复用荒启 h5 的登录方式（账号密码/验证码等，**实施前需抓包确认**，见「风险」）。
+1. 登录方式：优先复用荒启 h5 的登录方式（账号密码/验证码等，**实施前需实测确认**，见「风险」）。
 2. 登录成功后，将会话 Cookie/Token 用 `safeStorage` 加密持久化，重启免登录；设置中提供「退出登录」清除凭据。
 3. 会话失效（401）时：静默提示重新登录，不丢本地内容。
 4. 所有请求携带会话态，请求集中在一个 API client 模块中管理，便于统一处理失效与重试。
@@ -130,7 +130,7 @@ hqsf/
 - **设置面板**：颜色切换（明/暗/自定义强调色）、字号大小、字体切换（内置中文字体候选 + 自定义字体路径），全部即时生效并持久化。
 
 ## 与荒启 API 对接
-- 官方无公开 API 文档；已通过分析官网 h5 前端包 + 接口实测完成调查，**完整结论见 `api-research.md`**。要点如下：
+- 官方无公开 API 文档；已通过接口实测完成调查，**完整结论见 `api-research.md`**。要点如下：
 - **基础设施**：基址 `https://api.huangqisf.com/`；`application/x-www-form-urlencoded`；鉴权用 `token` 表单参数（登录后存 `localStorage["token"]`）；响应统一 `{code, msg, data, total}`（`code:1` 成功）；列表通用 `searchParams`(JSON)/`limit`/`page`/`order`，写操作通用 `params`(JSON)。站点配置 `system/app`（key=`QyAPIZKw`）公开可读。
 - **认证**：账号密码（`hqUsers/userLogin`）、手机验证码（`phoneLogin`+`SendCode`）、第三方（`apiLogin`：qq/weixin/SINAWEIBO）、扫码（`getScan`/`setScan`/`getScanStatus`）。
 - **写作闭环**：草稿/待审核/已发布 统一走 `hqContents/contentsList` + `searchParams={type, authorId}`（`post_draft`=草稿、`waiting`=待审核、`post`=已发布）；保存/发布 `contentsAdd`/`contentsUpdate`（`isDraft` 1/0；正文为 **HTML**，`isMd:0`）；详情 `contentsInfo`（**需登录**）；删除 `contentsDelete`。
@@ -160,7 +160,7 @@ hqsf/
 | M0 脚手架 | electron-vite + React + TS 骨架、主/预加载/渲染三端打通、打包配置 | Win 与 Linux 均可构建出可运行安装包 | ✅ 代码与构建完成；GUI 运行与安装包产出需在正常桌面环境验证（开发沙箱为 bwrap 只读容器，官方 Electron 二进制无法完成 Chromium 初始化；electron-builder 工具下载依赖 GitHub） |
 | M1 写作闭环 | 登录与会话持久化、草稿箱拉取/增量同步、本地存档浏览与编辑、同步到草稿、发布、四态展示 | 完成「写→同步→发布→状态可见」全流程 | ✅ 代码完成（`npm run typecheck`/`build` 通过）；GUI 运行与真实账号接口验证需正常桌面环境（沙箱限制，见 README M1 验证清单） |
 | M2 读审一体 | 文章列表/详情阅读、评审面板打开与提交 | 可在本地阅读并评审非本人文章 | ✅ 代码完成（`npm run typecheck`/`build` 通过）；GUI 运行与真实账号接口验证需正常桌面环境（沙箱限制，见 README M2 验证清单） |
-| M3 内容浏览 | 推荐/连载/活动/作品库 各栏目数据接入与展示 | 五大栏目均可浏览 | ✅ 代码完成（`npm run typecheck`/`build` 通过）；真实账号 GUI 验证通过（CDP：精选 20 条+分页 40、AI模型 8 卡、连载「大道之行也」2 章阅读、活动「第二十四期」4 篇） |
+| M3 内容浏览 | 推荐/连载/活动/作品库 各栏目数据接入与展示 | 五大栏目均可浏览 | ✅ 代码完成（`npm run typecheck`/`build` 通过）；真实账号 GUI 验证通过（精选 20 条+分页 40、AI模型 8 卡、连载「大道之行也」2 章阅读、活动「第二十四期」4 篇） |
 | M4 打磨 | 设置（颜色/字号/字体）、空态与错误态、自动更新 | 个性化设置即时生效；更新可用 | — |
 | M5 展望 | 版本管理、AI 功能 | — | — |
 

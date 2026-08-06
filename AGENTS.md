@@ -1,6 +1,7 @@
 # hqsf-client（荒启科幻桌面客户端）
 
-Electron 桌面客户端，为 [荒启科幻](https://www.huangqisf.com/) 提供 写作-阅读-评审 一站式方案。产品与技术设计见 `design.md`，荒启 API 调查报告见 `api-research.md`。
+Electron 桌面客户端，为 [荒启科幻](https://www.huangqisf.com/) 提供 写作-阅读-评审 一站式方案。产品与技术设计见 `doc/design.md`，荒启 API 调查报告见 `doc/api-research.md`。
+> 文档归档：除 `README.md` 与 `AGENTS.md` 外的 md 文档（产品与技术设计 `doc/design.md`、荒启 API 调查 `doc/api-research.md`、网站调研 `doc/site-overview.md`）统一存放于 `doc/` 目录。
 
 ## Project
 
@@ -36,7 +37,7 @@ Electron 桌面客户端，为 [荒启科幻](https://www.huangqisf.com/) 提供
 
 - **IPC 返回约定**：成功 `{ok:true, data:业务载荷}`，失败 `{ok:false, error:string}`；主进程负责把 `ApiResponse` 解包成载荷。ping/getAppInfo 是 M0 遗留裸值接口。
 - **类型单一来源**：`src/shared/types.ts` 定义跨端类型（ArticleRow/PullResult/UserSession/LocalNode/ApiResult…），主进程/preload/渲染层都从它 import；改类型只改一处。
-- **API 调用坑**：`apiRequest` 默认 GET，GET 分支忽略 `body`；凡 POST 接口必须显式传 `method:'POST'`。对接新接口先查 `api-research.md` 确认 method 与参数。
+- **API 调用坑**：`apiRequest` 默认 GET，GET 分支忽略 `body`；凡 POST 接口必须显式传 `method:'POST'`。对接新接口先查 `doc/api-research.md` 确认 method 与参数。
 - **token 安全**：token 只存在主进程（safeStorage），`window.hqsf` 不下发；渲染层拿不到任何凭据。
 - **路径安全**：所有本地文件 IPC 都经 `fs.ts` 的 `assertInside`（resolve + realpath 防 `..`/symlink 穿越），以 `getDocsRoot()` 为根。
 - 渲染层状态用 Zustand；UI 文案简体中文。

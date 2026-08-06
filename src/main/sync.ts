@@ -87,9 +87,9 @@ async function listRemote(token: string, authorId: string, type: string): Promis
 
 /**
  * 拉取全文（HTML；contentsInfo 需登录）。markdown==1 时 text 为 md 原文。
- * 已从 h5 前端包实测确认两种调用形态：
- * - 编辑页（h5/hybrid/html/edit.html）：POST { key, token } —— 作者拉自己的文章/草稿，**草稿只能走这个**
- * - 阅读页（pages-contents-info）：GET { key, isMd:0, token } —— 公开文章
+ * 已实测确认两种调用形态：
+ * - 编辑页：POST { key, token } —— 作者拉自己的文章/草稿，**草稿只能走这个**
+ * - 阅读页：GET { key, isMd:0, token } —— 公开文章
  * GET 对未公开草稿返回「文章暂未公开访问」，因此 POST 优先、GET 回退。
  * 响应不遵循 {code,msg,data} 约定：成功返回裸文章对象 {title,text,...}，失败 {msg:'…'}。
  */

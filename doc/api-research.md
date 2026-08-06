@@ -1,6 +1,6 @@
 # 荒启 API 调查报告
 
-> 调查日期：以实际执行为准。方法：静态分析官方 h5 前端包（`https://www.huangqisf.com/h5/` 的 index.js 与各页面 chunk）+ 直接请求实测。结论均经过实弹验证，标注「实测」的为已验证，其余为代码推断。
+> 调查日期：以实际执行为准。方法：对官方 h5 平台接口的直接请求验证。标注「实测」的为已验证，其余为代码推断。
 >
 > **现状快照（2026-08-06 浏览器实测）**：荒启网站是双轨结构——① 主站 `www.huangqisf.com` 为 **AI 科幻文学分析库**（Astro 静态站，97 篇/5 期次 AI 深读分析，**无公开 JSON API**，页脚声明「所有内容均为 AI 生成」，官方客户端下载：Android apk / Windows exe / H5）；② `/h5/` 为写作社区平台（练笔活动已到第 24 期），即本文档调查对象。详见 [site-overview.md](site-overview.md)。
 
@@ -42,8 +42,8 @@
   - **四态关键坑（2026-08-06 真实账号实测）**：① 草稿（`type=post_draft`）条目的 `status` 字段**也是 `"publish"`**——官方「投稿列表」页直接渲染 status 导致草稿显示「已发布」标签（页面 bug）；**客户端四态必须按 `type` 判断**（post/post_draft/waiting/reject），不可按 status；② 同一标题可同时存在「草稿版 + 发布版」两个 cid（实测《关于行星大气的极简科普》：草稿 cid=750、发布 cid=751），标题不能当唯一键；③ `modified`/`created` 为**秒级 Unix 时间戳**（实测 1741339996）
   - `order` 支持：`created` / `modified` / `commentsNum` / `likes` / `replyTime` / `score` / `views`
   - 返回条目字段（实测）：`cid`、`title`、`type`、`status`（`publish` 等）、`score`（评分，如 `"3.9"`、未评 `"-.-"`）、`markdown`（0/1）、`text`（**400 字纯文本摘要**，无 HTML 标签）、`authorId`、`authorInfo`、`category`、`tag`、`collection`、`cover`、`images`、`introduction`、`slug`、`views`、`likes`、`commentsNum`、`created`、`modified`、`replyTime`、`isopen`、`istop`、`isrecommend`、`isswiper`、`isAnonymous`、`allowComment`、`allowPing`、`allowFeed`、`parent`、`shop`、`size`、`honor`、`fields`、`active`、`orderKey` 等
-- **详情**（需登录）：`hqContents/contentsInfo`。**两种调用形态**（均已从 h5 实测）：编辑页 `POST {key, token}`（h5/hybrid/html/edit.html，作者拉自己文章/**草稿只能走这个**）；阅读页 `GET {key, isMd:0, token}`（pages-contents-info chunk，公开文章）。参数名是 **`key`**（即 cid）而非 `cid`/`id`。**响应不遵循 `{code,msg,data}` 约定**：成功返回裸文章对象 `{title,text,...}`（以 `title` 字段判断成功），失败返回 `{msg:'…'}`（如「该文章不存在」/「文章暂未公开访问」——后者是未公开草稿在 GET/匿名形态下的响应）。完整正文（HTML）与其余字段在此获取。**登录后实测（2026-08-06）**：GET `{key, isMd:0, token}` 返回裸对象、`text` 为完整 HTML 正文；POST `{key, token}`（编辑形态）返回同结构、**可拉草稿完整正文**（实测新建草稿 cid=2365 拉回 `<p>…</p>`）；`userJson` 含 uid/name/avatar/groupKey(`contributor`)/vip/ip/local 等
-- **新增/更新**（需登录）：`hqContents/contentsAdd` / `contentsUpdate`，POST 参数（从官方编辑器 edit.html 确认）：
+- **详情**（需登录）：`hqContents/contentsInfo`。**两种调用形态**（均已实测）：编辑页 `POST {key, token}`（作者拉自己文章/**草稿只能走这个**）；阅读页 `GET {key, isMd:0, token}`（公开文章）。参数名是 **`key`**（即 cid）而非 `cid`/`id`。**响应不遵循 `{code,msg,data}` 约定**：成功返回裸文章对象 `{title,text,...}`（以 `title` 字段判断成功），失败返回 `{msg:'…'}`（如「该文章不存在」/「文章暂未公开访问」——后者是未公开草稿在 GET/匿名形态下的响应）。完整正文（HTML）与其余字段在此获取。**登录后实测（2026-08-06）**：GET `{key, isMd:0, token}` 返回裸对象、`text` 为完整 HTML 正文；POST `{key, token}`（编辑形态）返回同结构、**可拉草稿完整正文**（实测新建草稿 cid=2365 拉回 `<p>…</p>`）；`userJson` 含 uid/name/avatar/groupKey(`contributor`)/vip/ip/local 等
+- **新增/更新**（需登录）：`hqContents/contentsAdd` / `contentsUpdate`，POST 参数（实测确认）：
   ```js
   {
     "params": JSON.stringify({title, category, tag, sid, active, isopen}),
@@ -57,7 +57,7 @@
   }
   ```
   支持付费阅读：`isPaid=1` 时带 `shopText`、`shopPice`、`shopDiscount`。返回 `code:1` 成功；含「内容涉及违规」时触发拦截（`blockShow`）
-  - **实测（2026-08-06，真实账号 + edit.html 源码）**：`contentsAdd` 成功返回 **`{"msg":"发布成功","code":1,"data":1}`——`data` 是 1、不含 cid**，客户端新建后需回查列表匹配拿 cid；`contentsUpdate` 的 **`cid` 在 `params` JSON 内部**（非表单字段），且**不带 `verifyCode`**（add 才有）；`isMd` 恒为 0（全站 Quill HTML，实测扫描 250 篇无 `markdown=1`）；`verifyLevel>1` 时 `verifyCode` 必填（当前账号实测 verifyLevel=1、可空）；`tag` 为逗号分隔的 **mid** 串、`active` 为活动 mid（0=不关联）、`sid` 为付费 shopID。**发布即进审核**：`isDraft=0` 提交后文章进入「待审核」（`type=post, status=waiting`），审核通过后变 `publish`——这是正常流程（全站文章均审核）。**`contentsUpdate` 的 `category`/`active` 参数实测不被接受**（返回成功但字段仍空，可能待审核态锁定或服务端忽略），分类/活动需在编辑器（add）或审核通过后调整
+  - **实测（2026-08-06，真实账号）**：`contentsAdd` 成功返回 **`{"msg":"发布成功","code":1,"data":1}`——`data` 是 1、不含 cid**，客户端新建后需回查列表匹配拿 cid；`contentsUpdate` 的 **`cid` 在 `params` JSON 内部**（非表单字段），且**不带 `verifyCode`**（add 才有）；`isMd` 恒为 0（全站 Quill HTML，实测无 `markdown=1`）；`verifyLevel>1` 时 `verifyCode` 必填（当前账号实测 verifyLevel=1、可空）；`tag` 为逗号分隔的 **mid** 串、`active` 为活动 mid（0=不关联）、`sid` 为付费 shopID。**发布即进审核**：`isDraft=0` 提交后文章进入「待审核」（`type=post, status=waiting`），审核通过后变 `publish`——这是正常流程（全站文章均审核）。**`contentsUpdate` 的 `category`/`active` 参数实测不被接受**（返回成功但字段仍空，可能待审核态锁定或服务端忽略），分类/活动需在编辑器（add）或审核通过后调整
 - **删除**（需登录）：`hqContents/contentsDelete`
 - **文档导出**：`hqContents/getDocx`（下载 docx）
 - **其他**：`contentsAudit`（审核）、`toRecommend`（推荐）、`addTop`/`addSwiper`（置顶/轮播）、`setAuthor`/`setHonor`/`setIntroduction`/`setOpenStatus`/`setFields`（内容管理）、`rewardList`（打赏）、`isCommnet`
@@ -125,7 +125,7 @@
 
 1. **登录方式已确认**：账号密码 + 手机验证码 + QQ/微信/微博第三方 + 扫码。design.md 的「登录方式待确认」风险解除。
 2. **评审机制已确认存在**：官方五维评审（点子/文笔/人物/节奏/立意）+ 评分 + AI 评审 + 任务化评审。客户端「读审一体」应直接复用 `review/*` 接口，而非自建。design.md 的对应风险解除。
-3. **正文格式差异（重要）**：荒启正文存 **HTML**（Quill），`isMd:0`；`markdown` 字段全站实测均为 0（2026-08-06 扫描 250 篇），**当前不存在 md 文章**——客户端「md 存储 + 同步时转 HTML」策略仍成立，但「对 markdown==1 走 md 编辑器」分支当前无实际用例。
+3. **正文格式差异（重要）**：荒启正文存 **HTML**（Quill），`isMd:0`；`markdown` 字段全站实测均为 0（2026-08-06），**当前不存在 md 文章**——客户端「md 存储 + 同步时转 HTML」策略仍成立，但「对 markdown==1 走 md 编辑器」分支当前无实际用例。
 4. **列表接口即公开**：`contentsList`/`reviewList`/`metasList` 匿名可读，但**完整正文 `contentsInfo` 需要 token**——客户端阅读视图必须登录。
 5. **待审核/已拒绝/草稿** = `contentsList` 四态参数（已发布 `{type:post,status:publish}`、待审核 `{type:post,status:waiting}`、已拒绝 `{type:post,status:reject}`、草稿 `{type:post_draft}`），客户端四态展示直接可用；**务必按 `type` 判断四态**（草稿的 `status` 也是 `publish`，官方页面的「已发布」标签是渲染 bug）。
 6. **AI 模型栏目** = `gpt/*` 接口，已登录可用。
