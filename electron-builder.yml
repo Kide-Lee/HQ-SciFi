@@ -1,5 +1,5 @@
 appId: com.huangqisf.client
-productName: HuangqiSciFi
+productName: HQ-SciFi
 executableName: huangqi-scifi
 directories:
   buildResources: resources
@@ -38,3 +38,7 @@ linux:
   description: 荒启科幻（huangqisf.com）桌面客户端 —— 写作-阅读-评审 一站式方案。
   executableName: huangqi-scifi
   syncDesktopName: true
+
+deb:
+  packageName: hq-sci-fi
+  artifactName: ${productName}_${version}_${arch}.${ext}
