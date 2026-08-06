@@ -14,8 +14,9 @@ Electron 桌面客户端，为 [荒启科幻](https://www.huangqisf.com/) 提供
 - `npm run dev` — 开发模式（HMR；GUI 验证需正常桌面环境，见 Notes）
 - `npm run typecheck` — 主进程（tsconfig.node.json）+ 渲染层（tsconfig.web.json）类型检查
 - `npm run build` — electron-vite 构建到 `out/`
-- `npm run build:linux` — 构建 + 打包 deb / AppImage 到 `dist/`
-- `npm run build:win` — 构建 + 打包 NSIS 到 `dist/`
+- `npm run build:linux` — 构建 + 打包 deb / AppImage 到 `dist/`，并自动归档到 `dist/releases/<version>/`
+- `npm run build:win` — 构建 + 打包 NSIS 到 `dist/`，并自动归档到 `dist/releases/<version>/`
+- `node scripts/archive-release.mjs [version]` — 手动归档指定版本产物（默认当前 package.json 版本）；归档统一发布文件名（Windows exe 用点号 `hq-scifi.Setup.<v>.exe`，与 README 下载链接一致）
 - 无测试与 lint 脚本
 
 ## Architecture

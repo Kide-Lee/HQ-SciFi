@@ -13,8 +13,8 @@
     "start": "electron-vite preview",
     "build": "electron-vite build",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
-    "build:linux": "electron-vite build && electron-builder --linux",
-    "build:win": "electron-vite build && node scripts/win-prebuild.mjs apply && electron-builder --win; rc=$?; node scripts/win-prebuild.mjs restore || rc=1; exit $rc"
+    "build:linux": "electron-vite build && electron-builder --linux; rc=$?; node scripts/archive-release.mjs || rc=1; exit $rc",
+    "build:win": "electron-vite build && node scripts/win-prebuild.mjs apply && electron-builder --win; rc=$?; node scripts/win-prebuild.mjs restore || rc=1; node scripts/archive-release.mjs || rc=1; exit $rc"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",
