@@ -1,4 +1,8 @@
-# 荒启科幻桌面客户端（hqsf-client）
+# 荒启科幻桌面客户端（hq-scifi）
+
+[![Release](https://img.shields.io/github/v/release/Kide-Lee/HQ-SciFi)](https://github.com/Kide-Lee/HQ-SciFi/releases)
+[![License](https://img.shields.io/github/license/Kide-Lee/HQ-SciFi)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-blue)](https://github.com/Kide-Lee/HQ-SciFi/releases)
 
 > ⚠️ **第三方非官方客户端**：本项目为独立开发的桌面客户端，与「荒启科幻」官方无隶属关系，非官方出品。
 
@@ -13,14 +17,19 @@
 
 ## 📦 安装
 
-目前暂无预编译安装包发布，可从源码自行构建（见下）。
+从 [GitHub Releases](https://github.com/Kide-Lee/HQ-SciFi/releases)（最新版本以 Releases 页为准）下载安装包：
 
-### 环境要求
+| 平台 | 文件 |
+| --- | --- |
+| Windows | [hq-scifi.Setup.0.0.1.exe](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.1/hq-scifi.Setup.0.0.1.exe) |
+| Linux | [hq-scifi-0.0.1.AppImage](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.1/hq-scifi-0.0.1.AppImage)（无需安装，直接运行） |
+| Linux | [hq-scifi_0.0.1_amd64.deb](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.1/hq-scifi_0.0.1_amd64.deb)（Debian/Ubuntu 系） |
 
-- Node.js ≥ 20（建议 22 LTS）+ npm
-- Windows 10+，或主流 Linux 发行版
+> 更新日志见 [Releases](https://github.com/Kide-Lee/HQ-SciFi/releases)。
 
-### 构建
+### 从源码构建
+
+环境要求：Node.js ≥ 20（建议 22 LTS）+ npm。
 
 ```bash
 npm install
