@@ -21,11 +21,11 @@
 
 | 平台 | 文件 |
 | --- | --- |
-| Windows | [hq-scifi.Setup.0.0.1.exe](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.1/hq-scifi.Setup.0.0.1.exe) |
-| Linux | [hq-scifi-0.0.1.AppImage](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.1/hq-scifi-0.0.1.AppImage)（无需安装，直接运行） |
-| Linux | [hq-scifi_0.0.1_amd64.deb](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.1/hq-scifi_0.0.1_amd64.deb)（Debian/Ubuntu 系） |
+| Windows | [hq-scifi.Setup.0.0.2.exe](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.2/hq-scifi.Setup.0.0.2.exe) |
+| Linux | [hq-scifi-0.0.2.AppImage](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.2/hq-scifi-0.0.2.AppImage)（无需安装，直接运行） |
+| Linux | [hq-scifi_0.0.2_amd64.deb](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.2/hq-scifi_0.0.2_amd64.deb)（Debian/Ubuntu 系） |
 
-> 更新日志见 [Releases](https://github.com/Kide-Lee/HQ-SciFi/releases)。
+> **v0.0.2**：修复 Windows 版无法打开界面的问题（Linux 交叉打包时原生模块 `better-sqlite3` 误打包为 Linux 版二进制，现自动注入 Windows 版 prebuild）；更新日志见 [Releases](https://github.com/Kide-Lee/HQ-SciFi/releases)。
 
 ### 从源码构建
 
