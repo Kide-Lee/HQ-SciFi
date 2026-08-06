@@ -1,5 +1,5 @@
 appId: com.huangqisf.client
-productName: HQ-SciFi
+productName: hq-scifi
 executableName: huangqi-scifi
 directories:
   buildResources: resources
@@ -40,5 +40,5 @@ linux:
   syncDesktopName: true
 
 deb:
-  packageName: hq-sci-fi
+  packageName: hq-scifi
   artifactName: ${productName}_${version}_${arch}.${ext}
