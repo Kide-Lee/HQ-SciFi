@@ -34,9 +34,11 @@
 ```bash
 npm install
 npm run dev          # 开发模式（热更新）
-npm run build:win    # 打包 Windows 安装包（dist/）
+npm run build:win    # 打包 Windows 安装包（dist/；自动注入 Windows 原生模块 prebuild）
 npm run build:linux  # 打包 Linux（deb + AppImage，dist/）
 ```
+
+> Windows 包在 Linux 交叉打包时，`build:win` 会自动下载 better-sqlite3 的 Windows prebuild 替换原生二进制（打包后恢复），无需 Windows 环境；升级 Electron 后首次打包会重新下载匹配 ABI 的 prebuild（需联网访问 GitHub Releases）。
 
 ## 🚀 使用
 

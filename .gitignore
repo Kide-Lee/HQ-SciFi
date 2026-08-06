@@ -10,3 +10,5 @@ out/
 # Electron 单实例锁残留（npm run dev 生成）
 Singleton*
 reasonix.toml
+.reasonix/
+.win-prebuild-bak/
