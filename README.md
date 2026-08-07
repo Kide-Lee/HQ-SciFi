@@ -22,11 +22,11 @@
 
 | 平台 | 文件 |
 | --- | --- |
-| Windows | [hq-scifi.Setup.0.0.2.exe](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.2/hq-scifi.Setup.0.0.2.exe) |
-| Linux | [hq-scifi-0.0.2.AppImage](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.2/hq-scifi-0.0.2.AppImage)（无需安装，直接运行） |
-| Linux | [hq-scifi_0.0.2_amd64.deb](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.2/hq-scifi_0.0.2_amd64.deb)（Debian/Ubuntu 系） |
+| Windows | [hq-scifi.Setup.0.0.3.exe](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.3/hq-scifi.Setup.0.0.3.exe) |
+| Linux | [hq-scifi-0.0.3.AppImage](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.3/hq-scifi-0.0.3.AppImage)（无需安装，直接运行） |
+| Linux | [hq-scifi_0.0.3_amd64.deb](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.3/hq-scifi_0.0.3_amd64.deb)（Debian/Ubuntu 系） |
 
-> **v0.0.2**：修复 Windows 版无法打开界面的问题（Linux 交叉打包时原生模块 `better-sqlite3` 误打包为 Linux 版二进制，现自动注入 Windows 版 prebuild）；v0.0.2 样式改进（排序倒序 / 字数 / 并列排名、栏目首页、活动树与红点、评审栏「我的 / 所有评审」与编辑、拖动分栏等）见更新日志 [Releases](https://github.com/Kide-Lee/HQ-SciFi/releases)。
+> **v0.0.3**：v0.0.2 样式改进交付（排序倒序 / 字数 / 并列排名、栏目首页、活动树与红点、评审「我的 / 所有评审」与编辑、拖动分栏、活动卡片统计等）；**v0.0.2**：修复 Windows 版无法打开界面的问题（Linux 交叉打包时原生模块 `better-sqlite3` 误打包为 Linux 版二进制，现自动注入 Windows 版 prebuild）。更新日志见 [Releases](https://github.com/Kide-Lee/HQ-SciFi/releases)。
 
 ### 从源码构建
 
