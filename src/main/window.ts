@@ -32,6 +32,21 @@ export function createWindow(): BrowserWindow {
     win.show()
   })
 
+  // v0.0.2：任何界面按 Ctrl+F12 打开/收起开发者工具（打包后同样可用；macOS 亦为 Ctrl 键）
+  win.webContents.on('before-input-event', (_event, input) => {
+    if (
+      input.type === 'keyDown' &&
+      input.control &&
+      !input.alt &&
+      !input.shift &&
+      !input.meta &&
+      input.key.toLowerCase() === 'f12'
+    ) {
+      if (win.webContents.isDevToolsOpened()) win.webContents.closeDevTools()
+      else win.webContents.openDevTools()
+    }
+  })
+
   // 外部链接一律交给系统浏览器，不在应用内新开窗口
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('https://') || url.startsWith('http://')) {

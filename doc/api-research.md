@@ -16,6 +16,7 @@
   ```
   `code:1` 成功、`code:0` 失败（`msg` 为错误文案）。列表类多一个 `total`。
 - **通用列表参数**：`searchParams`（JSON 字符串，过滤条件）、`limit`、`page`、`order`、`token`
+- **排序方向（2026-08-08 实测）**：`order` 默认**降序**；加 `-` 前缀即为**反方向（升序）**，如 `order=score`（高分在前）/ `order=-score`（低分在前）。`contentsList`/`reviewList` 均支持；`selectContents` 部分字段（score/likes 等）对无评分数据会退化回固定顺序。**`order=size`（按字数）不受支持**（`contentsList` 返回空 data、`selectContents` 忽略），字数排序需客户端本地实现。
 - **通用写操作参数**：`params`（JSON 字符串）、`token`
 - **站点配置**（实测，公开）：`POST system/app`，参数 `key=QyAPIZKw`，返回站点名/logo/`verifyLevel`（人机验证等级）/版本 `V0.4.2`/联系方式 `hqsf1904@163.com` 等。
 - **图片验证码**：`GET hqUsers/getKaptcha` 直接返回验证码图片 URL。
@@ -72,7 +73,7 @@
 
 ## 4. 评审（review/）—— 官方已有完整评审体系
 
-- **评审列表**（实测，公开）：`review/reviewList`，`total` 已超 **1.2 万条**。返回结构：
+- **评审列表**（实测，公开）：`review/reviewList`，`total` 已超 **1.2 万条**。`limit/order/page` 生效，**`order` 支持 `created`（时间）/`score`（评分）/`joy`（开心）/`helpful`（有用）/`earnest`（认真）+ 负号前缀反方向**（2026-08-08 实测）。返回结构：
   ```json
   {"actualscore":"-.-","attitudeType":-1,"isAi":0,
    "jiezou":"一眼看得到结尾的剧情。",
@@ -109,6 +110,8 @@
 - `vote/voteList`、`voteInfo`、`voteDataList`、`voteDataInfo`、`myVoteData`、`addVote`/`editVote`、`auditVote`（实测 `voteList` 返回 `total:12` 但 `data` 为空——站点公告称「关闭投票」，**投票功能当前停用**）
 - 练笔活动的期数（第 X 期）与评审的 `activeid` 关联；活动页对应 `pages-contents-active`（`active` 字段在文章中出现）
 - **活动列表取数已实测（2026-08-06 登录后）**：`hqMetas/metasList?searchParams={"type":"active"}&limit=50&page=1&order=order&token=` 返回全部活动期次（练笔第 1–24 期 + 「未来校园档案」征文/第二届群星杯/第一届NTR创作活动），`mid` 即 `activeid`（实测练笔第 23 期 `activeid=96`，与 reviewList 返回一致）；活动条目含 `name`/`description`（推荐主题、字数要求 3000-33000、体裁限制）/`deadline`/`isReview`。文章 `active` 数组即其关联活动（`active[0].mid`）
+- **活动状态（2026-08-08 实测）**：活动条目含 **`activeStatus`**：`1`=进行中（投稿未截止，deadline 未来）、`-1`=评审中（投稿截止、评审阶段）、`0`=已结束（早期期次，均已出分）。`isReview` 表示是否参与评审（练笔=1，非练笔征文=0）；`deadline` 为投稿截止时间戳。**「进行中/评审中」活动文章无评分**（score 恒为 `-.-`），客户端应对这两类活动隐藏评分榜与排名。
+- **置顶文章（2026-08-08 实测）**：`contentsList + searchParams={"istop":1}` 返回置顶文章（data 全为 `istop=1` 的公告/悬赏帖；`total` 仍为全站数不可靠）——推荐首页「置顶文章」区可由此取数。
 
 ## 8. 其他模块
 
@@ -146,3 +149,9 @@
 - [x] `reviewList` 过滤参数（官方 h5 包核对：GET，`searchParams={cid}` 或 `{activeid}` 或 `{}` + `limit/order/page`，匿名可读；条目含 `score` 分数串、`articleInfo`、`userJson`、`attitudeType`、`isAi`、`joy/helpful/earnest` 计数）
 - [x] `attitude` 参数（`{token, id(评审id), type}`，type 0=joy 开心 / 1=helpful 有用 / 2=earnest 认真）
 - [x] 作品库分类列表取数（官方 h5 包核对：分类页 `getMetaContents` `{mid}` 或 `contentsList {type:"post"}` + `order`：score/likes/commentsNum/views/created/replyTime；分类树 = `metasList type=category` 拿 mid）
+- [x] 列表排序方向与字数排序（2026-08-08 实测：`order=-field` 为升序反方向；**`size` 排序接口不支持**，字数排序客户端本地实现）
+- [x] 评审列表排序字段（2026-08-08 实测：`order` = `created`/`score`/`joy`/`helpful`/`earnest` + 负号反方向）
+- [x] 活动状态判定（2026-08-08 实测：`activeStatus` 1=进行中 / -1=评审中 / 0=已结束；进行中/评审中文章 score 恒 `-.-` 无评分）
+- [x] 置顶文章取数（2026-08-08 实测：`contentsList searchParams={"istop":1}`）
+- [x] 评审审核状态（2026-08-08 实测：**review 条目无 status/审核字段**，编辑后客户端只能提示「已提交，等待审核」）
+- [x] 评者头像（2026-08-08 实测：review 条目 `userJson.avatar` 返回 URL）

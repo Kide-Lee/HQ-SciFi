@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { UserSession } from '../../../shared/types'
+import { useReaderStore } from './reader'
 
 interface AuthState {
   /** 当前会话（用户信息；token 只存在主进程，不下发渲染层） */
@@ -70,6 +71,8 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: async () => {
     await window.hqsf.logout()
+    // 换账号时清空评审任务标记与拉取状态，避免残留/不重拉
+    useReaderStore.setState({ reviewTaskByCid: {}, reviewTasksLoaded: false })
     set({ session: null, error: null })
   }
 }))

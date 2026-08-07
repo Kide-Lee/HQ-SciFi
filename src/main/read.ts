@@ -5,6 +5,7 @@ import type {
   ArticleListOptions,
   GptModel,
   MetaInfo,
+  MetaRef,
   RemoteArticle,
   ReviewItem,
   ReviewPayload,
@@ -42,6 +43,18 @@ function normTs(v: unknown): number {
 }
 
 /** 列表条目 → RemoteArticle（字段做类型规整，缺失给默认值） */
+/** 栏目引用规整（active/category/collection/tag 数组项，含 name+mid） */
+function toMetaRef(v: unknown): MetaRef {
+  const o = (v ?? {}) as Record<string, unknown>
+  return {
+    mid: str(o.mid ?? o.id ?? ''),
+    name: str(o.name) || undefined,
+    type: str(o.type) || undefined,
+    imgurl: str(o.imgurl) || undefined,
+    deadline: normTs(o.deadline)
+  }
+}
+
 function toRemoteArticle(item: Record<string, unknown>, index: number): RemoteArticle {
   return {
     cid: str(item.cid ?? item.id ?? ''),
@@ -52,9 +65,9 @@ function toRemoteArticle(item: Record<string, unknown>, index: number): RemoteAr
     text: str(item.text),
     authorId: str(item.authorId ?? ''),
     authorInfo: (item.authorInfo as Record<string, unknown> | undefined) ?? undefined,
-    category: item.category,
-    tag: item.tag,
-    collection: item.collection,
+    category: Array.isArray(item.category) ? item.category.map(toMetaRef) : undefined,
+    tag: Array.isArray(item.tag) ? item.tag.map(toMetaRef) : undefined,
+    collection: Array.isArray(item.collection) ? item.collection.map(toMetaRef) : undefined,
     cover: str(item.cover),
     introduction: str(item.introduction),
     views: num(item.views),
@@ -62,8 +75,9 @@ function toRemoteArticle(item: Record<string, unknown>, index: number): RemoteAr
     commentsNum: num(item.commentsNum),
     created: normTs(item.created),
     modified: normTs(item.modified),
+    replyTime: normTs(item.replyTime),
     isAnonymous: !!item.isAnonymous,
-    active: Array.isArray(item.active) ? (item.active as Array<{ mid: number | string }>) : null,
+    active: Array.isArray(item.active) ? item.active.map(toMetaRef) : null,
     size: num(item.size) || undefined,
     images: Array.isArray(item.images) ? (item.images as unknown[]).map(String) : undefined
   }
@@ -144,7 +158,8 @@ export async function listMetas(
     imgurl: str(m.imgurl),
     count: num(m.count),
     deadline: normTs(m.deadline),
-    isReview: num(m.isReview)
+    isReview: num(m.isReview),
+    activeStatus: num(m.activeStatus)
   }))
 }
 
@@ -229,8 +244,9 @@ export async function fetchRemoteArticle(token: string, cid: string): Promise<Ar
     modified: normTs(obj.modified),
     size: num(obj.size) || undefined,
     isAnonymous: !!obj.isAnonymous,
-    category: obj.category,
-    active: Array.isArray(obj.active) ? (obj.active as Array<{ mid: number | string }>) : null,
+    category: Array.isArray(obj.category) ? obj.category.map(toMetaRef) : undefined,
+    collection: Array.isArray(obj.collection) ? obj.collection.map(toMetaRef) : undefined,
+    active: Array.isArray(obj.active) ? obj.active.map(toMetaRef) : null,
     markdown: num(obj.markdown)
   }
   setReadCache(cacheKey, detail)
@@ -243,6 +259,7 @@ function toReviewItem(item: Record<string, unknown>): ReviewItem {
     id: str(item.id ?? item.rid ?? ''),
     cid: str(item.cid ?? item.key ?? ''),
     activeid: item.activeid != null ? str(item.activeid) : undefined,
+    uid: item.uid != null ? str(item.uid) : str((item.userJson as Record<string, unknown> | undefined)?.uid ?? ''),
     isAi: num(item.isAi),
     attitudeType: num(item.attitudeType),
     actualscore: str(item.actualscore),
@@ -348,6 +365,7 @@ export interface CategoryMeta {
   name: string
   slug: string
   description?: string
+  imgurl?: string
   count?: number
 }
 

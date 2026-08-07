@@ -94,6 +94,15 @@ export interface LocalNode {
 
 // ---------- 阅读与评审（M2 读审一体） ----------
 
+/** 文章关联栏目引用（active/category/collection/tag 数组项，2026-08-08 实测含 name+mid+type） */
+export interface MetaRef {
+  mid: number | string
+  name?: string
+  type?: string
+  imgurl?: string
+  deadline?: number
+}
+
 /** 文章列表条目（contentsList data 项，字段见 api-research.md） */
 export interface RemoteArticle {
   cid: string
@@ -106,9 +115,9 @@ export interface RemoteArticle {
   text: string
   authorId: string
   authorInfo?: Record<string, unknown>
-  category?: unknown
-  tag?: unknown
-  collection?: unknown
+  category?: MetaRef[]
+  tag?: MetaRef[]
+  collection?: MetaRef[]
   cover?: string
   introduction?: string
   views: number
@@ -117,12 +126,14 @@ export interface RemoteArticle {
   created: number
   modified: number
   isAnonymous?: boolean
-  /** 关联活动（active[0].mid） */
-  active?: Array<{ mid: number | string }> | null
+  /** 关联活动（active[0].mid / name） */
+  active?: MetaRef[] | null
   /** 字数（列表条目可选） */
   size?: number
   /** 配图（列表条目，images[0] 为封面） */
   images?: string[]
+  /** 最后回复时间（列表条目，按回复排序用） */
+  replyTime?: number
 }
 
 /** 文章详情（contentsInfo 裸对象；text 为完整 HTML 正文） */
@@ -141,8 +152,9 @@ export interface ArticleDetail {
   modified: number
   size?: number
   isAnonymous?: boolean
-  category?: unknown
-  active?: Array<{ mid: number | string }> | null
+  category?: MetaRef[]
+  collection?: MetaRef[]
+  active?: MetaRef[] | null
   markdown?: number
 }
 
@@ -174,6 +186,11 @@ export interface MetaInfo {
   count?: number
   deadline?: number
   isReview?: number
+  /**
+   * 活动状态（2026-08-08 实测）：1=进行中 / -1=评审中 / 0=已结束；
+   * 进行中/评审中的活动文章无评分（score 恒 '-.-'）
+   */
+  activeStatus?: number
 }
 
 /** AI 模型条目（gpt/gptList；对应推荐栏目「AI模型」） */
@@ -194,6 +211,8 @@ export interface ReviewItem {
   /** 被评审文章 cid */
   cid?: number | string
   activeid?: number | string
+  /** 评者 uid（2026-08-08 实测条目含 uid 字段；用于「我的评审」过滤） */
+  uid?: string
   isAi?: number
   attitudeType?: number
   /** 综合得分 */

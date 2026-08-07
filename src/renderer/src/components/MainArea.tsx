@@ -4,6 +4,10 @@ import { EditorPane } from './EditorPane'
 import { ReaderView } from './ReaderView'
 import { ArticleListView } from './ArticleListView'
 import { GptListView } from './GptListView'
+import { RecommendHome } from './RecommendHome'
+import { SerialHome } from './SerialHome'
+import { ActivityHome } from './ActivityHome'
+import { LibraryHome } from './LibraryHome'
 
 /** 主界面：写作视图（M1 编辑器）/ 阅读视图（M2 读审一体）/ 栏目列表（M2 作品库 / M3 推荐·连载·活动） */
 export function MainArea(): React.JSX.Element {
@@ -23,6 +27,46 @@ export function MainArea(): React.JSX.Element {
     return <ReaderView />
   }
 
+  // v0.0.2：栏目首页——点击「推荐/连载/活动/作品库」顶层、未选中子项时显示
+  if (!listContext) {
+    if (section === 'recommend') {
+      return (
+        <main className="main-area">
+          <div className="main-content">
+            <RecommendHome />
+          </div>
+        </main>
+      )
+    }
+    if (section === 'serial') {
+      return (
+        <main className="main-area">
+          <div className="main-content">
+            <SerialHome />
+          </div>
+        </main>
+      )
+    }
+    if (section === 'activity') {
+      return (
+        <main className="main-area">
+          <div className="main-content">
+            <ActivityHome />
+          </div>
+        </main>
+      )
+    }
+    if (section === 'library') {
+      return (
+        <main className="main-area">
+          <div className="main-content">
+            <LibraryHome />
+          </div>
+        </main>
+      )
+    }
+  }
+
   // 栏目列表：作品库分类 / 推荐（精选、AI模型）/ 连载（合集、连载）/ 活动（练笔期次）
   // M3：listContext 存在时渲染对应列表；kind=gpt 渲染 AI 模型卡片
   if (section === 'library' || section === 'recommend' || section === 'serial' || section === 'activity') {
@@ -37,6 +81,8 @@ export function MainArea(): React.JSX.Element {
               mid={listContext?.mid}
               searchParams={listContext?.searchParams}
               choice={listContext?.choice}
+              activityPhase={listContext?.activityPhase}
+              activityMeta={listContext?.meta}
             />
           )}
         </div>

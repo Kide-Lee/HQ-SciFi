@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { ARTICLE_ORDERS, useReaderStore } from '../stores/reader'
-import { cachedImageUrl, formatTs, scoreColor } from '../lib/sanitize'
+import { cachedImageUrl, formatSize, formatTs, scoreColor } from '../lib/sanitize'
 import { ErrorBanner } from './ErrorBanner'
 import type { RemoteArticle } from '../../../shared/types'
 
@@ -14,22 +14,36 @@ export function ArticleListView({
   title,
   mid,
   searchParams,
-  choice = false
+  choice = false,
+  activityPhase,
+  activityMeta
 }: {
   title: string
   mid?: number | string
   searchParams?: Record<string, unknown>
   /** 精选源（choiceList）：固定顺序，无排序按钮 */
   choice?: boolean
+  /** 活动状态（v0.0.2）：进行中/评审中隐藏评分榜排序、评分与排名 */
+  activityPhase?: 'ongoing' | 'reviewing' | 'ended'
+  /** 活动 meta（v0.0.2：列表页顶部展示活动介绍） */
+  activityMeta?: {
+    mid: number | string
+    name: string
+    imgurl?: string
+    description?: string
+    deadline?: number
+  }
 }): React.JSX.Element {
   const list = useReaderStore((s) => s.list)
   const listTotal = useReaderStore((s) => s.listTotal)
   const listLoading = useReaderStore((s) => s.listLoading)
   const listError = useReaderStore((s) => s.listError)
   const listOrder = useReaderStore((s) => s.listOrder)
+  const listOrderAsc = useReaderStore((s) => s.listOrderAsc)
   const listHasMore = useReaderStore((s) => s.listHasMore)
   const loadList = useReaderStore((s) => s.loadList)
   const setOrder = useReaderStore((s) => s.setOrder)
+  const toggleOrderAsc = useReaderStore((s) => s.toggleOrderAsc)
   const clearList = useReaderStore((s) => s.clearList)
   const openArticle = useReaderStore((s) => s.openArticle)
   const readingCid = useReaderStore((s) => s.readingCid)
@@ -45,14 +59,65 @@ export function ArticleListView({
     void loadReviewTasks()
   }, [loadReviewTasks])
 
-  // 榜单（非时间排序）显示排名
-  const isRanked = listOrder !== 'created'
+  // 榜单排序（评分/点赞/评论/阅读）显示排名；按时间/字数/回复是浏览排序不显示
+  const RANK_ORDERS = new Set(['score', 'likes', 'commentsNum', 'views'])
+  // v0.0.2：进行中/评审中活动文章无评分 → 隐藏「评分榜」排序、评分与排名
+  const hideScoreboard = activityPhase === 'ongoing' || activityPhase === 'reviewing'
+  const orders = hideScoreboard ? ARTICLE_ORDERS.filter((o) => o.key !== 'score') : ARTICLE_ORDERS
+  const isRanked = !hideScoreboard && RANK_ORDERS.has(listOrder)
   const hasMore = listHasMore && list.length > 0
+
+  /**
+   * 并列排名：按排序键值分组，相同键值同 rank（竞赛式跳号 1,2,2,4）。
+   * 名次基于「降序键值」计算（与当前展示方向无关）：最高分永远第 1 名；
+   * 无评分（score='-.-'）或键值为空不参与排名。
+   */
+  const rankOf = useMemo(() => {
+    if (!isRanked) return null
+    const keyOf = (a: RemoteArticle): number | null => {
+      switch (listOrder) {
+        case 'score': {
+          const s = Number.parseFloat(a.score)
+          return a.score !== '-.-' && Number.isFinite(s) ? s : null
+        }
+        case 'likes':
+          return a.likes
+        case 'commentsNum':
+          return a.commentsNum
+        case 'views':
+          return a.views
+        default:
+          return null
+      }
+    }
+    const withKey = list.map((a) => ({ a, k: keyOf(a) }))
+    const desc = [...withKey].sort((x, y) => (y.k ?? -Infinity) - (x.k ?? -Infinity))
+    const map = new Map<string, number | undefined>()
+    let prev: number | null = null
+    let rank = 0
+    desc.forEach((w, i) => {
+      if (w.k == null) {
+        map.set(w.a.cid, undefined)
+        return
+      }
+      // 竞赛式跳号：与上一名键值相同则沿用同名次（1,2,2,4），否则取降序位置序号
+      if (prev === null || w.k !== prev) rank = i + 1
+      map.set(w.a.cid, rank)
+      prev = w.k
+    })
+    return map
+  }, [list, listOrder, isRanked])
 
   // 切换栏目时重拉列表
   useEffect(() => {
     clearList()
-    void loadList({ mid, searchParams, choice, order: choice ? undefined : 'created' })
+    // v0.0.2：进入进行中/评审中活动列表时强制回到时间排序（评分榜被隔离，残留的 score 排序无意义）
+    if (hideScoreboard && listOrder === 'score') {
+      setOrder('created')
+      return
+    }
+    // v0.0.2：用当前所选排序加载（读文章返回列表时保持排序选择；切换排序按钮即时重排）
+    void loadList({ mid, searchParams, choice, order: choice ? undefined : listOrder })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mid, JSON.stringify(searchParams), choice])
 
@@ -78,11 +143,40 @@ export function ArticleListView({
 
   return (
     <div className="article-list-view">
+      {/* v0.0.2：活动列表页顶部——该活动的介绍信息（封面/描述/截止/状态） */}
+      {activityMeta && (
+        <div className="activity-info">
+          {activityMeta.imgurl && /^https?:\/\//i.test(activityMeta.imgurl) ? (
+            <img
+              className="activity-info-cover"
+              src={cachedImageUrl(activityMeta.imgurl)}
+              alt=""
+              referrerPolicy="no-referrer"
+            />
+          ) : null}
+          <div className="activity-info-body">
+            <div className="activity-info-head">
+              <span className="activity-info-name">{activityMeta.name}</span>
+              {activityPhase && activityPhase !== 'ended' && (
+                <span className={`activity-badge phase-${activityPhase}`}>
+                  {activityPhase === 'ongoing' ? '进行中' : '评审中'}
+                </span>
+              )}
+            </div>
+            {activityMeta.description && (
+              <div className="activity-info-desc">{activityMeta.description}</div>
+            )}
+            {activityMeta.deadline ? (
+              <div className="activity-info-meta">投稿截止 {formatTs(activityMeta.deadline)}</div>
+            ) : null}
+          </div>
+        </div>
+      )}
       <div className="list-toolbar">
         <span className="list-title">{title}</span>
         {!choice && (
           <div className="list-orders">
-            {ARTICLE_ORDERS.map((o) => (
+            {orders.map((o) => (
               <button
                 key={o.key}
                 className={`order-btn ${listOrder === o.key ? 'active' : ''}`}
@@ -91,6 +185,14 @@ export function ArticleListView({
                 {o.label}
               </button>
             ))}
+            {/* v0.0.2：所有排序共用一个方向切换（服务端默认降序 ↓；升序 ↑） */}
+            <button
+              className={`order-btn order-dir-btn ${listOrderAsc ? 'asc' : ''}`}
+              onClick={toggleOrderAsc}
+              title={listOrderAsc ? '当前升序（小→大），点击切回降序' : '当前降序（大→小），点击切换为升序'}
+            >
+              {listOrderAsc ? '↑' : '↓'}
+            </button>
           </div>
         )}
       </div>
@@ -102,13 +204,14 @@ export function ArticleListView({
         {!listLoading && list.length === 0 && !listError && (
           <div className="list-empty muted">（该栏目暂无文章）</div>
         )}
-        {list.map((a, idx) => (
+        {list.map((a) => (
           <ArticleCard
             key={a.cid}
             article={a}
-            rank={isRanked ? idx + 1 : undefined}
+            rank={rankOf?.get(a.cid)}
             active={readingCid === a.cid}
             taskStatus={reviewTaskByCid[a.cid]}
+            hideScore={hideScoreboard}
             onOpen={() => void openArticle(a.cid)}
           />
         ))}
@@ -126,11 +229,13 @@ export function ArticleListView({
   )
 }
 
-function ArticleCard({
+/** 文章卡片（列表/首页通用；v0.0.2 起导出供栏目首页复用） */
+export function ArticleCard({
   article,
   rank,
   active,
   taskStatus,
+  hideScore = false,
   onOpen
 }: {
   article: RemoteArticle
@@ -139,6 +244,8 @@ function ArticleCard({
   active: boolean
   /** 评审任务状态：0 待评审（强调高亮）/ 1 已完成（弱标记）/ 未定义 = 非任务文章 */
   taskStatus?: number
+  /** 隐藏评分栏位（进行中/评审中活动文章无评分，v0.0.2） */
+  hideScore?: boolean
   onOpen: () => void
 }): React.JSX.Element {
   const author = article.authorInfo as Record<string, unknown> | undefined
@@ -186,16 +293,20 @@ function ArticleCard({
           </span>
           {/* 统计组：靠右对齐，跨卡片右缘对齐；计数项（阅读/赞/评论）始终显示，0 也占位 */}
           <span className="article-card-stats">
+            {/* v0.0.2：卡片标记字数（formatSize 千分位） */}
+            {article.size ? <span>{formatSize(article.size)} 字</span> : null}
             <span>{article.views} 阅读</span>
             <span>{article.likes} 赞</span>
             <span>{article.commentsNum} 评论</span>
-            {/* 评分栏位始终保留（无评分显示灰色占位），按红→紫色相着色 */}
-            <span
-              className={`card-score ${hasScore ? '' : 'no-score'}`}
-              style={hasScore && scoreColorValue ? { color: scoreColorValue } : undefined}
-            >
-              {hasScore ? `${article.score} 分` : '-.- 分'}
-            </span>
+            {/* 评分栏位始终保留（无评分显示灰色占位），按红→紫色相着色；hideScore 时整体隐藏 */}
+            {!hideScore && (
+              <span
+                className={`card-score ${hasScore ? '' : 'no-score'}`}
+                style={hasScore && scoreColorValue ? { color: scoreColorValue } : undefined}
+              >
+                {hasScore ? `${article.score} 分` : '-.- 分'}
+              </span>
+            )}
             {article.created ? <span>{formatTs(article.created)}</span> : null}
           </span>
         </div>

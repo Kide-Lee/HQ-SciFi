@@ -36,6 +36,7 @@ Electron 桌面客户端，为 [荒启科幻](https://www.huangqisf.com/) 提供
 
 ## Conventions
 
+- 如果认为用户的设计有模糊之处，应询问用户。
 - **IPC 返回约定**：成功 `{ok:true, data:业务载荷}`，失败 `{ok:false, error:string}`；主进程负责把 `ApiResponse` 解包成载荷。ping/getAppInfo 是 M0 遗留裸值接口。
 - **类型单一来源**：`src/shared/types.ts` 定义跨端类型（ArticleRow/PullResult/UserSession/LocalNode/ApiResult…），主进程/preload/渲染层都从它 import；改类型只改一处。
 - **API 调用坑**：`apiRequest` 默认 GET，GET 分支忽略 `body`；凡 POST 接口必须显式传 `method:'POST'`。对接新接口先查 `doc/api-research.md` 确认 method 与参数。

@@ -70,7 +70,7 @@ export interface HqsfApi {
   submitReview: (payload: ReviewPayload) => Promise<ApiResult<ReviewSubmitResult>>
   setReviewAttitude: (reviewId: number | string, type: number) => Promise<ApiResult<ReviewSubmitResult>>
   listCategories: () => Promise<
-    ApiResult<Array<{ mid: number | string; name: string; slug: string; description?: string; count?: number }>>
+    ApiResult<Array<{ mid: number | string; name: string; slug: string; description?: string; imgurl?: string; count?: number }>>
   >
   listMetas: (type: string) => Promise<ApiResult<MetaInfo[]>>
   listGptModels: () => Promise<ApiResult<GptModel[]>>

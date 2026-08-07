@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import type { ActivityPhase } from '../lib/activity'
 
 export type TopSection = 'writing' | 'recommend' | 'serial' | 'activity' | 'library'
 
@@ -22,6 +23,19 @@ export interface ListContext {
   searchParams?: Record<string, unknown>
   /** 精选源（choiceList，推荐栏目） */
   choice?: boolean
+  /**
+   * 活动状态（v0.0.2）：进行中/评审中的活动文章无评分，
+   * 列表需隐藏「评分榜」排序、评分与排名
+   */
+  activityPhase?: ActivityPhase
+  /** 活动的完整 meta（v0.0.2：列表页顶部展示活动介绍用） */
+  meta?: {
+    mid: number | string
+    name: string
+    imgurl?: string
+    description?: string
+    deadline?: number
+  }
 }
 
 interface UiState {
@@ -29,19 +43,27 @@ interface UiState {
   selectedId: string | null
   /** 当前栏目列表的取数上下文（null = 不显示列表） */
   listContext: ListContext | null
+  /**
+   * v0.0.2：左栏定位目标——从文章标签跳转时设置，
+   * Sidebar 据此展开活动树并高亮/滚动到该文章标题
+   */
+  revealTarget: { section: TopSection; mid?: number | string; cid?: string } | null
   setSection: (section: TopSection) => void
   setSelectedId: (id: string | null) => void
   /** 打开栏目列表（作品库分类等） */
   openList: (ctx: ListContext) => void
   closeList: () => void
+  setRevealTarget: (target: { section: TopSection; mid?: number | string; cid?: string } | null) => void
 }
 
 export const useUiStore = create<UiState>((set) => ({
   section: 'writing',
   selectedId: null,
   listContext: null,
+  revealTarget: null,
   setSection: (section) => set({ section, selectedId: null, listContext: null }),
   setSelectedId: (selectedId) => set({ selectedId }),
   openList: (ctx) => set({ selectedId: ctx.title, listContext: ctx }),
-  closeList: () => set({ listContext: null })
+  closeList: () => set({ listContext: null }),
+  setRevealTarget: (revealTarget) => set({ revealTarget })
 }))

@@ -73,7 +73,9 @@ const api = {
     ipcRenderer.invoke('hqsf:submit-review', payload),
   setReviewAttitude: (reviewId: number | string, type: number): Promise<ApiResult<ReviewSubmitResult>> =>
     ipcRenderer.invoke('hqsf:set-review-attitude', reviewId, type),
-  listCategories: (): Promise<ApiResult<Array<{ mid: number | string; name: string; slug: string; description?: string; count?: number }>>> =>
+  listCategories: (): Promise<
+    ApiResult<Array<{ mid: number | string; name: string; slug: string; description?: string; imgurl?: string; count?: number }>>
+  > =>
     ipcRenderer.invoke('hqsf:list-categories'),
 
   // ---- 内容浏览（M3） ----

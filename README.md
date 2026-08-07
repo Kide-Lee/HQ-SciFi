@@ -11,9 +11,10 @@
 ## ✨ 功能特性
 
 - **写作**：本地 Markdown 编辑（CodeMirror 6，自动保存 + Ctrl+S），草稿 / 待审核 / 已发布 / 已拒绝四态管理，一键与荒启草稿箱同步、发布
-- **阅读**：推荐（精选 / AI 模型）、连载、练笔活动、作品库五大栏目；正文安全净化渲染；列表支持按评分 / 点赞 / 评论 / 阅读数排序
-- **评审**：接入官方五维评审体系（设定 / 文笔 / 人物 / 情节 / 思想性），查看与提交评审、表达态度
-- **安全**：登录凭据经系统级加密（safeStorage）仅存主进程、渲染层沙箱隔离、远端内容白名单净化防 XSS
+- **阅读**：推荐（精选 / AI 模型 / 首页置顶与内容流）、连载（推荐合集 / 推荐连载）、练笔活动（近期活动 / 活动树展开文章）、作品库五大栏目；正文安全净化渲染；列表排序支持评分 / 点赞 / 评论 / 阅读 / 字数 / 时间 / 回复，全部可倒序（↑/↓），并列排名同名次
+- **评审**：接入官方五维评审体系（设定 / 文笔 / 人物 / 情节 / 思想性）；「我的评审 / 所有评审」双视图，可随时编辑自己的评审；所有评审按时间 / 评分 / 开心 / 有用 / 认真排序 + 倒序；评审栏与正文可拖动分栏（默认 1:2）、字号与正文一致、编辑框随内容自动增高、实时平均分预示、评者头像
+- **活动**：活动按钮红点提示未完成评审任务；进行中 / 评审中活动带状态标记，且其文章不进入评分榜、不显示评分与排名
+- **安全**：登录凭据经系统级加密（safeStorage）仅存主进程、渲染层沙箱隔离、远端内容白名单净化防 XSS；任意界面 Ctrl+F12 打开开发者工具
 
 ## 📦 安装
 
@@ -25,7 +26,7 @@
 | Linux | [hq-scifi-0.0.2.AppImage](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.2/hq-scifi-0.0.2.AppImage)（无需安装，直接运行） |
 | Linux | [hq-scifi_0.0.2_amd64.deb](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.2/hq-scifi_0.0.2_amd64.deb)（Debian/Ubuntu 系） |
 
-> **v0.0.2**：修复 Windows 版无法打开界面的问题（Linux 交叉打包时原生模块 `better-sqlite3` 误打包为 Linux 版二进制，现自动注入 Windows 版 prebuild）；更新日志见 [Releases](https://github.com/Kide-Lee/HQ-SciFi/releases)。
+> **v0.0.2**：修复 Windows 版无法打开界面的问题（Linux 交叉打包时原生模块 `better-sqlite3` 误打包为 Linux 版二进制，现自动注入 Windows 版 prebuild）；v0.0.2 样式改进（排序倒序 / 字数 / 并列排名、栏目首页、活动树与红点、评审栏「我的 / 所有评审」与编辑、拖动分栏等）见更新日志 [Releases](https://github.com/Kide-Lee/HQ-SciFi/releases)。
 
 ### 从源码构建
 

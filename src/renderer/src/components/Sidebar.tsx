@@ -4,7 +4,8 @@ import { useAuthStore } from '../stores/auth'
 import { useDocsStore } from '../stores/docs'
 import { useEditorStore } from '../stores/editor'
 import { useReaderStore } from '../stores/reader'
-import type { ArticleRow, MetaInfo } from '../../../shared/types'
+import { sortActivities, activityPhase, ACTIVITY_PHASE_LABEL } from '../lib/activity'
+import type { ArticleRow, MetaInfo, RemoteArticle } from '../../../shared/types'
 
 const SECTIONS: TopSection[] = ['writing', 'recommend', 'serial', 'activity', 'library']
 
@@ -23,30 +24,6 @@ const SERIAL_GROUPS: Array<{ type: string; label: string }> = [
   { type: 'collection', label: '合集' }
 ]
 
-/** 中文数字 → 整数（覆盖「第X期」1-99：一~九 / 十 / 十一~十九 / 二十 / 二十X） */
-function cnNumToInt(s: string): number {
-  const digits: Record<string, number> = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9 }
-  if (s === '十') return 10
-  const ten = s.indexOf('十')
-  if (ten < 0) return digits[s] ?? 0
-  const tens = ten === 0 ? 1 : digits[s[0]] ?? 0
-  const ones = ten === s.length - 1 ? 0 : digits[s[ten + 1]] ?? 0
-  return tens * 10 + ones
-}
-
-/** 活动排序：练笔期次按期数倒序（最新在前），非练笔活动排最后（保持原序） */
-function sortActivities(metas: MetaInfo[]): MetaInfo[] {
-  const issueOf = (name: string): number => {
-    const m = /第([一二三四五六七八九十]+)期/.exec(name)
-    return m ? cnNumToInt(m[1]) : 0
-  }
-  const exercises = metas
-    .filter((m) => issueOf(m.name) > 0)
-    .sort((a, b) => issueOf(b.name) - issueOf(a.name))
-  const others = metas.filter((m) => issueOf(m.name) === 0)
-  return [...exercises, ...others]
-}
-
 /** 远端四态分组定义 */
 const REMOTE_GROUPS: Array<{ key: ArticleRow['type']; label: string }> = [
   { key: 'post_draft', label: '草稿' },
@@ -61,6 +38,8 @@ export function Sidebar(): React.JSX.Element {
   const setSection = useUiStore((s) => s.setSection)
   const setSelectedId = useUiStore((s) => s.setSelectedId)
   const openList = useUiStore((s) => s.openList)
+  const revealTarget = useUiStore((s) => s.revealTarget)
+  const setRevealTarget = useUiStore((s) => s.setRevealTarget)
 
   const session = useAuthStore((s) => s.session)
   const logout = useAuthStore((s) => s.logout)
@@ -76,6 +55,8 @@ export function Sidebar(): React.JSX.Element {
   const openArticle = useReaderStore((s) => s.openArticle)
   const closeArticle = useReaderStore((s) => s.closeArticle)
   const readingCid = useReaderStore((s) => s.readingCid)
+  const reviewTaskByCid = useReaderStore((s) => s.reviewTaskByCid)
+  const loadReviewTasks = useReaderStore((s) => s.loadReviewTasks)
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   /** 作品库分类（metasList type=category 实测返回 mid，作为列表过滤参数） */
@@ -84,6 +65,10 @@ export function Sidebar(): React.JSX.Element {
   const [serialMetas, setSerialMetas] = useState<Record<string, MetaInfo[]>>({})
   /** 活动栏目：active metas（练笔期次） */
   const [activeMetas, setActiveMetas] = useState<MetaInfo[]>([])
+  /** 活动树子项：mid → 该活动文章（selectContents 拉取，按标题排序） */
+  const [activityArticles, setActivityArticles] = useState<Record<string, RemoteArticle[]>>({})
+  /** 活动树子项加载中（懒加载标记） */
+  const [activityLoading, setActivityLoading] = useState<Set<string>>(new Set())
   /** metas 拉取失败标记（避免反复重试） */
   const [metasError, setMetasError] = useState<string | null>(null)
 
@@ -98,6 +83,63 @@ export function Sidebar(): React.JSX.Element {
     void refreshLocal()
     void refreshArticles()
   }, [refreshLocal, refreshArticles])
+
+  // v0.0.2：登录后全局拉取一次评审任务（活动红点计数 / 文章卡片 / 活动树标记共用；幂等）
+  useEffect(() => {
+    void loadReviewTasks()
+  }, [loadReviewTasks])
+
+  // v0.0.2：从文章标签跳转后，左栏定位到该文章标题（展开活动组 + 懒加载文章；
+  // 高亮由 revealTarget.cid 判定，不依赖 selectedId——openList 会覆盖 selectedId）
+  useEffect(() => {
+    if (!revealTarget || revealTarget.section !== 'activity' || revealTarget.mid == null) return
+    const midKey = String(revealTarget.mid)
+    setExpanded((prev) => (prev.has(`active:${midKey}`) ? prev : new Set(prev).add(`active:${midKey}`)))
+    // 懒加载该活动文章（与 toggleActivity 同一逻辑）
+    if (!activityArticles[midKey] && !activityLoading.has(midKey)) {
+      setActivityLoading((prev) => new Set(prev).add(midKey))
+      void window.hqsf
+        .listRemoteArticles({ mid: revealTarget.mid, limit: 100, order: 'created' })
+        .then((res) => {
+          setActivityLoading((prev) => {
+            const next = new Set(prev)
+            next.delete(midKey)
+            return next
+          })
+          if (res.ok) {
+            const sorted = [...res.data.items].sort((a, b) =>
+              a.title.localeCompare(b.title, 'zh-Hans-CN')
+            )
+            setActivityArticles((prev) => ({ ...prev, [midKey]: sorted }))
+          }
+        })
+        .catch(() => {
+          setActivityLoading((prev) => {
+            const next = new Set(prev)
+            next.delete(midKey)
+            return next
+          })
+        })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealTarget?.section, revealTarget?.mid, revealTarget?.cid])
+
+  // v0.0.2：定位目标文章节点渲染完成后滚动到它（revealTarget.cid 判定）
+  useEffect(() => {
+    const cid = revealTarget?.section === 'activity' ? revealTarget.cid : null
+    if (!cid) return
+    const el = document.querySelector(`[data-cid="${CSS.escape(cid)}"]`)
+    el?.scrollIntoView({ block: 'nearest' })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealTarget?.section, revealTarget?.cid, activityArticles])
+
+  // v0.0.2：用户打开其他文章（readingCid 变化）时清除不匹配的定位目标，避免旧文章残留高亮
+  useEffect(() => {
+    if (readingCid && revealTarget?.cid && readingCid !== revealTarget.cid) {
+      setRevealTarget(null)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readingCid])
 
   // 首次进入作品库时拉真实分类列表（含 mid）
   useEffect(() => {
@@ -162,9 +204,46 @@ export function Sidebar(): React.JSX.Element {
   }
 
   /** 打开连载/活动/题材等 metas 栏目文章列表（mid 走 selectContents） */
-  function handleOpenMeta(name: string, mid: number | string): void {
+  function handleOpenMeta(
+    name: string,
+    mid: number | string,
+    phase?: 'ongoing' | 'reviewing' | 'ended',
+    meta?: MetaInfo
+  ): void {
     closeArticle()
-    openList({ title: name, mid })
+    openList({ title: name, mid, activityPhase: phase, meta })
+  }
+
+  /** 活动树节点：展开/收起 + 打开活动列表 + 懒加载该活动文章（按标题排序） */
+  function toggleActivity(m: MetaInfo): void {
+    const midKey = String(m.mid)
+    toggleExpand(`active:${midKey}`)
+    handleOpenMeta(m.name, m.mid, activityPhase(m), m)
+    if (!activityArticles[midKey] && !activityLoading.has(midKey)) {
+      setActivityLoading((prev) => new Set(prev).add(midKey))
+      void window.hqsf
+        .listRemoteArticles({ mid: m.mid, limit: 100, order: 'created' })
+        .then((res) => {
+          setActivityLoading((prev) => {
+            const next = new Set(prev)
+            next.delete(midKey)
+            return next
+          })
+          if (res.ok) {
+            const sorted = [...res.data.items].sort((a, b) =>
+              a.title.localeCompare(b.title, 'zh-Hans-CN')
+            )
+            setActivityArticles((prev) => ({ ...prev, [midKey]: sorted }))
+          }
+        })
+        .catch(() => {
+          setActivityLoading((prev) => {
+            const next = new Set(prev)
+            next.delete(midKey)
+            return next
+          })
+        })
+    }
   }
 
   /** 打开推荐子节点：精选（choiceList）/ AI模型（gpt 卡片） */
@@ -202,6 +281,9 @@ export function Sidebar(): React.JSX.Element {
 
   const isWriting = section === 'writing'
 
+  // v0.0.2：未完成评审任务数（活动按钮红点）
+  const pendingTasks = Object.values(reviewTaskByCid).filter((s) => s === 0).length
+
   return (
     <aside className="sidebar">
       <div className="sidebar-top">
@@ -233,6 +315,12 @@ export function Sidebar(): React.JSX.Element {
               }}
             >
               {SECTION_LABELS[key]}
+              {/* v0.0.2：活动按钮右侧红点 = 未完成评审任务数 */}
+              {key === 'activity' && pendingTasks > 0 && (
+                <span className="nav-badge" title={`${pendingTasks} 个未完成评审任务`}>
+                  {pendingTasks}
+                </span>
+              )}
             </button>
           ))}
         </nav>
@@ -254,7 +342,7 @@ export function Sidebar(): React.JSX.Element {
                 }}
                 title="在系统文件管理器中打开本地存档目录"
               >
-                📂 打开目录
+                打开目录
               </button>
             </div>
             {lastPull && (
@@ -369,16 +457,62 @@ export function Sidebar(): React.JSX.Element {
             {activeMetas.length === 0 && !metasError && (
               <div className="tree-empty muted">（加载中 …）</div>
             )}
-            {activeMetas.map((m) => (
-              <button
-                key={m.mid}
-                className={`tree-node ${selectedId === m.name ? 'active' : ''}`}
-                onClick={() => handleOpenMeta(m.name, m.mid)}
-                title={m.description || m.name}
-              >
-                {m.name}
-              </button>
-            ))}
+            {/* v0.0.2：活动树——可展开，子项为该活动文章（按标题排序）；进行中/评审中标记；阅读高亮；任务徽章 */}
+            {activeMetas.map((m) => {
+              const midKey = String(m.mid)
+              const phase = activityPhase(m)
+              const phaseLabel = ACTIVITY_PHASE_LABEL[phase]
+              const articles = activityArticles[midKey] ?? []
+              const loading = activityLoading.has(midKey)
+              return (
+                <div className="tree-group" key={m.mid}>
+                  <button
+                    className={`tree-group-title ${selectedId === m.name ? 'active' : ''}`}
+                    onClick={() => toggleActivity(m)}
+                    title={m.description || m.name}
+                  >
+                    <span className="caret">{expanded.has(`active:${midKey}`) ? '▾' : '▸'}</span>
+                    <span className="tree-group-label">{m.name}</span>
+                    {/* v0.0.2：右侧容器整体靠右（count+状态徽章），无 count 时徽章也贴右 */}
+                    <span className="tree-group-title-right">
+                      {articles.length > 0 && <span className="count">{articles.length}</span>}
+                      {phaseLabel && <span className={`activity-badge phase-${phase}`}>{phaseLabel}</span>}
+                    </span>
+                  </button>
+                  {expanded.has(`active:${midKey}`) && (
+                    <div className="tree-group-body">
+                      {loading && <div className="tree-empty muted">（加载中 …）</div>}
+                      {!loading && articles.length === 0 && (
+                        <div className="tree-empty muted">（该活动暂无文章）</div>
+                      )}
+                      {articles.map((row) => {
+                        const ts = reviewTaskByCid[row.cid]
+                        const isActive =
+                          readingCid === row.cid ||
+                          selectedId === `active-article:${row.cid}` ||
+                          (revealTarget?.section === 'activity' && revealTarget.cid === row.cid)
+                        return (
+                          <button
+                            key={row.cid}
+                            data-cid={row.cid}
+                            className={`tree-node ${isActive ? 'active' : ''} ${ts === 0 ? 'task-todo' : ''}`}
+                            onClick={() => {
+                              setSelectedId(`active-article:${row.cid}`)
+                              void openArticle(row.cid)
+                            }}
+                            title={row.title}
+                          >
+                            <span className="tree-node-text">{row.title}</span>
+                            {ts === 0 && <span className="tree-task-badge todo">待评审</span>}
+                            {ts === 1 && <span className="tree-task-badge done">已评审</span>}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
         ) : (
           (libraryCats.length > 0

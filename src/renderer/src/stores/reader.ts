@@ -2,14 +2,24 @@ import { create } from 'zustand'
 import type { ArticleDetail, RemoteArticle, ReviewItem, ReviewPayload } from '../../../shared/types'
 import { useUiStore } from './ui'
 
-/** 列表排序（对应官方 topList：评分/点赞/评论/阅读/时间/回复） */
+/** 列表排序（对应官方 topList：评分/点赞/评论/阅读/时间/回复；size 按字数为本地排序） */
 export const ARTICLE_ORDERS: Array<{ key: string; label: string }> = [
   { key: 'score', label: '评分榜' },
   { key: 'likes', label: '点赞榜' },
   { key: 'commentsNum', label: '评论榜' },
   { key: 'views', label: '阅读榜' },
+  { key: 'size', label: '按字数' },
   { key: 'created', label: '按时间' },
   { key: 'replyTime', label: '按回复' }
+]
+
+/** 评审列表排序（v0.0.2：reviewList order 实测支持 created/score/joy/helpful/earnest + 负号反方向） */
+export const REVIEW_ORDERS: Array<{ key: string; label: string }> = [
+  { key: 'created', label: '按时间' },
+  { key: 'score', label: '按评分' },
+  { key: 'joy', label: '按开心' },
+  { key: 'helpful', label: '按有用' },
+  { key: 'earnest', label: '按认真' }
 ]
 
 interface ReaderState {
@@ -24,6 +34,10 @@ interface ReaderState {
   // ---- 评审 ----
   reviews: ReviewItem[]
   reviewsLoading: boolean
+  /** 评审列表排序（v0.0.2：所有评审支持排序+倒序） */
+  reviewOrder: string
+  /** 评审排序方向：false=降序（服务端默认） true=升序 */
+  reviewOrderAsc: boolean
   /** 提交进行中 */
   submitting: boolean
   /** 提交结果提示（成功/失败） */
@@ -37,6 +51,11 @@ interface ReaderState {
   listError: string | null
   listOrder: string
   /**
+   * 排序方向：false=服务端默认（降序，大→小）；true=升序（小→大）。
+   * 所有排序按钮共用一个 ↑/↓ 切换（v0.0.2）。
+   */
+  listOrderAsc: boolean
+  /**
    * 是否还有下一页。注意：selectContents 的 total 不可靠（实测 total=20 但第 2 页仍有数据），
    * 用「本页返回条数 == limit」判断；首屏置 true 直至某页返回不足一页。
    */
@@ -45,18 +64,24 @@ interface ReaderState {
   // ---- 评审任务（文章卡片强调） ----
   /** cid → 任务状态（0 待评审 / 1 已完成），空对象 = 未拉取或非任务文章 */
   reviewTaskByCid: Record<string, number>
+  /** 已成功拉取过评审任务（避免无任务时空对象反复请求；失败不置位，允许重试） */
+  reviewTasksLoaded: boolean
   /** 拉取当前账号评审任务（幂等：已拉过则跳过；失败静默，不影响列表） */
   loadReviewTasks: () => Promise<void>
 
   openArticle: (cid: string) => Promise<void>
   closeArticle: () => void
   loadReviews: (cid: string) => Promise<void>
+  setReviewOrder: (order: string) => void
+  toggleReviewOrderAsc: () => void
   submit: (payload: ReviewPayload) => Promise<boolean>
   setAttitude: (reviewId: number | string, type: number) => Promise<void>
   clearSubmitMessage: () => void
 
   loadList: (opts?: { searchParams?: Record<string, unknown>; mid?: number | string; order?: string; append?: boolean; choice?: boolean }) => Promise<void>
   setOrder: (order: string) => void
+  /** 切换当前排序方向（所有排序字段共用一个 ↑/↓） */
+  toggleOrderAsc: () => void
   clearList: () => void
 }
 
@@ -68,6 +93,8 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
 
   reviews: [],
   reviewsLoading: false,
+  reviewOrder: 'created',
+  reviewOrderAsc: false,
   submitting: false,
   submitMessage: null,
 
@@ -77,9 +104,11 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
   listLoading: false,
   listError: null,
   listOrder: 'created',
+  listOrderAsc: false,
   listHasMore: true,
 
   reviewTaskByCid: {},
+  reviewTasksLoaded: false,
 
   openArticle: async (cid) => {
     if (get().readingCid === cid && get().detail) return
@@ -102,11 +131,25 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
   loadReviews: async (cid) => {
     set({ reviewsLoading: true })
     try {
-      const res = await window.hqsf.listReviews({ cid })
+      // v0.0.2：评审列表按 reviewOrder/reviewOrderAsc 排序（order=-field 为升序）
+      const order = get().reviewOrderAsc ? `-${get().reviewOrder}` : get().reviewOrder
+      const res = await window.hqsf.listReviews({ cid, order })
       set({ reviews: res.ok ? res.data.items : [], reviewsLoading: false })
     } catch (err) {
       set({ reviews: [], reviewsLoading: false })
     }
+  },
+
+  setReviewOrder: (order) => {
+    set({ reviewOrder: order })
+    const cid = get().readingCid
+    if (cid) void get().loadReviews(cid)
+  },
+
+  toggleReviewOrderAsc: () => {
+    set({ reviewOrderAsc: !get().reviewOrderAsc })
+    const cid = get().readingCid
+    if (cid) void get().loadReviews(cid)
   },
 
   submit: async (payload) => {
@@ -115,7 +158,8 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
     const res = await window.hqsf.submitReview(payload)
     set({ submitting: false })
     if (res.ok && res.data.ok) {
-      set({ submitMessage: '评审已提交，感谢你的评价' })
+      // v0.0.2：编辑评审（带 id）提交后按审核流程提示（review 条目无 status 字段，兜底文案）
+      set({ submitMessage: payload.id != null && payload.id !== '' ? '评审已更新，等待审核' : '评审已提交，感谢你的评价' })
       const cid = get().readingCid
       if (cid) void get().loadReviews(cid)
       return true
@@ -139,16 +183,28 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
     const limit = 20
     set({ listLoading: true, listError: null })
     try {
+      const order = opts.order ?? (opts.choice ? undefined : get().listOrder)
+      const asc = get().listOrderAsc
+      // 服务端 order：size 不受支持（实测），用 created 稳定取数后本地按字数排序；
+      // 其余字段服务端支持负号前缀反方向（order=-field = 升序）
+      const serverOrder =
+        order && !opts.choice ? (order === 'size' ? 'created' : asc ? `-${order}` : order) : undefined
       const res = await window.hqsf.listRemoteArticles({
         searchParams: opts.searchParams,
         mid: opts.mid,
         choice: opts.choice,
-        order: opts.order ?? (opts.choice ? undefined : get().listOrder),
+        order: serverOrder,
         limit,
         page
       })
       if (res.ok) {
-        const items = res.data.items
+        let items = res.data.items
+        // 按字数排序：接口不支持，本地排（当前已加载列表内）
+        if (order === 'size') {
+          items = [...items].sort((a, b) =>
+            asc ? (a.size ?? 0) - (b.size ?? 0) : (b.size ?? 0) - (a.size ?? 0)
+          )
+        }
         // selectContents 的 total 不可靠：返回不足一页才算没有更多
         const hasMore = items.length >= limit
         set({
@@ -178,18 +234,29 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
     })
   },
 
+  toggleOrderAsc: () => {
+    set({ listOrderAsc: !get().listOrderAsc })
+    const ctx = useUiStore.getState().listContext
+    void get().loadList({
+      order: get().listOrder,
+      mid: ctx?.mid,
+      searchParams: ctx?.searchParams,
+      choice: ctx?.choice
+    })
+  },
+
   clearList: () =>
     set({ list: [], listTotal: 0, listPage: 1, listError: null, listHasMore: true }),
 
   loadReviewTasks: async () => {
-    // 幂等：已拉取过则不再重复请求
-    if (Object.keys(get().reviewTaskByCid).length > 0) return
+    // 幂等：已成功拉取过则不再重复请求（无任务时为空对象，用独立 loaded 标志）
+    if (get().reviewTasksLoaded) return
     try {
       const res = await window.hqsf.listReviewTasks()
       if (res.ok) {
         const map: Record<string, number> = {}
         for (const t of res.data) map[t.cid] = t.status
-        set({ reviewTaskByCid: map })
+        set({ reviewTaskByCid: map, reviewTasksLoaded: true })
       }
     } catch {
       // 任务拉取失败静默：不影响文章列表浏览
