@@ -12,3 +12,6 @@ Singleton*
 reasonix.toml
 .reasonix/
 .win-prebuild-bak/
+
+# 第三方服务端参考实现（RuleApi，荒启服务端同源）：源码 + 编译产物全部忽略
+/vendor/
