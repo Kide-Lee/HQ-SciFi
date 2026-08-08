@@ -1,5 +1,5 @@
 import { apiRequest } from './net/api'
-import { getReadCache, setReadCache } from './db'
+import { deleteReadCache, getReadCache, setReadCache } from './db'
 import type {
   ArticleDetail,
   ArticleListOptions,
@@ -212,7 +212,7 @@ export async function listReviewTasks(token: string | null, uid: number | string
   })
 }
 
-/** 拉取文章详情（完整 HTML 正文；需登录）。contentsInfo 响应为裸对象；结果本地缓存（容量上限，不限期） */
+/** 拉取文章详情（完整 HTML 正文；需登录）。contentsInfo 响应为裸对象；结果本地缓存（1 天未使用即丢弃） */
 export async function fetchRemoteArticle(token: string, cid: string): Promise<ArticleDetail> {
   const cacheKey = `article:${cid}`
   const cached = getReadCache<ArticleDetail>(cacheKey)
@@ -224,6 +224,13 @@ export async function fetchRemoteArticle(token: string, cid: string): Promise<Ar
     raw: true
   })
   if (!obj || typeof obj.title !== 'string') {
+    throw new Error(`拉取文章失败: ${str(obj?.msg) || '未公开或不存在'}`)
+  }
+  // 文章未公开/被隐藏（如 cid=1254 热岛，contentsInfo 仍返回 title 但 isopen=0）。
+  // 走到此处说明本次缓存未命中（key 通常已被 getReadCache 清理/删除）；deleteReadCache
+  // 是幂等兜底：防止并发请求刚写入的缓存、或未来 TTL 策略变化后的残留被读到。
+  if (obj.isopen === 0 || obj.isopen === '0') {
+    deleteReadCache(cacheKey)
     throw new Error(`拉取文章失败: ${str(obj?.msg) || '未公开或不存在'}`)
   }
   const userJson = obj.userJson as Record<string, unknown> | undefined

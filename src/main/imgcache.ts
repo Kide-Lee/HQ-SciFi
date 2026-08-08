@@ -1,6 +1,6 @@
 import { app, net, protocol } from 'electron'
 import { createHash } from 'node:crypto'
-import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, readdir, rename, rm, stat, utimes, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 /**
@@ -9,7 +9,8 @@ import { join } from 'node:path'
  * 主进程首次用 net.fetch 下载并落盘到 userData/cache/images/，之后直接读本地文件——
  * 离线可用 + 减少重复下载。文件名 = sha1(url)，天然去重。
  * 首次下载时把响应 Content-Type 写入 <sha1>.meta，后续命中缓存照常返回正确类型。
- * 缓存有总量上限（16MB），超限按文件 mtime 从旧到新删除（含 .meta）。
+ * 缓存不限时（离线可用），只有总量上限（16MB）：磁盘文件 mtime 兼作「最后使用时间」
+ * （命中即 touch），超限时按最后使用时间从旧到新删最旧。
  *
  * 性能优化：
  * - 内存缓存（LRU 上限 8MB）：重复访问同一图直接返回，不再读盘
@@ -41,6 +42,14 @@ let memBytes = 0
 
 /** in-flight 去重：hash → 下载 Promise（同一 URL 并发只下载一次） */
 const inflight = new Map<string, Promise<{ buf: Buffer; ct: string }>>()
+
+/** sweep 并发节流：一次只跑一个全量扫描（多图并发下载时避免 readdir/stat 放大） */
+let sweepRunning = false
+
+/** touch 节流：距上次 touch 超过该时长才再次 utimes（避免内存命中高频写盘） */
+const TOUCH_INTERVAL_MS = 5 * 60 * 1000
+/** 上次 touch 时间：hash → ts（节流用；随 sweepCache 清理已不在磁盘的条目） */
+const lastTouch = new Map<string, number>()
 
 function cacheDir(): string {
   return join(app.getPath('userData'), CACHE_ROOT)
@@ -98,35 +107,48 @@ function memGet(hash: string): MemEntry | null {
 }
 
 /**
- * 总字节超限时按 mtime 从旧到新删除图片（连同 .meta），直到水位以下。
+ * 缓存清理：缓存不限时，仅在总字节超限时按 mtime（最后使用时间，命中会 touch）
+ * 从旧到新删除图片直到水位以下。图片连同 .meta 一起删。
  * 图片文件是 sha1 文件名、无扩展名；.tmp 是下载临时文件，不参与统计也不清理。
  */
-async function trimCacheIfOverLimit(dir: string): Promise<void> {
-  let entries: Array<{ file: string; mtimeMs: number; size: number }> = []
-  let total = 0
+async function sweepCache(dir: string): Promise<void> {
+  // 已有扫描在跑则跳过本次（清理是尽力而为，稍后触发会再补）
+  if (sweepRunning) return
+  sweepRunning = true
   try {
-    for (const name of await readdir(dir)) {
-      if (name.endsWith('.tmp') || name.endsWith('.meta')) continue
-      const file = join(dir, name)
-      const st = await stat(file)
-      if (!st.isFile()) continue
-      entries.push({ file, mtimeMs: st.mtimeMs, size: st.size })
-      total += st.size
-    }
-  } catch {
-    return
-  }
-  if (total <= CACHE_TARGET_BYTES) return
-  entries.sort((a, b) => a.mtimeMs - b.mtimeMs)
-  for (const e of entries) {
-    if (total <= CACHE_TARGET_BYTES) break
+    let entries: Array<{ file: string; mtimeMs: number; size: number }> = []
+    let total = 0
+    const onDisk = new Set<string>()
     try {
-      await rm(e.file, { force: true })
-      await rm(metaFileFor(e.file), { force: true })
-      total -= e.size
+      for (const name of await readdir(dir)) {
+        if (name.endsWith('.tmp') || name.endsWith('.meta')) continue
+        const file = join(dir, name)
+        const st = await stat(file)
+        if (!st.isFile()) continue
+        entries.push({ file, mtimeMs: st.mtimeMs, size: st.size })
+        onDisk.add(name)
+        total += st.size
+      }
     } catch {
-      /* 删除失败跳过 */
+      return
     }
+    // 清理 touch 节流表中已不在磁盘的条目（文件已被删或从未落盘）
+    for (const k of lastTouch.keys()) {
+      if (!onDisk.has(k)) lastTouch.delete(k)
+    }
+    entries.sort((a, b) => a.mtimeMs - b.mtimeMs)
+    for (const e of entries) {
+      if (total <= CACHE_TARGET_BYTES) break
+      try {
+        await rm(e.file, { force: true })
+        await rm(metaFileFor(e.file), { force: true })
+        total -= e.size
+      } catch {
+        /* 删除失败跳过 */
+      }
+    }
+  } finally {
+    sweepRunning = false
   }
 }
 
@@ -152,8 +174,22 @@ async function downloadImage(target: string, file: string): Promise<{ buf: Buffe
     /* meta 写入失败不影响图片本身 */
   }
   // 落盘后异步清理超限缓存（不阻塞本次响应）
-  void trimCacheIfOverLimit(dir)
+  void sweepCache(dir)
   return { buf, ct }
+}
+
+/** 命中即视为使用：节流刷新磁盘文件 mtime（作为最后使用时间，供容量 LRU 淘汰排序）；失败忽略 */
+function touchFile(file: string, hash: string): void {
+  const now = Date.now()
+  const prev = lastTouch.get(hash)
+  if (prev != null && now - prev < TOUCH_INTERVAL_MS) return
+  lastTouch.set(hash, now)
+  try {
+    const d = new Date()
+    void utimes(file, d, d).catch(() => undefined)
+  } catch {
+    /* 忽略 */
+  }
 }
 
 /** 取图：内存缓存 → in-flight 去重 → 磁盘 → 下载 */
@@ -163,7 +199,11 @@ async function resolveImage(target: string): Promise<{ buf: Buffer; ct: string }
 
   // 1. 内存缓存（LRU）
   const mem = memGet(hash)
-  if (mem) return { buf: mem.buf, ct: mem.ct }
+  if (mem) {
+    // 内存命中同样刷新磁盘 mtime（节流），供容量 LRU 淘汰排序
+    touchFile(file, hash)
+    return { buf: mem.buf, ct: mem.ct }
+  }
 
   // 2. in-flight 去重：同一 URL 并发只下载一次
   const pending = inflight.get(hash)
@@ -174,6 +214,8 @@ async function resolveImage(target: string): Promise<{ buf: Buffer; ct: string }
     try {
       const buf = await readFile(file)
       const ct = await readContentType(file)
+      // 命中即视为使用：touch 刷新文件 mtime（作为最后使用时间，供容量 LRU 淘汰排序）
+      touchFile(file, hash)
       memSet(hash, { buf, ct, lastUsed: Date.now() })
       return { buf, ct }
     } catch {
@@ -194,6 +236,8 @@ async function resolveImage(target: string): Promise<{ buf: Buffer; ct: string }
 
 /** 注册 hqsf-img:// 协议（app ready 后调用一次） */
 export function registerImageProtocol(): void {
+  // 启动即清理一次超限缓存
+  void sweepCache(cacheDir())
   protocol.handle('hqsf-img', async (request) => {
     try {
       const u = new URL(request.url)

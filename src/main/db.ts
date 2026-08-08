@@ -169,27 +169,48 @@ export function getMeta(key: string): string | null {
 }
 
 // ---------- 阅读缓存（M2：文章详情本地缓存） ----------
-// 文章正文是文本、体量小，不做限时（TTL），只做容量上限；超限按写入时间删最旧。
+// 缓存 1 天未使用即丢弃：fetched_at 兼作「最后使用时间」，读取命中即刷新；
+// 另设容量上限，超限时按最后使用时间从旧到新删最旧。
 
+/** 缓存有效期：超过该时长未使用即丢弃（24 小时） */
+const READ_CACHE_TTL_MS = 24 * 60 * 60 * 1000
+/** 命中刷新节流：距上次刷新超过该时长才落盘（避免每次读都写 SQLite） */
+const READ_CACHE_TOUCH_INTERVAL_MS = 5 * 60 * 1000
 /** 文章缓存总容量上限（16MB，足够容纳大量文章正文） */
 const READ_CACHE_MAX_BYTES = 16 * 1024 * 1024
 /** 清理时保留的目标水位（低于上限的 80%，避免频繁触发清理） */
 const READ_CACHE_TARGET = Math.floor(READ_CACHE_MAX_BYTES * 0.8)
 
-/** 读取缓存（不限期）；不存在返回 null */
+/** 读取缓存；过期（1 天未使用）则删除并返回 null；命中节流刷新最后使用时间 */
 export function getReadCache<T>(key: string): T | null {
-  const r = getDb().prepare('SELECT payload FROM read_cache WHERE key = ?').get(key) as
-    | { payload: string }
+  const r = getDb().prepare('SELECT payload, fetched_at FROM read_cache WHERE key = ?').get(key) as
+    | { payload: string; fetched_at: number }
     | undefined
   if (!r) return null
+  const now = Date.now()
+  if (now - r.fetched_at > READ_CACHE_TTL_MS) {
+    deleteReadCache(key)
+    return null
+  }
+  // 命中即视为使用；节流刷新最后使用时间（读路径不频繁写盘，TTL 判定最多偏差 5 分钟）
+  if (now - r.fetched_at > READ_CACHE_TOUCH_INTERVAL_MS) {
+    getDb().prepare('UPDATE read_cache SET fetched_at = ? WHERE key = ?').run(now, key)
+  }
   try {
     return JSON.parse(r.payload) as T
   } catch {
+    // 损坏条目直接丢弃
+    deleteReadCache(key)
     return null
   }
 }
 
-/** 写入阅读缓存；超容量上限时按 fetched_at 从旧到新删除直到水位以下 */
+/** 删除单条阅读缓存（检测到文章隐藏/未公开时立刻调用） */
+export function deleteReadCache(key: string): void {
+  getDb().prepare('DELETE FROM read_cache WHERE key = ?').run(key)
+}
+
+/** 写入阅读缓存；同时清除全部过期条目；超容量上限时按最后使用时间从旧到新删除 */
 export function setReadCache(key: string, payload: unknown): void {
   getDb()
     .prepare(
@@ -197,10 +218,11 @@ export function setReadCache(key: string, payload: unknown): void {
        ON CONFLICT(key) DO UPDATE SET payload=excluded.payload, fetched_at=excluded.fetched_at`
     )
     .run(key, JSON.stringify(payload), Date.now())
+  getDb().prepare('DELETE FROM read_cache WHERE fetched_at < ?').run(Date.now() - READ_CACHE_TTL_MS)
   trimReadCache()
 }
 
-/** 总字节超限时删除最旧条目（逐条删，避免一次删太多） */
+/** 总字节超限时按最后使用时间删除最旧条目（逐条删，避免一次删太多） */
 function trimReadCache(): void {
   for (;;) {
     const row = getDb()
