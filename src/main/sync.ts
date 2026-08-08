@@ -21,8 +21,8 @@ import type { ArticleRow, ArticleType, PullResult, PushResult } from '../shared/
 
 /**
  * 同步引擎（design.md 数据同步章节）。
- * - 拉取：contentsList（type=post_draft|waiting|post + authorId）→ 元数据入 SQLite；
- *   草稿（post_draft）另经 contentsInfo 拉全文 → HTML→md 写本地文件。
+ * - 拉取：contentsList（type=post_draft|waiting|post|reject + authorId）→ 元数据入 SQLite；
+ *   全部类型都经 contentsInfo 拉全文 → HTML→md 写本地文件（同一存档根目录，文件名区分）。
  * - 推送：本地 md → mdToHtml → contentsAdd/contentsUpdate（isDraft 0/1）。
  * 冲突策略：本地已修改（内容哈希 != 上次同步哈希）时保留本地，不回写远端。
  */
@@ -50,6 +50,19 @@ function normTs(v: number | string | undefined): number {
 
 function contentHash(content: string): string {
   return createHash('sha256').update(content, 'utf8').digest('hex')
+}
+
+/** 非草稿文件落盘时的文件名前缀（四态同目录混放时便于区分，避免同标题文件混淆） */
+const TYPE_FILE_PREFIX: Partial<Record<ArticleType, string>> = {
+  waiting: '待审核',
+  post: '已发布',
+  reject: '已拒绝'
+}
+
+/** 按类型生成落盘显示名：草稿/本地用纯标题，其余加 [状态] 前缀 */
+function localFileName(type: ArticleType, title: string): string {
+  const prefix = TYPE_FILE_PREFIX[type]
+  return prefix ? `[${prefix}] ${title}` : title
 }
 
 /** 本地文件相对上次同步是否被修改 */
@@ -145,8 +158,8 @@ function resolveTitle(filePath: string, content: string): string {
 }
 
 /**
- * 全量拉取：草稿正文落本地，waiting/post/reject 建索引（侧栏四态展示）。
- * M1 无远端增量游标，做全量对比（列表已按 modified 排序时成本可控）。
+ * 全量拉取：草稿与待审核/已发布/已拒绝统一拉全文落盘（同一存档根目录），
+ * 元数据入 SQLite 索引。M1 无远端增量游标，做全量对比（列表已按 modified 排序时成本可控）。
  */
 export async function pullRemote(token: string, authorId: string): Promise<PullResult> {
   const root = ensureDocsRoot()
@@ -177,46 +190,33 @@ export async function pullRemote(token: string, authorId: string): Promise<PullR
       const status = item.status ?? ''
       const existing = getArticleByCid(cid)
 
-      // 仅草稿需要正文落盘；其余只维护索引
-      if (type !== 'post_draft') {
-        if (existing) {
-          upsertArticle({ ...existing, title, type, status, remoteModified, updatedAt: Date.now() })
-        } else {
-          upsertArticle({
-            cid,
-            title,
-            type,
-            status,
-            authorId,
-            remoteModified,
-            localModified: 0,
-            contentHash: '',
-            filePath: '',
-            syncedAt: 0,
-            createdAt: Date.now(),
-            updatedAt: Date.now()
-          })
-        }
-        continue
-      }
-
-      // ---- 草稿正文同步 ----
+      // ---- 全文落盘（所有类型统一处理；文件名同目录靠命名规则区分） ----
       // 文件真实存在才算「已有本地副本」；被删除/失联时即使远端未更新也要重建
       const fileExists = !!existing?.filePath && existsSync(existing.filePath)
       if (existing && fileExists) {
+        // 远端未更新但状态可能已流转（如 草稿→已发布）：先同步 type/status，
+        // 避免索引停留在旧状态导致侧栏分组错误与推送保护失效
+        if (existing.type !== type || existing.status !== status) {
+          upsertArticle({ ...existing, title, type, status, updatedAt: Date.now() })
+        }
         if (remoteModified <= existing.remoteModified) continue // 远端未更新
         if (isLocalDirty(existing)) {
           result.conflicts++
-          upsertArticle({ ...existing, title, status, remoteModified, updatedAt: Date.now() })
+          // type 跟随服务端当前状态（文章可能在四态间流转，如草稿→已发布）
+          upsertArticle({ ...existing, title, type, status, remoteModified, updatedAt: Date.now() })
           continue
         }
         try {
           const { html, markdown } = await fetchFullText(token, cid)
           const md = markdown ? html : htmlToMd(html)
+          // 沿用既有 filePath 不重命名：四态流转后旧文件名的 [状态] 前缀可能过时
+          // （如 已发布→草稿 后文件名仍带 [已发布]）。索引 type 已正确跟随，
+          // 重命名会与渲染层正在打开的 currentPath 脱钩，故此处不迁移。
           writeFileSync(existing.filePath, md, 'utf8')
           upsertArticle({
             ...existing,
             title,
+            type,
             status,
             remoteModified,
             contentHash: contentHash(md),
@@ -226,16 +226,17 @@ export async function pullRemote(token: string, authorId: string): Promise<PullR
           })
           result.pulled++
         } catch (err) {
-          result.errors.push(`${title}: ${(err as Error).message}`)
+          // reject 类型全文接口支持未确认，失败不进错误横幅（其余类型照常提示）
+          if (remote !== 'reject') result.errors.push(`${title}: ${(err as Error).message}`)
         }
       } else {
         // 新建，或索引有记录但本地文件失联/被删：以远端内容重建本地文件
         try {
           const { html, markdown } = await fetchFullText(token, cid)
           const md = markdown ? html : htmlToMd(html)
-          // 一律按当前命名规则生成新路径（纯标题，重名追加后缀）；
+          // 一律按当前命名规则生成新路径（非草稿加 [状态] 前缀，重名追加后缀）；
           // 不写回历史带时间戳的旧路径，索引的 filePath 随之更新
-          const filePath = createLocalDraft(root, title, md)
+          const filePath = createLocalDraft(root, localFileName(type, title), md)
           upsertArticle({
             ...(existing ?? {
               cid,
@@ -258,7 +259,7 @@ export async function pullRemote(token: string, authorId: string): Promise<PullR
           })
           result.pulled++
         } catch (err) {
-          result.errors.push(`${title}: ${(err as Error).message}`)
+          if (remote !== 'reject') result.errors.push(`${title}: ${(err as Error).message}`)
         }
       }
     }
@@ -284,7 +285,9 @@ function extractCid(resp: ApiResponse<unknown>): string | undefined {
 
 /**
  * 上传本地 md 到荒启：无 cid → contentsAdd（新建），有 cid → contentsUpdate（覆盖）。
- * @param isDraft true=存草稿（post_draft） false=直接发布（waiting）
+ * 服务端流转语义（用户确认）：草稿/待审核/已发布文章均可编辑后再推送，
+ * isDraft=1 → 存回草稿，isDraft=0 → 发布进入待审核（waiting），由服务器裁决为 已发布/已拒绝。
+ * @param isDraft true=存草稿（post_draft） false=发布（waiting）
  */
 async function upload(
   token: string,

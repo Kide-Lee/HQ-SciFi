@@ -66,11 +66,11 @@ export interface LoginResult {
 // ---------- 同步 ----------
 
 export interface PullResult {
-  /** 新建或更新（覆盖）的本地草稿数 */
+  /** 新建或更新（覆盖）的本地文件数（草稿与待审核/已发布/已拒绝统一落盘） */
   pulled: number
   /** 远端有更新但本地已修改、保留本地的冲突数 */
   conflicts: number
-  /** 拉取的远端条目总数（三类之和） */
+  /** 拉取的远端条目总数（四类之和） */
   total: number
   errors: string[]
 }

@@ -6,6 +6,14 @@ import { markdown } from '@codemirror/lang-markdown'
 import { useEditorStore } from '../stores/editor'
 import { useDocsStore } from '../stores/docs'
 import { ErrorBanner } from './ErrorBanner'
+import type { ArticleRow } from '../../../shared/types'
+
+/** 远端非草稿类型的展示名（同步/推送后角标显示当前远端状态） */
+const REMOTE_TYPE_LABEL: Partial<Record<ArticleRow['type'], string>> = {
+  waiting: '待审核',
+  post: '已发布',
+  reject: '已拒绝'
+}
 
 /** 编辑器视图：CodeMirror 6 编辑本地 md + 工具栏（同步到草稿/发布/保存） */
 export function EditorPane(): React.JSX.Element {
@@ -25,6 +33,7 @@ export function EditorPane(): React.JSX.Element {
   const docError = useDocsStore((s) => s.error)
   const clearDocError = useDocsStore((s) => s.clearError)
   const lastPull = useDocsStore((s) => s.lastPull)
+  const articles = useDocsStore((s) => s.articles)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
@@ -107,7 +116,20 @@ export function EditorPane(): React.JSX.Element {
     }
   }
 
-  const statusLabel = dirty ? '未保存' : synced ? '已同步' : '本地草稿'
+  // 当前文件在索引中的记录：展示对应远端状态（草稿/待审核/已发布/已拒绝）
+  // 服务端允许这些状态的文章编辑后再存草稿或发布，故按钮不禁用
+  const currentRow = currentPath ? articles.find((a) => a.filePath === currentPath) : undefined
+  const remoteTypeLabel = currentRow?.cid ? REMOTE_TYPE_LABEL[currentRow.type] : undefined
+  const statusTip = remoteTypeLabel
+    ? `对应远端状态「${remoteTypeLabel}」；可编辑后存为草稿，或发布进入待审核`
+    : undefined
+  const statusLabel = dirty
+    ? remoteTypeLabel
+      ? `未保存（${remoteTypeLabel}）`
+      : '未保存'
+    : synced
+      ? (remoteTypeLabel ?? '已同步')
+      : '本地草稿'
   const pushingNow = pushing === currentPath
 
   return (
@@ -121,16 +143,18 @@ export function EditorPane(): React.JSX.Element {
             <button className="toolbar-btn" onClick={() => void save()} disabled={!dirty || busy}>
               保存
             </button>
-            <button className="toolbar-btn accent" onClick={() => void handlePush(true)} disabled={!currentPath || pushingNow || busy}>
+            <button className="toolbar-btn accent" onClick={() => void handlePush(true)} disabled={!currentPath || pushingNow || busy} title="将当前内容保存为远端草稿">
               {pushingNow ? '同步中 …' : '同步到草稿'}
             </button>
-            <button className="toolbar-btn primary" onClick={() => void handlePush(false)} disabled={!currentPath || pushingNow || busy}>
+            <button className="toolbar-btn primary" onClick={() => void handlePush(false)} disabled={!currentPath || pushingNow || busy} title="发布后进入待审核，由服务器裁决为已发布或已拒绝">
               发布
             </button>
           </>
         )}
         {currentPath && (
-          <span className={`status-badge ${dirty ? 'warn' : synced ? 'ok' : ''}`}>{statusLabel}</span>
+          <span className={`status-badge ${dirty ? 'warn' : synced ? 'ok' : ''}`} title={statusTip}>
+            {statusLabel}
+          </span>
         )}
         <span className="toolbar-spacer" />
         <span className="editor-path" title={currentPath ?? ''}>
