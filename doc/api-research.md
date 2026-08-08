@@ -59,7 +59,7 @@
   ```
   支持付费阅读：`isPaid=1` 时带 `shopText`、`shopPice`、`shopDiscount`。返回 `code:1` 成功；含「内容涉及违规」时触发拦截（`blockShow`）
   - **实测（2026-08-06，真实账号）**：`contentsAdd` 成功返回 **`{"msg":"发布成功","code":1,"data":1}`——`data` 是 1、不含 cid**，客户端新建后需回查列表匹配拿 cid；`contentsUpdate` 的 **`cid` 在 `params` JSON 内部**（非表单字段），且**不带 `verifyCode`**（add 才有）；`isMd` 恒为 0（全站 Quill HTML，实测无 `markdown=1`）；`verifyLevel>1` 时 `verifyCode` 必填（当前账号实测 verifyLevel=1、可空）；`tag` 为逗号分隔的 **mid** 串、`active` 为活动 mid（0=不关联）、`sid` 为付费 shopID。**发布即进审核**：`isDraft=0` 提交后文章进入「待审核」（`type=post, status=waiting`），审核通过后变 `publish`——这是正常流程（全站文章均审核）。**`contentsUpdate` 的 `category`/`active` 参数实测不被接受**（返回成功但字段仍空，可能待审核态锁定或服务端忽略），分类/活动需在编辑器（add）或审核通过后调整
-- **删除**（需登录）：`hqContents/contentsDelete`
+- **删除**（需登录）：`hqContents/contentsDelete`。**实测（2026-08-08，真实账号 uid=2078）**：参数为**表单格式** `{key: cid, token}`（JSON body 会报「用户未登录或Token验证失败」）；本账号被服务端拒绝，返回 **`{"msg":"系统禁止删除文章","code":0}`**——与 `contentConfig.allowDelete=0` 一致，删除功能对当前账号硬性禁用；H5 草稿箱 UI 亦无删除入口
 - **文档导出**：`hqContents/getDocx`（下载 docx）
 - **其他**：`contentsAudit`（审核）、`toRecommend`（推荐）、`addTop`/`addSwiper`（置顶/轮播）、`setAuthor`/`setHonor`/`setIntroduction`/`setOpenStatus`/`setFields`（内容管理）、`rewardList`（打赏）、`isCommnet`
 - **配置**（实测，登录）：`hqContents/contentConfig`，返回 `{"allowDelete":0}`——当前账号**禁止删文**（`allowDelete=0`），客户端删除功能需按此降级
