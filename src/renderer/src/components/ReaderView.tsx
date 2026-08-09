@@ -513,6 +513,14 @@ function ReviewItemCard({
   const avatarRaw = String(u.avatar ?? u.headImg ?? u.headImgUrl ?? u.avatarUrl ?? '')
   const avatar = avatarRaw && /^https?:\/\//i.test(avatarRaw) ? cachedImageUrl(avatarRaw) : undefined
   const scoreColorValue = review.actualscore && review.actualscore !== '-.-' ? scoreColor(review.actualscore) : undefined
+  // v0.0.5：review.score 为五维分数逗号分隔（如 "9,9,8,8,6"），顺序对应
+  // 设定/文笔/人物/情节/思想性；无评分（"-.-" 或位数不足）时整体不展示分数
+  const dimScores = useMemo(() => {
+    const raw = String(review.score ?? '').trim()
+    if (!raw || raw.includes('-.-')) return null
+    const parts = raw.split(',').map((s) => Number(s.trim()))
+    return parts.length === 5 && parts.every((n) => Number.isFinite(n)) ? parts : null
+  }, [review.score])
   return (
     <div className={`review-item ${isMine ? 'mine' : ''}`} data-review-id={String(review.id)}>
       <div className="review-item-head">
@@ -530,17 +538,23 @@ function ReviewItemCard({
         </span>
       </div>
       <div className="review-dims">
-        {[
-          ['设定', review.dianzi],
-          ['文笔', review.wenbi],
-          ['人物', review.renwu],
-          ['情节', review.jiezou],
-          ['思想性', review.liyi]
-        ].map(
-          ([label, text]) =>
+        {(
+          [
+            ['设定', review.dianzi, 0],
+            ['文笔', review.wenbi, 1],
+            ['人物', review.renwu, 2],
+            ['情节', review.jiezou, 3],
+            ['思想性', review.liyi, 4]
+          ] as Array<[string, string, number]>
+        ).map(
+          ([label, text, idx]) =>
             text && (
               <div key={String(label)} className="review-dim">
-                <span className="review-dim-label">{label}</span>
+                <span className="review-dim-label">
+                  {label}
+                  {/* v0.0.5：维度名后跟此项分数（取自 review.score，无评分不显示） */}
+                  {dimScores && <span className="review-dim-score"> {dimScores[idx]}</span>}
+                </span>
                 <span className="review-dim-text">{text}</span>
               </div>
             )

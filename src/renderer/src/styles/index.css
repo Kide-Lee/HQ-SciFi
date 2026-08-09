@@ -2176,11 +2176,19 @@ body {
   line-height: 1.6;
 }
 
-/* v0.0.5：维度名改为小标题样式（原灰底 chip 只适合横向排布） */
+/* v0.0.5：维度名改为小标题样式（原灰底 chip 只适合横向排布）；
+   字号大于评语/正文（评语 15px），突出维度名 */
 .review-dim-label {
-  font-size: 11px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--text-muted);
+}
+
+/* v0.0.5：维度名后的此项分数（accent 着色） */
+.review-dim-score {
+  color: var(--accent);
+  font-weight: 600;
+  margin-left: 2px;
 }
 
 .review-dim-text {
