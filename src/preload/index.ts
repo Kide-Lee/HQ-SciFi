@@ -70,8 +70,10 @@ const api = {
   readLocalFile: (path: string): Promise<ApiResult<string>> => ipcRenderer.invoke('hqsf:read-local-file', path),
   writeLocalFile: (path: string, content: string): Promise<ApiResult<null>> =>
     ipcRenderer.invoke('hqsf:write-local-file', path, content),
-  createLocalDraft: (title: string, content: string): Promise<ApiResult<string>> =>
-    ipcRenderer.invoke('hqsf:create-local-draft', title, content),
+  createLocalDraft: (title: string, content: string, dirRel?: string): Promise<ApiResult<string>> =>
+    ipcRenderer.invoke('hqsf:create-local-draft', title, content, dirRel),
+  /** v0.0.6：新建本地文件夹（相对存档根） */
+  createLocalDir: (rel: string): Promise<ApiResult<string>> => ipcRenderer.invoke('hqsf:create-local-dir', rel),
   /** v0.0.6：删除本地文章文件（含二次确认由渲染层负责） */
   deleteLocalDoc: (path: string): Promise<ApiResult<null>> => ipcRenderer.invoke('hqsf:delete-local-file', path),
   chooseDocsDir: (): Promise<ApiResult<string | null>> => ipcRenderer.invoke('hqsf:choose-docs-dir'),

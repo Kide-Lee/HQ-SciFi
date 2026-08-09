@@ -7,7 +7,7 @@ import {
   getStoredToken,
   logout as doLogout
 } from './auth'
-import { getDocsRoot, ensureDocsRoot, listLocalDocs, readLocalFile, writeLocalFile, createLocalDraft, chooseDocsDir, deleteLocalFile } from './fs'
+import { getDocsRoot, ensureDocsRoot, listLocalDocs, readLocalFile, writeLocalFile, createLocalDraft, chooseDocsDir, deleteLocalFile, createLocalDir } from './fs'
 import { pullRemote, pushToDraft, publish } from './sync'
 import {
   addComment,
@@ -183,9 +183,9 @@ export function registerIpcHandlers(): void {
     }
   })
 
-  ipcMain.handle('hqsf:create-local-draft', (_e, title: string, content: string) => {
+  ipcMain.handle('hqsf:create-local-draft', (_e, title: string, content: string, dirRel?: string) => {
     try {
-      return ok(createLocalDraft(getDocsRoot(), title, content))
+      return ok(createLocalDraft(getDocsRoot(), title, content, dirRel ?? ''))
     } catch (err) {
       return fail(err)
     }
@@ -195,6 +195,14 @@ export function registerIpcHandlers(): void {
     try {
       deleteLocalFile(getDocsRoot(), path)
       return ok(null)
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  ipcMain.handle('hqsf:create-local-dir', (_e, rel: string) => {
+    try {
+      return ok(createLocalDir(getDocsRoot(), rel))
     } catch (err) {
       return fail(err)
     }

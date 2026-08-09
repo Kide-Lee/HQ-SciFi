@@ -3,6 +3,8 @@ import { create } from 'zustand'
 interface EditorState {
   /** 当前打开的本地文件绝对路径 */
   currentPath: string | null
+  /** v0.0.6：写作首页当前浏览目录（绝对路径；'' = 存档根） */
+  currentDir: string
   content: string
   /** 与磁盘内容不一致（待保存） */
   dirty: boolean
@@ -15,8 +17,10 @@ interface EditorState {
   update: (content: string) => void
   save: () => Promise<void>
   /** 新建本地草稿并打开，返回文件路径 */
-  createDraft: (title: string) => Promise<string | null>
+  createDraft: (title: string, dirRel?: string) => Promise<string | null>
   close: () => Promise<void>
+  /** v0.0.6：切换写作首页浏览目录 */
+  setCurrentDir: (dir: string) => void
 }
 
 /** 本地即时保存防抖（ms） */
@@ -34,6 +38,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
 
   return {
     currentPath: null,
+    currentDir: '',
     content: '',
     dirty: false,
     synced: false,
@@ -79,9 +84,9 @@ export const useEditorStore = create<EditorState>((set, get) => {
       else set({ busy: false, error: res.error })
     },
 
-    createDraft: async (title) => {
+    createDraft: async (title, dirRel) => {
       set({ busy: true, error: null })
-      const res = await window.hqsf.createLocalDraft(title, `# ${title}\n\n`)
+      const res = await window.hqsf.createLocalDraft(title, `# ${title}\n\n`, dirRel)
       if (res.ok) {
         set({
           currentPath: res.data,
@@ -101,6 +106,8 @@ export const useEditorStore = create<EditorState>((set, get) => {
       if (get().dirty) await get().save()
       if (timer) clearTimeout(timer)
       set({ currentPath: null, content: '', dirty: false, synced: false, error: null })
-    }
+    },
+
+    setCurrentDir: (currentDir) => set({ currentDir })
   }
 })

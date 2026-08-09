@@ -95,3 +95,47 @@ export async function apiRequest<T = unknown>(
   }
   return typed
 }
+
+/**
+ * v0.0.6：下载二进制资源（文章配图拉取用；走 Chromium 网络栈）。
+ * 失败抛错；返回 Buffer。
+ */
+export async function downloadBinary(url: string): Promise<Buffer> {
+  let res: Response
+  try {
+    res = await net.fetch(url)
+  } catch (err) {
+    throw new Error(`图片下载失败: ${(err as Error).message}`)
+  }
+  if (!res.ok) throw new Error(`图片下载失败（HTTP ${res.status}）`)
+  const buf = Buffer.from(await res.arrayBuffer())
+  if (buf.length === 0) throw new Error('图片内容为空')
+  return buf
+}
+
+/**
+ * v0.0.6：multipart 上传文件（upload/full：file + token）。
+ * 返回响应 JSON（荒启约定 code:1 成功，data.url 为图片地址）。
+ */
+export async function uploadMultipart(url: string, token: string, filename: string, buffer: Buffer): Promise<string> {
+  const form = new FormData()
+  form.append('file', new Blob([new Uint8Array(buffer)]), filename)
+  form.append('token', token)
+  let res: Response
+  try {
+    res = await net.fetch(url, { method: 'POST', body: form })
+  } catch (err) {
+    throw new Error(`上传请求失败: ${(err as Error).message}`)
+  }
+  const text = await res.text()
+  let json: { code?: number; msg?: string; data?: { url?: string } }
+  try {
+    json = JSON.parse(text)
+  } catch {
+    throw new Error(`上传返回非 JSON（HTTP ${res.status}）: ${text.slice(0, 200)}`)
+  }
+  if (json.code !== 1 || !json.data?.url) {
+    throw new Error(json.msg || `上传失败（code=${json.code ?? 'undefined'}）`)
+  }
+  return json.data.url
+}

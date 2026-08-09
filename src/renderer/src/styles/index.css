@@ -792,11 +792,40 @@ body {
   font-size: 12px;
 }
 
-.tree-dir {
-  padding: 4px 8px;
+/* v0.0.6：本地存档文件夹树节点（可展开） */
+.tree-dir-wrap {
+  display: flex;
+  flex-direction: column;
+}
+.tree-dir-entry {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 3px 8px;
+  border: none;
+  background: transparent;
+  font: inherit;
   font-size: 12px;
   color: var(--text-muted);
-  cursor: default;
+  cursor: pointer;
+  border-radius: 4px;
+  text-align: left;
+}
+.tree-dir-entry:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.tree-dir-entry .tree-dir-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tree-dir-children {
+  display: flex;
+  flex-direction: column;
 }
 
 .logout-btn {
@@ -986,6 +1015,17 @@ body {
   margin-left: auto;
 }
 
+/* v0.0.6：首页头部按钮组（新建文件夹 + 新建草稿） */
+.editor-local-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.editor-local-actions .primary-btn {
+  margin-left: 0;
+}
+
 .editor-local-hint {
   font-size: 13px;
 }
@@ -1050,10 +1090,69 @@ body {
   border-color: #c0392b;
 }
 
-.editor-local-dir {
-  padding: 8px 12px;
+/* v0.0.6：文件夹入口（可点击进入） */
+.editor-local-dir-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  font: inherit;
   font-size: 13px;
+  color: var(--text);
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.editor-local-dir-entry:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.editor-local-dir-entry .editor-local-dir-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.editor-local-dir-entry .editor-local-dir-arrow {
   color: var(--text-muted);
+}
+
+/* v0.0.6：面包屑导航 */
+.editor-local-crumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.editor-local-crumbs .crumb {
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+.editor-local-crumbs .crumb:hover {
+  background: var(--accent-soft);
+}
+.editor-local-crumbs .crumb.current {
+  color: var(--text);
+  cursor: default;
+  background: transparent;
+}
+.editor-local-crumbs .crumb-sep {
+  color: var(--border);
+  padding: 0 2px;
 }
 
 .editor-close {

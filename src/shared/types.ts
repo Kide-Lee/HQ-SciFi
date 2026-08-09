@@ -88,6 +88,8 @@ export interface PushResult {
 export interface LocalNode {
   name: string
   path: string
+  /** v0.0.6：相对存档根的路径（''=根；统一 / 分隔；新建文件/文件夹时用） */
+  rel: string
   isDir: boolean
   children?: LocalNode[]
   /** v0.0.6：文件信息（仅 md 文件；写作首页卡片展示用） */

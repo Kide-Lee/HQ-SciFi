@@ -1,14 +1,15 @@
 import { createHash } from 'node:crypto'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { basename } from 'node:path'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { basename, dirname, join, relative, resolve } from 'node:path'
 import TurndownService from 'turndown'
-import { apiRequest, type ApiResponse } from './net/api'
+import { API_BASE, apiRequest, downloadBinary, uploadMultipart, type ApiResponse } from './net/api'
 import { mdToHtml } from './md2html'
 import {
   assertInside,
   createLocalDraft,
   ensureDocsRoot,
   getDocsRoot,
+  imageDirFor,
   sanitizeFileName,
   titleFromPath
 } from './fs'
@@ -150,6 +151,73 @@ function htmlToMd(html: string): string {
   return turndown.turndown(html)
 }
 
+/* ===== v0.0.6：文章配图双向同步（.image 隐藏目录） ===== */
+
+/** md 中图片引用：![](...) 与 <img src="..."> */
+const IMG_MD_RE = /!\[[^\]]*\]\(([^)\s]+)\)/g
+const IMG_HTML_RE = /<img[^>]+src="([^"]+)"/g
+
+/** 是否 http(s) 图片地址（cdn.huangqisf.com 或任意 http 图） */
+function isHttpImage(ref: string): boolean {
+  return /^https?:\/\//i.test(ref)
+}
+
+/** 是否本地 .image 引用（相对或绝对 .image 路径） */
+function isLocalImageRef(ref: string): boolean {
+  return ref.includes('/.image/') || ref.startsWith('.image/') || ref.startsWith('./.image/')
+}
+
+/** 收集 md 中所有图片引用（md 语法 + HTML 标签去重） */
+function collectImageRefs(md: string): Set<string> {
+  const refs = new Set<string>()
+  for (const m of md.matchAll(IMG_MD_RE)) refs.add(m[1])
+  for (const m of md.matchAll(IMG_HTML_RE)) refs.add(m[1])
+  return refs
+}
+
+/**
+ * 拉取配图：把正文里的远端图片下载到 .image/<cid>/ 并改写 md 引用为相对路径。
+ * 单张下载失败不阻塞（保持原 URL）；已存在的图片跳过（幂等）。
+ */
+async function pullArticleImages(md: string, root: string, cid: string): Promise<string> {
+  const refs = [...collectImageRefs(md)].filter(isHttpImage)
+  if (refs.length === 0) return md
+  const imgDir = imageDirFor(root, cid)
+  mkdirSync(imgDir, { recursive: true })
+  let out = md
+  for (const url of refs) {
+    try {
+      const filename = basename(decodeURIComponent(new URL(url).pathname)).replace(/[\\/:*?"<>|]/g, '_') || `img-${createHash('md5').update(url).digest('hex').slice(0, 8)}`
+      const dest = join(imgDir, filename)
+      if (!existsSync(dest)) writeFileSync(dest, await downloadBinary(url))
+      // 引用改为相对草稿根的 .image/<cid>/<file>（统一用 / 分隔，跨平台）
+      const relRef = './' + relative(root, dest).replace(/\\/g, '/')
+      out = out.split(url).join(relRef)
+    } catch {
+      // 单张失败保持原 URL
+    }
+  }
+  return out
+}
+
+/**
+ * 推送配图：把 md 中本地 .image 引用逐张上传（upload/full），
+ * 替换为远端 URL；任一张失败抛错（调用方整体失败，不落半成品）。
+ */
+async function uploadLocalImages(md: string, root: string, token: string): Promise<string> {
+  const refs = [...collectImageRefs(md)].filter(isLocalImageRef)
+  if (refs.length === 0) return md
+  let out = md
+  for (const ref of refs) {
+    const abs = resolve(root, ref)
+    if (!existsSync(abs)) continue // 本地文件缺失：保持原引用（编辑器里的无效路径，不阻塞推送）
+    const buffer = readFileSync(abs)
+    const url = await uploadMultipart(API_BASE + 'upload/full', token, basename(abs), buffer)
+    out = out.split(ref).join(url)
+  }
+  return out
+}
+
 /** 从本地内容提取标题：首行 # 标题优先，否则用文件名 */
 function resolveTitle(filePath: string, content: string): string {
   const first = content.split(/\r?\n/).find((l) => /^#\s+\S/.test(l.trim()))
@@ -208,7 +276,9 @@ export async function pullRemote(token: string, authorId: string): Promise<PullR
         }
         try {
           const { html, markdown } = await fetchFullText(token, cid)
-          const md = markdown ? html : htmlToMd(html)
+          let md = markdown ? html : htmlToMd(html)
+          // v0.0.6：下载配图到 .image/<cid> 并改写引用为本地相对路径
+          md = await pullArticleImages(md, root, cid)
           // 沿用既有 filePath 不重命名：四态流转后旧文件名的 [状态] 前缀可能过时
           // （如 已发布→草稿 后文件名仍带 [已发布]）。索引 type 已正确跟随，
           // 重命名会与渲染层正在打开的 currentPath 脱钩，故此处不迁移。
@@ -233,7 +303,9 @@ export async function pullRemote(token: string, authorId: string): Promise<PullR
         // 新建，或索引有记录但本地文件失联/被删：以远端内容重建本地文件
         try {
           const { html, markdown } = await fetchFullText(token, cid)
-          const md = markdown ? html : htmlToMd(html)
+          let md = markdown ? html : htmlToMd(html)
+          // v0.0.6：下载配图到 .image/<cid> 并改写引用为本地相对路径
+          md = await pullArticleImages(md, root, cid)
           // 一律按当前命名规则生成新路径（非草稿加 [状态] 前缀，重名追加后缀）；
           // 不写回历史带时间戳的旧路径，索引的 filePath 随之更新
           const filePath = createLocalDraft(root, localFileName(type, title), md)
@@ -298,11 +370,14 @@ async function upload(
   const abs = assertInside(root, filePath)
   const content = readFileSync(abs, 'utf8')
   const title = resolveTitle(abs, content)
-  const html = mdToHtml(content)
   const existing = getArticleByFilePath(abs)
   const type: ArticleType = isDraft ? 'post_draft' : 'waiting'
 
   try {
+    // v0.0.6：本地配图（.image 引用）先上传，替换为远端 URL 后再转 HTML 提交；
+    // 图片上传失败（抛错）→ 整体推送失败，不提交半成品正文
+    const contentRemote = await uploadLocalImages(content, root, token)
+    const html = mdToHtml(contentRemote)
     let cid: string | undefined = existing?.cid || undefined
     const params = { title, ...(cid ? { cid } : {}) }
     const body: Record<string, unknown> = {

@@ -3,6 +3,7 @@ import {
   BookOpen,
   CalendarDays,
   ChevronRight,
+  Folder,
   Layers,
   PenLine,
   RefreshCw,
@@ -16,7 +17,7 @@ import { useDocsStore } from '../stores/docs'
 import { useEditorStore } from '../stores/editor'
 import { useReaderStore } from '../stores/reader'
 import { sortActivities, activityPhase, ACTIVITY_PHASE_LABEL } from '../lib/activity'
-import type { ArticleRow, MetaInfo, RemoteArticle } from '../../../shared/types'
+import type { ArticleRow, LocalNode, MetaInfo, RemoteArticle } from '../../../shared/types'
 
 const SECTIONS: TopSection[] = ['writing', 'recommend', 'serial', 'activity', 'library']
 
@@ -332,6 +333,39 @@ export function Sidebar(): React.JSX.Element {
     })
   }
 
+  /** v0.0.6：本地存档递归文件树（文件夹可展开/收起） */
+  function renderLocalTree(nodes: LocalNode[], depth = 0): React.JSX.Element[] {
+    return nodes.map((node) => {
+      if (node.isDir) {
+        const k = `local:${node.path}`
+        const open = expanded.has(k)
+        return (
+          <div key={node.path} className="tree-dir-wrap" style={{ paddingLeft: depth * 8 }}>
+            <button className="tree-dir-entry" onClick={() => toggleExpand(k)} title={node.path}>
+              <ChevronRight size={12} className={`caret${open ? ' open' : ''}`} />
+              <Folder size={12} />
+              <span className="tree-dir-name">{node.name}</span>
+            </button>
+            {open && node.children && (
+              <div className="tree-dir-children">{renderLocalTree(node.children, depth + 1)}</div>
+            )}
+          </div>
+        )
+      }
+      return (
+        <button
+          key={node.path}
+          className={`tree-node ${currentPath === node.path ? 'active' : ''}`}
+          onClick={() => void handleOpenLocal(node.path)}
+          title={node.path}
+          style={{ paddingLeft: 22 + depth * 12 }}
+        >
+          {node.name.replace(/\.md$/i, '')}
+        </button>
+      )
+    })
+  }
+
   const isWriting = section === 'writing'
 
   // v0.0.2：未完成评审任务数（活动按钮红点）
@@ -430,20 +464,8 @@ export function Sidebar(): React.JSX.Element {
               {expanded.has('local') && (
                 <div className="tree-group-body">
                   {localTree.length === 0 && <div className="tree-empty muted">（空目录，点「+ 新建草稿」开始）</div>}
-                  {localTree.map((node) =>
-                    node.isDir ? (
-                      <div key={node.path} className="tree-dir">{node.name}</div>
-                    ) : (
-                      <button
-                        key={node.path}
-                        className={`tree-node ${currentPath === node.path ? 'active' : ''}`}
-                        onClick={() => void handleOpenLocal(node.path)}
-                        title={node.path}
-                      >
-                        {node.name.replace(/\.md$/i, '')}
-                      </button>
-                    )
-                  )}
+                  {/* v0.0.6：本地存档递归文件树（文件夹可展开；.image 已在主进程过滤） */}
+                  {renderLocalTree(localTree)}
                 </div>
               )}
             </div>

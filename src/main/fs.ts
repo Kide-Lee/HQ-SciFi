@@ -1,6 +1,6 @@
 import { app, dialog, type BrowserWindow } from 'electron'
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
-import { basename, dirname, join, resolve, sep } from 'node:path'
+import { basename, dirname, join, relative, resolve, sep } from 'node:path'
 import { getMeta, setMeta } from './db'
 import type { LocalNode } from '../shared/types'
 
@@ -76,18 +76,35 @@ function summarize(content: string): { summary: string; words: number } {
   }
 }
 
-function readTree(dir: string, depth: number): LocalNode[] {
+/** 图片目录名（隐藏目录，存放文章配图；列表树中过滤） */
+export const IMAGE_DIR = '.image'
+
+/** 图片目录相对根：.image/<cid 或文件名>/
+ *  带 cid 的文章用 cid（拉取时稳定），纯本地草稿用文件名 */
+export function imageDirName(cidOrName: string): string {
+  return join(IMAGE_DIR, sanitizeFileName(cidOrName))
+}
+
+export function imageDirFor(root: string, cidOrName: string): string {
+  return join(root, imageDirName(cidOrName))
+}
+
+function readTree(dir: string, depth: number, root: string): LocalNode[] {
   return readdirSync(dir, { withFileTypes: true })
     .filter((d) => d.isDirectory() || d.name.toLowerCase().endsWith('.md'))
+    // 隐藏 .image 图片目录（及其它点开头隐藏项）不进入文档树
+    .filter((d) => !d.name.startsWith('.'))
     .map((d) => {
+      const abs = join(dir, d.name)
       const node: LocalNode = {
         name: d.name,
-        path: join(dir, d.name),
+        path: abs,
+        rel: relative(root, abs).split(sep).join('/'),
         isDir: d.isDirectory()
       }
       if (d.isDirectory() && depth > 0) {
         try {
-          node.children = readTree(node.path, depth - 1)
+          node.children = readTree(node.path, depth - 1, root)
         } catch {
           node.children = []
         }
@@ -108,9 +125,21 @@ function readTree(dir: string, depth: number): LocalNode[] {
     .sort((a, b) => (a.isDir === b.isDir ? a.name.localeCompare(b.name, 'zh') : a.isDir ? -1 : 1))
 }
 
-/** 列出本地存档目录树（md 文件 + 子目录，两层） */
+/** 列出本地存档目录树（md 文件 + 子目录，任意层级；隐藏 .image 等点开头目录） */
 export function listLocalDocs(): LocalNode[] {
-  return readTree(ensureDocsRoot(), 1)
+  const root = ensureDocsRoot()
+  return readTree(root, Number.POSITIVE_INFINITY, root)
+}
+
+/** 新建文件夹（相对存档根，路径穿越防护）；已存在时返回其路径（幂等） */
+export function createLocalDir(root: string, rel: string): string {
+  const abs = assertInside(root, join(root, rel))
+  if (existsSync(abs)) {
+    if (!statSync(abs).isDirectory()) throw new Error('同名文件已存在')
+    return abs
+  }
+  mkdirSync(abs, { recursive: true })
+  return abs
 }
 
 /** 删除本地 md 文件（仅限存档根目录内；文件不存在视为成功） */
@@ -159,8 +188,9 @@ export function uniqueFilePath(root: string, title: string, ext = '.md'): string
 }
 
 /** 新建本地草稿文件，返回绝对路径 */
-export function createLocalDraft(root: string, title: string, content: string): string {
-  const abs = uniqueFilePath(root, title)
+/** 在（可选的）相对子目录中新建草稿；重名自动追加序号 */
+export function createLocalDraft(root: string, title: string, content: string, dirRel = ''): string {
+  const abs = uniqueFilePath(dirRel ? join(root, dirRel) : root, title)
   writeFileSync(abs, content, 'utf8')
   return abs
 }

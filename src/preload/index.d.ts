@@ -77,7 +77,9 @@ export interface HqsfApi {
   listLocalDocs: () => Promise<ApiResult<LocalNode[]>>
   readLocalFile: (path: string) => Promise<ApiResult<string>>
   writeLocalFile: (path: string, content: string) => Promise<ApiResult<null>>
-  createLocalDraft: (title: string, content: string) => Promise<ApiResult<string>>
+  createLocalDraft: (title: string, content: string, dirRel?: string) => Promise<ApiResult<string>>
+  /** v0.0.6：新建本地文件夹（相对存档根） */
+  createLocalDir: (rel: string) => Promise<ApiResult<string>>
   /** v0.0.6：删除本地文章文件 */
   deleteLocalDoc: (path: string) => Promise<ApiResult<null>>
   chooseDocsDir: () => Promise<ApiResult<string | null>>
