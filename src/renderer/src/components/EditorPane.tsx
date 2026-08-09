@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { X } from 'lucide-react'
 import { EditorView, keymap } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
 import { basicSetup } from 'codemirror'
@@ -210,7 +211,7 @@ export function EditorPane(): React.JSX.Element {
       {toast && <div className="toast">{toast}</div>}
       {currentPath && (
         <div className="editor-close" onClick={() => close()} title="关闭当前文档">
-          ✕ 关闭
+          <X size={12} /> 关闭
         </div>
       )}
     </div>

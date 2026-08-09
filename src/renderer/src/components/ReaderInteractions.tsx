@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Bookmark, Coins, Share2, ThumbsUp, X } from 'lucide-react'
 import { useAuthStore } from '../stores/auth'
 import type { ArticleDetail } from '../../../shared/types'
 
@@ -131,15 +132,15 @@ export function ReaderInteractions({ detail }: { detail: ArticleDetail }): React
       {notice && (
         <div className="reader-actions-notice">
           {notice}
-          <button className="dismiss" onClick={() => setNotice(null)}>
-            ✕
+          <button className="dismiss" onClick={() => setNotice(null)} title="关闭">
+            <X size={12} />
           </button>
         </div>
       )}
       <div className="reader-actions-row">
         {!isMine && (
           <button className={`reader-action-btn ${rewardOpen ? 'active' : ''}`} onClick={() => setRewardOpen((v) => !v)} title="投币给作者（消耗你的积分）">
-            🪙 投币
+            <Coins size={14} /> 投币
           </button>
         )}
         <button
@@ -147,17 +148,17 @@ export function ReaderInteractions({ detail }: { detail: ArticleDetail }): React
           onClick={() => void doLike()}
           title="点赞（每天一次）"
         >
-          👍 赞 {likeCount > 0 ? likeCount : ''}
+          <ThumbsUp size={14} /> 赞 {likeCount > 0 ? likeCount : ''}
         </button>
         <button
           className={`reader-action-btn ${marked ? 'active' : ''}`}
           onClick={() => void toggleMark()}
           title={marked ? '取消收藏' : '收藏'}
         >
-          {marked ? '★ 已收藏' : '☆ 收藏'}
+          <Bookmark size={14} fill={marked ? 'currentColor' : 'none'} /> {marked ? '已收藏' : '收藏'}
         </button>
         <button className="reader-action-btn" onClick={() => void doShare()} title="复制文章链接">
-          ↗ 分享
+          <Share2 size={14} /> 分享
         </button>
       </div>
 

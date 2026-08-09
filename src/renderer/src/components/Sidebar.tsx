@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ChevronRight, RefreshCw, Settings } from 'lucide-react'
 import { SECTION_LABELS, TopSection, useUiStore } from '../stores/ui'
 import { useAuthStore } from '../stores/auth'
 import { useDocsStore } from '../stores/docs'
@@ -331,7 +332,7 @@ export function Sidebar(): React.JSX.Element {
           <div className="writing-tree">
             <div className="tree-toolbar">
               <button className="sync-btn" disabled={pulling} onClick={() => void pull()} title="从荒启拉取草稿与状态">
-                {pulling ? '同步中 …' : '⇅ 同步'}
+                <RefreshCw size={13} className={`sync-icon${pulling ? ' spin' : ''}`} /> {pulling ? '同步中 …' : '同步'}
               </button>
               <button
                 className="sync-btn"
@@ -357,7 +358,7 @@ export function Sidebar(): React.JSX.Element {
             {/* 本地存档 */}
             <div className="tree-group">
               <button className="tree-group-title" onClick={() => toggleExpand('local')}>
-                <span className="caret">{expanded.has('local') ? '▾' : '▸'}</span> 本地存档
+                <ChevronRight size={12} className={`caret${expanded.has('local') ? ' open' : ''}`} /> 本地存档
               </button>
               {expanded.has('local') && (
                 <div className="tree-group-body">
@@ -384,7 +385,7 @@ export function Sidebar(): React.JSX.Element {
             {REMOTE_GROUPS.map(({ key, label }) => (
               <div className="tree-group" key={key}>
                 <button className="tree-group-title" onClick={() => toggleExpand(key)}>
-                  <span className="caret">{expanded.has(key) ? '▾' : '▸'}</span>
+                  <ChevronRight size={12} className={`caret${expanded.has(key) ? ' open' : ''}`} />
                   {label}
                   {groups[key].length > 0 && <span className="count">{groups[key].length}</span>}
                 </button>
@@ -428,7 +429,7 @@ export function Sidebar(): React.JSX.Element {
                     className="tree-group-title"
                     onClick={() => toggleExpand(`serial:${g.type}`)}
                   >
-                    <span className="caret">{expanded.has(`serial:${g.type}`) ? '▾' : '▸'}</span> {g.label}
+                    <ChevronRight size={12} className={`caret${expanded.has(`serial:${g.type}`) ? ' open' : ''}`} /> {g.label}
                     {has && <span className="count">{metas!.length}</span>}
                   </button>
                   {expanded.has(`serial:${g.type}`) && (
@@ -471,7 +472,7 @@ export function Sidebar(): React.JSX.Element {
                     onClick={() => toggleActivity(m)}
                     title={m.description || m.name}
                   >
-                    <span className="caret">{expanded.has(`active:${midKey}`) ? '▾' : '▸'}</span>
+                    <ChevronRight size={12} className={`caret${expanded.has(`active:${midKey}`) ? ' open' : ''}`} />
                     <span className="tree-group-label">{m.name}</span>
                     {/* v0.0.2：右侧容器整体靠右（count+状态徽章），无 count 时徽章也贴右 */}
                     <span className="tree-group-title-right">
@@ -532,7 +533,7 @@ export function Sidebar(): React.JSX.Element {
 
       <div className="sidebar-bottom">
         <button className="settings-btn" title="设置（颜色/字号/字体）">
-          ⚙ 设置
+          <Settings size={14} /> 设置
         </button>
       </div>
     </aside>

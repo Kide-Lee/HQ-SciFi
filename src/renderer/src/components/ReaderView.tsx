@@ -7,6 +7,7 @@ import { cachedImageUrl, formatSize, formatTs, expandMediaTags, sanitizeHtml, sc
 import { ErrorBanner } from './ErrorBanner'
 import { CommentSection } from './ReaderComments'
 import { ReaderInteractions } from './ReaderInteractions'
+import { ArrowDown, ArrowLeft, ArrowUp, ChevronRight, PenLine, X } from 'lucide-react'
 import type { ArticleDetail, MetaRef, ReviewItem, ReviewPayload } from '../../../shared/types'
 
 /** 活动状态缓存（mid → phase；从文章跳转活动列表时用，避免重复请求） */
@@ -259,7 +260,7 @@ export function ReaderView(): React.JSX.Element {
               ) : null}
               {!isMine && (
                 <button className="review-toggle" onClick={() => setShowReview((v) => !v)}>
-                  {showReview ? '收起评审' : '✎ 评审这篇文章'}
+                  <PenLine size={14} /> {showReview ? '收起评审' : '评审这篇文章'}
                 </button>
               )}
               {/* v0.0.3：互动操作条（投币/点赞/收藏/分享） */}
@@ -269,7 +270,9 @@ export function ReaderView(): React.JSX.Element {
           {intro && <div className="reader-intro">{intro}</div>}
           {toc.length >= 2 && (
             <details className="reader-toc">
-              <summary>目录</summary>
+              <summary>
+                <ChevronRight size={14} className="toc-chevron" /> 目录
+              </summary>
               <ul className="reader-toc-list">
                 {toc.map((t) => (
                   <li key={t.idx} className={`reader-toc-item lv-${Math.min(6, Math.max(1, t.level))}`}>
@@ -297,7 +300,7 @@ export function ReaderView(): React.JSX.Element {
           <CommentSection cid={detail.cid} />
           <div className="reader-footer">
             <button className="toolbar-btn" onClick={closeArticle}>
-              ← 返回列表
+              <ArrowLeft size={14} /> 返回列表
             </button>
           </div>
         </div>
@@ -576,7 +579,7 @@ function ReviewItemCard({
         ))}
         {isMine && onEdit && (
           <button className="attitude-btn review-edit-btn" onClick={onEdit} title="编辑我的评审">
-            ✎ 编辑
+            <PenLine size={12} /> 编辑
           </button>
         )}
       </div>
@@ -634,7 +637,7 @@ function ReviewPanel({ splitRatio }: { splitRatio: number }): React.JSX.Element 
         <div className="review-msg">
           {submitMessage}
           <button className="dismiss" onClick={clearSubmitMessage}>
-            ✕
+            <X size={12} />
           </button>
         </div>
       )}
@@ -706,7 +709,7 @@ function ReviewPanel({ splitRatio }: { splitRatio: number }): React.JSX.Element 
                 onClick={toggleReviewOrderAsc}
                 title={reviewOrderAsc ? '当前升序（小→大），点击切回降序' : '当前降序（大→小），点击切换为升序'}
               >
-                {reviewOrderAsc ? '↑' : '↓'}
+                {reviewOrderAsc ? <ArrowUp size={13} /> : <ArrowDown size={13} />}
               </button>
             </div>
           </div>

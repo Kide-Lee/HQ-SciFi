@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { X } from 'lucide-react'
 
 /**
  * 按错误内容推断提示语，避免无差别提示「登录态过期」误导排查：
@@ -67,7 +68,7 @@ export function ErrorBanner({
           )}
           {onDismiss && (
             <button className="dismiss" onClick={onDismiss} title="关闭">
-              ✕
+              <X size={12} />
             </button>
           )}
         </div>

@@ -177,6 +177,9 @@ body {
 
 .settings-btn {
   width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -435,6 +438,9 @@ body {
 }
 
 .sync-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   padding: 4px 10px;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -486,9 +492,13 @@ body {
 }
 
 .tree-group-title .caret {
-  width: 12px;
   color: var(--text-muted);
-  font-size: 11px;
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.tree-group-title .caret.open {
+  transform: rotate(90deg);
 }
 
 .tree-group-title .count {
@@ -607,6 +617,9 @@ body {
 }
 
 .toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   padding: 6px 12px;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -723,6 +736,9 @@ body {
   position: fixed;
   right: 16px;
   bottom: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   padding: 6px 12px;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -788,6 +804,8 @@ body {
   cursor: pointer;
   font-size: 12px;
   padding: 2px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .copy-btn {
@@ -947,6 +965,9 @@ body {
 }
 
 .review-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   padding: 6px 14px;
   border: 1px solid var(--accent);
   border-radius: 6px;
@@ -1117,13 +1138,18 @@ body {
 .reader-toc summary::-webkit-details-marker {
   display: none;
 }
-.reader-toc summary::before {
-  content: '▸ ';
-  color: var(--text-muted);
+.reader-toc summary {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
-.reader-toc[open] summary::before {
-  content: '▾ ';
+.reader-toc .toc-chevron {
   color: var(--text-muted);
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+.reader-toc[open] .toc-chevron {
+  transform: rotate(90deg);
 }
 .reader-toc-list {
   margin: 10px 0 2px;
@@ -1172,6 +1198,9 @@ body {
   justify-content: center;
 }
 .reader-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   padding: 5px 12px;
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -1389,6 +1418,9 @@ body {
   margin-right: auto;
 }
 .comment-submit {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   padding: 6px 18px;
   border: 1px solid var(--accent);
   border-radius: 6px;
@@ -1499,6 +1531,19 @@ body {
 .comment-more:hover {
   color: var(--accent);
   border-color: var(--accent);
+}
+
+/* lucide 图标辅助：同步旋转动画 */
+.sync-icon {
+  transition: transform 0.2s;
+}
+.sync-icon.spin {
+  animation: hqsf-spin 1s linear infinite;
+}
+@keyframes hqsf-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .reader-loading {

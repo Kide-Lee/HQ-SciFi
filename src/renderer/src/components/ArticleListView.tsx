@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
+import { ArrowDown, ArrowUp } from 'lucide-react'
 import { ARTICLE_ORDERS, useReaderStore } from '../stores/reader'
 import { cachedImageUrl, formatSize, formatTs, scoreColor } from '../lib/sanitize'
 import { ErrorBanner } from './ErrorBanner'
@@ -191,7 +192,7 @@ export function ArticleListView({
               onClick={toggleOrderAsc}
               title={listOrderAsc ? '当前升序（小→大），点击切回降序' : '当前降序（大→小），点击切换为升序'}
             >
-              {listOrderAsc ? '↑' : '↓'}
+              {listOrderAsc ? <ArrowUp size={13} /> : <ArrowDown size={13} />}
             </button>
           </div>
         )}

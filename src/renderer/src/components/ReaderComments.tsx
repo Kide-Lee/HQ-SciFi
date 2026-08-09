@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { X } from 'lucide-react'
 import { useReaderStore } from '../stores/reader'
 import { useAuthStore } from '../stores/auth'
 import { cachedImageUrl, formatTs } from '../lib/sanitize'
@@ -56,8 +57,8 @@ export function CommentSection({ cid }: { cid: string }): React.JSX.Element {
       {commentMessage && (
         <div className={commentMessage.startsWith('评论发布失败') ? 'reader-comments-err' : 'reader-comments-msg'}>
           {commentMessage}
-          <button className="dismiss" onClick={clearCommentMessage}>
-            ✕
+          <button className="dismiss" onClick={clearCommentMessage} title="关闭">
+            <X size={12} />
           </button>
         </div>
       )}
