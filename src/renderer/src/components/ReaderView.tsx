@@ -106,6 +106,7 @@ export function ReaderView(): React.JSX.Element {
 
   // v0.0.3：右栏（目录/评论/评审）展开与 tab 由 ui store 管理（顶栏「展开右栏」按钮切换）
   const panelOpen = useUiStore((s) => s.readerPanelOpen)
+  const panelTab = useUiStore((s) => s.readerPanelTab)
 
   // v0.0.2：评审栏宽度比例（评审:总宽），默认 1/3（正文:评审 = 2:1），localStorage 持久化
   const [splitRatio, setSplitRatio] = useState<number>(() => {
@@ -258,10 +259,17 @@ export function ReaderView(): React.JSX.Element {
                 <button
                   className="review-toggle"
                   onClick={() => {
-                    if (!panelOpen) useUiStore.getState().toggleReaderPanel()
-                    useUiStore.getState().setReaderPanelTab('review')
+                    const { readerPanelOpen, readerPanelTab, toggleReaderPanel, setReaderPanelTab } =
+                      useUiStore.getState()
+                    // v0.0.6：右栏已是评审 → 收起；否则展开右栏并切到评审
+                    if (readerPanelOpen && readerPanelTab === 'review') {
+                      toggleReaderPanel()
+                    } else {
+                      if (!readerPanelOpen) toggleReaderPanel()
+                      setReaderPanelTab('review')
+                    }
                   }}
-                  title="在右栏查看与撰写评审"
+                  title={panelOpen && panelTab === 'review' ? '收起右栏评审' : '在右栏查看与撰写评审'}
                 >
                   <PenLine size={14} /> 评审
                 </button>
@@ -906,7 +914,6 @@ function ReaderPanel({
 }): React.JSX.Element {
   const tab = useUiStore((s) => s.readerPanelTab)
   const setTab = useUiStore((s) => s.setReaderPanelTab)
-  const togglePanel = useUiStore((s) => s.toggleReaderPanel)
   const cid = useReaderStore((s) => s.detail)?.cid ?? ''
 
   return (
@@ -922,15 +929,7 @@ function ReaderPanel({
           评论
         </button>
         {!isMine && (
-          <button
-            className={`reader-panel-tab ${tab === 'review' ? 'active' : ''}`}
-            title={tab === 'review' ? '再次点击收起右栏' : undefined}
-            onClick={() => {
-              // v0.0.6：评审 tab 激活时再点击 = 收起右栏（其余 tab 保持切换行为）
-              if (tab === 'review') togglePanel()
-              else setTab('review')
-            }}
-          >
+          <button className={`reader-panel-tab ${tab === 'review' ? 'active' : ''}`} onClick={() => setTab('review')}>
             评审
           </button>
         )}
