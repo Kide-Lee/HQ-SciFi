@@ -5,10 +5,10 @@ import { useUiStore } from '../stores/ui'
 import { activityPhase, type ActivityPhase } from '../lib/activity'
 import { cachedImageUrl, formatSize, formatTs, expandMediaTags, sanitizeHtml, scoreColor } from '../lib/sanitize'
 import { ErrorBanner } from './ErrorBanner'
-import { CommentSection } from './ReaderComments'
+import { CommentSection, CommentCard, ridOf } from './ReaderComments'
 import { ReaderInteractions } from './ReaderInteractions'
 import { ArrowDown, ArrowUp, MessageCircle, MessageSquare, PenLine, X } from 'lucide-react'
-import type { ArticleDetail, MetaRef, ReviewItem, ReviewPayload } from '../../../shared/types'
+import type { ArticleDetail, CommentItem, MetaRef, ReviewItem, ReviewPayload } from '../../../shared/types'
 
 /** 活动状态缓存（mid → phase；从文章跳转活动列表时用，避免重复请求） */
 let activePhaseCache: Record<string, ActivityPhase> | null = null
@@ -135,12 +135,6 @@ export function ReaderView(): React.JSX.Element {
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
   }
-
-  // v0.0.3：打开新文章时清除右栏跳转目标（面板展开与 tab 保留用户选择）
-  const clearReaderPanelTargets = useUiStore((s) => s.clearReaderPanelTargets)
-  useEffect(() => {
-    clearReaderPanelTargets()
-  }, [detail?.cid, clearReaderPanelTargets])
 
   const safeHtml = useMemo(() => (detail ? expandMediaTags(sanitizeHtml(detail.text)) : ''), [detail])
   const bodyRef = useRef<HTMLElement | null>(null)
@@ -505,9 +499,9 @@ function ReviewItemCard({
   onEdit?: () => void
 }): React.JSX.Element {
   const setAttitude = useReaderStore((s) => s.setAttitude)
-  const setPanelTab = useUiStore((s) => s.setReaderPanelTab)
-  const setReplyReview = useUiStore((s) => s.setReaderReplyReview)
-  const setJumpCommentGroup = useUiStore((s) => s.setReaderJumpCommentGroup)
+  // v0.0.5：评审评论内嵌于卡片，默认收起（点击「评论 N」展开/收起；「回复评审」展开并聚焦回复框）
+  const [commentsOpen, setCommentsOpen] = useState(false)
+  const [replyIntent, setReplyIntent] = useState(false)
   const u = review.userJson ?? {}
   const rName = String(u.nickname ?? u.nick ?? u.nickName ?? u.name ?? `UID ${String(u.uid ?? review.uid ?? '')}`)
   const avatarRaw = String(u.avatar ?? u.headImg ?? u.headImgUrl ?? u.avatarUrl ?? '')
@@ -599,30 +593,155 @@ function ReviewItemCard({
             <PenLine size={12} /> 编辑
           </button>
         )}
-        {/* v0.0.5：回复评审用纯图标；查看评审评论用图标+数量（数量为 0 时隐藏） */}
+        {/* v0.0.5：回复评审 = 展开卡片内评论区并聚焦回复框（不再切到评论 tab） */}
         <button
           className="attitude-btn review-reply-btn"
           onClick={() => {
-            setPanelTab('comments')
-            setReplyReview(String(review.id))
+            setCommentsOpen(true)
+            setReplyIntent(true)
           }}
-          title="发表评论回复这条评审"
+          title="评论这条评审"
         >
           <MessageSquare size={13} />
         </button>
         {commentCount > 0 && (
           <button
-            className="attitude-btn review-comments-btn"
-            onClick={() => {
-              setPanelTab('comments')
-              setJumpCommentGroup(String(review.id))
-            }}
-            title={`查看针对这条评审的评论（${commentCount} 条）`}
+            className={`attitude-btn review-comments-btn ${commentsOpen ? 'active' : ''}`}
+            onClick={() => setCommentsOpen((v) => !v)}
+            title={commentsOpen ? '收起评审评论' : `查看针对这条评审的评论（${commentCount} 条）`}
           >
             <MessageCircle size={13} />
             <span className="review-comments-count">{commentCount}</span>
           </button>
         )}
+      </div>
+      {/* v0.0.5：评审评论内嵌区（默认收起；包含回复框与评论列表） */}
+      {commentsOpen && (
+        <ReviewInlineComments
+          review={review}
+          autoFocusReply={replyIntent}
+          onReplyFocused={() => setReplyIntent(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+/**
+ * v0.0.5：评审卡片内嵌评论（展开/收起由 ReviewItemCard 控制）：
+ * 该评审的评论列表（含楼中楼）+ 回复框（提交带 reviewid）；
+ * 评论数据来自 store.comments（按 cid 全局加载，此处按 reviewid 过滤）。
+ */
+function ReviewInlineComments({
+  review,
+  autoFocusReply,
+  onReplyFocused
+}: {
+  review: ReviewItem
+  autoFocusReply?: boolean
+  onReplyFocused?: () => void
+}): React.JSX.Element {
+  const comments = useReaderStore((s) => s.comments)
+  const commentSubmitting = useReaderStore((s) => s.commentSubmitting)
+  const commentMessage = useReaderStore((s) => s.commentMessage)
+  const clearCommentMessage = useReaderStore((s) => s.clearCommentMessage)
+  const submitComment = useReaderStore((s) => s.submitComment)
+  const session = useAuthStore((s) => s.session)
+  const loggedIn = !!session
+  const cid = useReaderStore((s) => s.detail)?.cid ?? ''
+  const rid = String(review.id)
+
+  const [draft, setDraft] = useState('')
+  const [replyTo, setReplyTo] = useState<CommentItem | null>(null)
+  const [localErr, setLocalErr] = useState<string | null>(null)
+  const replyBoxRef = useRef<HTMLTextAreaElement | null>(null)
+
+  // 该评审的顶层评论（子评论按 parent 归属，不依赖子评论自身的 reviewid）
+  const reviewTop = useMemo(
+    () => comments.filter((c) => ridOf(c) === rid && (String(c.parent) === '0' || c.parent == null)),
+    [comments, rid]
+  )
+  const childrenOf = (coid: number | string): CommentItem[] =>
+    comments.filter((c) => String(c.parent) === String(coid))
+
+  // 通过「回复评审」按钮进入时聚焦回复框
+  useEffect(() => {
+    if (autoFocusReply) {
+      replyBoxRef.current?.focus()
+      onReplyFocused?.()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  async function handleSubmit(e: React.FormEvent): Promise<void> {
+    e.preventDefault()
+    const text = draft.trim()
+    if (text.length < 4) {
+      setLocalErr(`评论内容至少 4 个字（当前 ${text.length} 字）`)
+      return
+    }
+    setLocalErr(null)
+    const ok = await submitComment({ cid, text, parent: replyTo?.coid, reviewid: rid })
+    if (ok) {
+      setDraft('')
+      setReplyTo(null)
+    }
+  }
+
+  return (
+    <div className="review-inline-comments">
+      {commentMessage && (
+        <div className={commentMessage.startsWith('评论发布失败') ? 'reader-comments-err' : 'reader-comments-msg'}>
+          {commentMessage}
+          <button className="dismiss" onClick={clearCommentMessage} title="关闭">
+            <X size={12} />
+          </button>
+        </div>
+      )}
+      {loggedIn ? (
+        <form className="comment-form" onSubmit={(e) => void handleSubmit(e)}>
+          <textarea
+            ref={replyBoxRef}
+            className="comment-input"
+            rows={2}
+            value={draft}
+            placeholder={replyTo ? `回复 @${replyTo.author}（≥4 字）` : '评论这条评审…（≥4 字）'}
+            onChange={(e) => {
+              setDraft(e.target.value)
+              setLocalErr(null)
+            }}
+          />
+          <div className="comment-form-actions">
+            {replyTo && (
+              <button type="button" className="comment-cancel-reply" onClick={() => setReplyTo(null)}>
+                取消回复
+              </button>
+            )}
+            {localErr && <span className="comment-local-err">{localErr}</span>}
+            <button type="submit" className="comment-submit" disabled={commentSubmitting}>
+              {commentSubmitting ? '提交中 …' : '发表评论'}
+            </button>
+          </div>
+        </form>
+      ) : (
+        <div className="comment-login-hint">登录后可评论这条评审</div>
+      )}
+      <div className="comment-list">
+        {reviewTop.length === 0 && <div className="muted comment-empty">还没有评论这条评审的评论</div>}
+        {reviewTop.map((c) => (
+          <div key={String(c.coid)} className="comment-item">
+            <CommentCard comment={c} onReply={() => setReplyTo(c)} />
+            {childrenOf(c.coid).length > 0 && (
+              <div className="comment-sub-list">
+                {childrenOf(c.coid).map((sub) => (
+                  <div key={String(sub.coid)} className="comment-item comment-sub">
+                    <CommentCard comment={sub} onReply={() => setReplyTo(sub)} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   )
@@ -651,29 +770,6 @@ function ReviewPanel(): React.JSX.Element {
     setEditing(false)
     if (detail?.cid) void loadReviews(detail.cid)
   }, [detail?.cid, loadReviews, clearSubmitMessage])
-
-  // v0.0.3：评论区「跳转到对应评审」→ 滚动到该评审卡片（必要时切到「所有评审」tab）
-  const jumpReviewId = useUiStore((s) => s.readerJumpReviewId)
-  const setJumpReviewId = useUiStore((s) => s.setReaderJumpReviewId)
-  useEffect(() => {
-    if (jumpReviewId == null) return
-    const myUidNow = String(useAuthStore.getState().session?.userinfo?.uid ?? '')
-    const allReviews = useReaderStore.getState().reviews
-    const target = allReviews.find((r) => String(r.id) === jumpReviewId)
-    if (!target) {
-      setJumpReviewId(null)
-      return
-    }
-    const targetUid = String(target.uid ?? (target.userJson as Record<string, unknown> | undefined)?.uid ?? '')
-    if (!(myUidNow !== '' && targetUid === myUidNow) && tab !== 'all') setTab('all')
-    // 等 tab 切换完成后再滚动定位
-    requestAnimationFrame(() => {
-      const el = document.querySelector(`[data-review-id="${CSS.escape(jumpReviewId)}"]`)
-      el?.scrollIntoView({ block: 'start', behavior: 'smooth' })
-      setJumpReviewId(null)
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jumpReviewId, setJumpReviewId])
 
   const myUid = String(useAuthStore.getState().session?.userinfo?.uid ?? '')
   const mine = reviews.filter((r) => myUid !== '' && String(r.uid ?? (r.userJson as Record<string, unknown> | undefined)?.uid ?? '') === myUid)

@@ -1885,84 +1885,6 @@ body {
   border-color: var(--accent);
 }
 
-/* v0.0.3：评审评论分组（同一评审的评论聚合） */
-.review-comment-group {
-  margin-top: 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: #fbfbfd;
-  padding: 0 12px 2px;
-  /* v0.0.5：flex column 父级下允许收缩（与 .comment-item 同理） */
-  min-width: 0;
-}
-
-.review-comment-group-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px 0;
-  border-bottom: 1px dashed #e6e8ee;
-}
-
-.review-comment-group-info {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.review-comment-group-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--accent);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.review-comment-group-zonghe {
-  font-size: 12px;
-  color: var(--text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.comment-jump-review {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--bg-card);
-  color: var(--text-muted);
-  font: inherit;
-  font-size: 12px;
-  padding: 3px 10px;
-  cursor: pointer;
-}
-
-.comment-jump-review:hover {
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
-/* v0.0.3：回复评审模式提示条 */
-.comment-reply-review-bar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--accent);
-  background: var(--accent-soft, #eef3fd);
-  border: 1px solid var(--accent);
-  border-radius: 6px 6px 0 0;
-  padding: 6px 10px;
-}
-
 /* lucide 图标辅助：同步旋转动画 */
 .sync-icon {
   transition: transform 0.2s;
@@ -2248,6 +2170,21 @@ body {
   margin-top: 8px;
   /* v0.0.5：按钮增多（emoji×3 + 图标×2），窄栏下允许换行 */
   flex-wrap: wrap;
+}
+
+/* v0.0.5：评审卡片内嵌评论区（默认收起；点「评论 N」展开） */
+.review-inline-comments {
+  margin-top: 10px;
+  padding: 10px 12px 2px;
+  border-top: 1px dashed var(--border);
+  background: #f8f9fb;
+  border-radius: 0 0 8px 8px;
+}
+.review-inline-comments .comment-form {
+  margin-bottom: 8px;
+}
+.review-inline-comments .comment-item:last-child {
+  border-bottom: none;
 }
 
 .attitude-btn {

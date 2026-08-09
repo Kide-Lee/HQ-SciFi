@@ -60,21 +60,6 @@ interface UiState {
   readerPanelOpen: boolean
   /** v0.0.3：右栏当前 tab（目录 / 评论 / 评审） */
   readerPanelTab: 'toc' | 'comments' | 'review'
-  /**
-   * v0.0.3：评审 → 评论 跳转/预填目标 reviewid。
-   * 评审卡片「回复评审」设置：切到评论 tab 并打开以该评审为对象的评论表单；CommentSection 消费后清除。
-   */
-  readerReplyReview: string | null
-  /**
-   * v0.0.3：评论 → 评审 跳转目标 reviewId。
-   * 评论区「跳转到对应评审」设置：切到评审 tab 并滚动到该评审卡片；ReviewPanel 消费后清除。
-   */
-  readerJumpReviewId: string | null
-  /**
-   * v0.0.3：评审 → 评论 分组定位目标 reviewid。
-   * 评审卡片「查看评审评论」设置：切到评论 tab 并滚动到对应评审的评论分组；CommentSection 消费后清除。
-   */
-  readerJumpCommentGroup: string | null
   setSection: (section: TopSection) => void
   setSelectedId: (id: string | null) => void
   /** 打开栏目列表（作品库分类等） */
@@ -84,11 +69,6 @@ interface UiState {
   toggleReaderPanel: () => void
   toggleSidebarCollapsed: () => void
   setReaderPanelTab: (tab: 'toc' | 'comments' | 'review') => void
-  setReaderReplyReview: (id: string | null) => void
-  setReaderJumpReviewId: (id: string | null) => void
-  setReaderJumpCommentGroup: (id: string | null) => void
-  /** 切换文章时清除右栏跳转目标（打开新文章不重置面板展开与 tab） */
-  clearReaderPanelTargets: () => void
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -99,9 +79,6 @@ export const useUiStore = create<UiState>((set) => ({
   sidebarCollapsed: localStorage.getItem('hqsf-sidebar-collapsed') === '1',
   readerPanelOpen: false,
   readerPanelTab: 'review',
-  readerReplyReview: null,
-  readerJumpReviewId: null,
-  readerJumpCommentGroup: null,
   setSection: (section) => set({ section, selectedId: null, listContext: null }),
   setSelectedId: (selectedId) => set({ selectedId }),
   openList: (ctx) => set({ selectedId: ctx.title, listContext: ctx }),
@@ -114,10 +91,5 @@ export const useUiStore = create<UiState>((set) => ({
       localStorage.setItem('hqsf-sidebar-collapsed', v ? '1' : '0')
       return { sidebarCollapsed: v }
     }),
-  setReaderPanelTab: (readerPanelTab) => set({ readerPanelTab }),
-  setReaderReplyReview: (readerReplyReview) => set({ readerReplyReview }),
-  setReaderJumpReviewId: (readerJumpReviewId) => set({ readerJumpReviewId }),
-  setReaderJumpCommentGroup: (readerJumpCommentGroup) => set({ readerJumpCommentGroup }),
-  clearReaderPanelTargets: () =>
-    set({ readerReplyReview: null, readerJumpReviewId: null, readerJumpCommentGroup: null })
+  setReaderPanelTab: (readerPanelTab) => set({ readerPanelTab })
 }))
