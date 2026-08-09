@@ -286,6 +286,8 @@ function toReviewItem(item: Record<string, unknown>): ReviewItem {
     joy: num(item.joy),
     helpful: num(item.helpful),
     earnest: num(item.earnest),
+    /** v0.0.5：关联该评审的评论数（reviewList 返回 replyNum；此前转换丢弃导致按钮不显示） */
+    replyNum: num(item.replyNum),
     userJson: (item.userJson as Record<string, unknown> | undefined) ?? undefined,
     articleInfo: (item.articleInfo as Record<string, unknown> | undefined) ?? undefined,
     created: normTs(item.created)
