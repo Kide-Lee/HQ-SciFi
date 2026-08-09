@@ -906,6 +906,7 @@ function ReaderPanel({
 }): React.JSX.Element {
   const tab = useUiStore((s) => s.readerPanelTab)
   const setTab = useUiStore((s) => s.setReaderPanelTab)
+  const togglePanel = useUiStore((s) => s.toggleReaderPanel)
   const cid = useReaderStore((s) => s.detail)?.cid ?? ''
 
   return (
@@ -921,7 +922,15 @@ function ReaderPanel({
           评论
         </button>
         {!isMine && (
-          <button className={`reader-panel-tab ${tab === 'review' ? 'active' : ''}`} onClick={() => setTab('review')}>
+          <button
+            className={`reader-panel-tab ${tab === 'review' ? 'active' : ''}`}
+            title={tab === 'review' ? '再次点击收起右栏' : undefined}
+            onClick={() => {
+              // v0.0.6：评审 tab 激活时再点击 = 收起右栏（其余 tab 保持切换行为）
+              if (tab === 'review') togglePanel()
+              else setTab('review')
+            }}
+          >
             评审
           </button>
         )}
