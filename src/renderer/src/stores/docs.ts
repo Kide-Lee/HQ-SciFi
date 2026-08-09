@@ -18,6 +18,8 @@ interface DocsState {
   refreshArticles: () => Promise<void>
   pull: () => Promise<void>
   push: (filePath: string, isDraft: boolean) => Promise<PushResult | null>
+  /** v0.0.6：删除本地文章文件（成功后刷新目录树） */
+  deleteLocal: (path: string) => Promise<boolean>
   clearError: () => void
 }
 
@@ -73,5 +75,17 @@ export const useDocsStore = create<DocsState>((set, get) => ({
     return res.data
   },
 
-  clearError: () => set({ error: null })
+  clearError: () => set({ error: null }),
+
+  deleteLocal: async (path) => {
+    const res = await window.hqsf.deleteLocalDoc(path)
+    if (res.ok) {
+      await get().refreshLocal()
+      // 删除的恰是当前编辑文档时关闭编辑器
+      if (useEditorStore.getState().currentPath === path) await useEditorStore.getState().close()
+      return true
+    }
+    set({ error: res.error })
+    return false
+  }
 }))

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { X } from 'lucide-react'
+import { Trash2, X } from 'lucide-react'
 import { EditorView, keymap } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
 import { basicSetup } from 'codemirror'
@@ -7,7 +7,8 @@ import { markdown } from '@codemirror/lang-markdown'
 import { useEditorStore } from '../stores/editor'
 import { useDocsStore } from '../stores/docs'
 import { ErrorBanner } from './ErrorBanner'
-import type { ArticleRow } from '../../../shared/types'
+import { formatSize, formatTs } from '../lib/sanitize'
+import type { ArticleRow, LocalNode } from '../../../shared/types'
 
 /** 远端非草稿类型的展示名（同步/推送后角标显示当前远端状态） */
 const REMOTE_TYPE_LABEL: Partial<Record<ArticleRow['type'], string>> = {
@@ -33,6 +34,7 @@ export function EditorPane(): React.JSX.Element {
   const pushing = useDocsStore((s) => s.pushing)
   const refreshLocal = useDocsStore((s) => s.refreshLocal)
   const localTree = useDocsStore((s) => s.localTree)
+  const deleteLocal = useDocsStore((s) => s.deleteLocal)
   const docError = useDocsStore((s) => s.error)
   const clearDocError = useDocsStore((s) => s.clearError)
   const lastPull = useDocsStore((s) => s.lastPull)
@@ -46,6 +48,9 @@ export function EditorPane(): React.JSX.Element {
   const [showNew, setShowNew] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [toast, setToast] = useState<string | null>(null)
+  // v0.0.6：待二次确认删除的本地文件 path（再点一次执行删除；点击其他处恢复）
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const deleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const pullErrors = lastPull?.errors ?? []
 
@@ -106,6 +111,20 @@ export function EditorPane(): React.JSX.Element {
     }
   }
 
+  async function handleDelete(node: LocalNode): Promise<void> {
+    if (confirmDelete !== node.path) {
+      // 第一次点击：进入二次确认态（3 秒后自动恢复）
+      setConfirmDelete(node.path)
+      if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current)
+      deleteTimerRef.current = setTimeout(() => setConfirmDelete(null), 3000)
+      return
+    }
+    if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current)
+    setConfirmDelete(null)
+    const ok = await deleteLocal(node.path)
+    if (ok) showToast(`已删除「${node.name.replace(/\.md$/i, '')}」`)
+  }
+
   async function handleCreateDraft(): Promise<void> {
     const title = newTitle.trim()
     if (!title) return
@@ -137,33 +156,36 @@ export function EditorPane(): React.JSX.Element {
 
   return (
     <div className="editor-pane">
-      <div className="editor-toolbar">
-        <button className="toolbar-btn" onClick={() => setShowNew((v) => !v)}>
-          + 新建草稿
-        </button>
-        {currentPath && (
-          <>
-            <button className="toolbar-btn" onClick={() => void save()} disabled={!dirty || busy}>
-              保存
-            </button>
-            <button className="toolbar-btn accent" onClick={() => void handlePush(true)} disabled={!currentPath || pushingNow || busy} title="将当前内容保存为远端草稿">
-              {pushingNow ? '同步中 …' : '同步到草稿'}
-            </button>
-            <button className="toolbar-btn primary" onClick={() => void handlePush(false)} disabled={!currentPath || pushingNow || busy} title="发布后进入待审核，由服务器裁决为已发布或已拒绝">
-              发布
-            </button>
-          </>
-        )}
-        {currentPath && (
-          <span className={`status-badge ${dirty ? 'warn' : synced ? 'ok' : ''}`} title={statusTip}>
-            {statusLabel}
+      {/* v0.0.6：工具栏仅在编辑态显示；写作首页不显示（新建草稿入口在首页头部） */}
+      {currentPath && (
+        <div className="editor-toolbar">
+          <button className="toolbar-btn" onClick={() => setShowNew((v) => !v)}>
+            + 新建草稿
+          </button>
+          {currentPath && (
+            <>
+              <button className="toolbar-btn" onClick={() => void save()} disabled={!dirty || busy}>
+                保存
+              </button>
+              <button className="toolbar-btn accent" onClick={() => void handlePush(true)} disabled={!currentPath || pushingNow || busy} title="将当前内容保存为远端草稿">
+                {pushingNow ? '同步中 …' : '同步到草稿'}
+              </button>
+              <button className="toolbar-btn primary" onClick={() => void handlePush(false)} disabled={!currentPath || pushingNow || busy} title="发布后进入待审核，由服务器裁决为已发布或已拒绝">
+                发布
+              </button>
+            </>
+          )}
+          {currentPath && (
+            <span className={`status-badge ${dirty ? 'warn' : synced ? 'ok' : ''}`} title={statusTip}>
+              {statusLabel}
+            </span>
+          )}
+          <span className="toolbar-spacer" />
+          <span className="editor-path" title={currentPath ?? ''}>
+            {currentPath ? currentPath.split('/').pop() : ''}
           </span>
-        )}
-        <span className="toolbar-spacer" />
-        <span className="editor-path" title={currentPath ?? ''}>
-          {currentPath ? currentPath.split('/').pop() : ''}
-        </span>
-      </div>
+        </div>
+      )}
 
       {pullErrors.length > 0 && (
         <ErrorBanner title={`同步失败 ${pullErrors.length} 处`} details={pullErrors} />
@@ -201,7 +223,7 @@ export function EditorPane(): React.JSX.Element {
         {currentPath ? (
           <div className="cm-host" ref={containerRef} />
         ) : (
-          /* v0.0.3：写作首页——本地存档中存在内容时展示本地存档列表 */
+          /* v0.0.6：写作首页——本地存档以文章卡片展示（标题/摘要/字数/最后编辑时间/删除） */
           <div className="editor-empty editor-local-home">
             <div className="editor-local-home-head">
               <h3>本地存档</h3>
@@ -215,21 +237,44 @@ export function EditorPane(): React.JSX.Element {
                 本地存档为空。点「+ 新建草稿」开始写作，或从左侧栏同步远端草稿。
               </p>
             ) : (
-              <ul className="editor-local-list">
+              <div className="editor-local-cards">
                 {localTree.map((node) =>
                   node.isDir ? (
-                    <li key={node.path} className="editor-local-dir">
+                    <div key={node.path} className="editor-local-dir">
                       {node.name}/
-                    </li>
+                    </div>
                   ) : (
-                    <li key={node.path} className="editor-local-file">
-                      <button onClick={() => void openDoc(node.path)} title={node.path}>
-                        {node.name.replace(/\.md$/i, '')}
+                    <div key={node.path} className="editor-local-card">
+                      <button
+                        className="editor-local-card-main"
+                        onClick={() => {
+                          setConfirmDelete(null)
+                          void openDoc(node.path)
+                        }}
+                        title={node.path}
+                      >
+                        <div className="editor-local-card-title">{node.name.replace(/\.md$/i, '')}</div>
+                        {node.summary ? <div className="editor-local-card-summary">{node.summary}</div> : null}
+                        <div className="editor-local-card-meta">
+                          {node.words != null && <span>{formatSize(node.words)} 字</span>}
+                          {node.mtime != null && <span>最后编辑 {formatTs(Math.floor(node.mtime / 1000))}</span>}
+                        </div>
                       </button>
-                    </li>
+                      <button
+                        className={`editor-local-card-del${confirmDelete === node.path ? ' confirming' : ''}`}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          void handleDelete(node)
+                        }}
+                        title={confirmDelete === node.path ? '再次点击确认删除' : '删除这篇草稿'}
+                      >
+                        <Trash2 size={14} />
+                        {confirmDelete === node.path && <span>确认删除？</span>}
+                      </button>
+                    </div>
                   )
                 )}
-              </ul>
+              </div>
             )}
           </div>
         )}

@@ -90,6 +90,12 @@ export interface LocalNode {
   path: string
   isDir: boolean
   children?: LocalNode[]
+  /** v0.0.6：文件信息（仅 md 文件；写作首页卡片展示用） */
+  mtime?: number
+  /** 正文字数（去空白） */
+  words?: number
+  /** 摘要（去首部标题后前 100 字） */
+  summary?: string
 }
 
 // ---------- 阅读与评审（M2 读审一体） ----------

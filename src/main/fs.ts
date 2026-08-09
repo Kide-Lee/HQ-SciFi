@@ -1,5 +1,5 @@
 import { app, dialog, type BrowserWindow } from 'electron'
-import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join, resolve, sep } from 'node:path'
 import { getMeta, setMeta } from './db'
 import type { LocalNode } from '../shared/types'
@@ -62,7 +62,22 @@ function realpathWithin(root: string, target: string): string {
   }
 }
 
-function readTree(dir: string, depth: number): LocalNode[] {  return readdirSync(dir, { withFileTypes: true })
+/** 摘要与字数：读 md 内容，去首部标题行后取前 100 字摘要；字数去空白统计 */
+function summarize(content: string): { summary: string; words: number } {
+  const text = content
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l && !l.startsWith('#'))
+    .join(' ')
+    .trim()
+  return {
+    summary: text.slice(0, 100) + (text.length > 100 ? '…' : ''),
+    words: content.replace(/\s/g, '').length
+  }
+}
+
+function readTree(dir: string, depth: number): LocalNode[] {
+  return readdirSync(dir, { withFileTypes: true })
     .filter((d) => d.isDirectory() || d.name.toLowerCase().endsWith('.md'))
     .map((d) => {
       const node: LocalNode = {
@@ -76,6 +91,17 @@ function readTree(dir: string, depth: number): LocalNode[] {  return readdirSync
         } catch {
           node.children = []
         }
+      } else if (!d.isDirectory()) {
+        // v0.0.6：写作首页卡片信息（mtime/字数/摘要）
+        try {
+          const st = statSync(node.path)
+          node.mtime = st.mtimeMs
+          const { summary, words } = summarize(readFileSync(node.path, 'utf8'))
+          node.words = words
+          node.summary = summary
+        } catch {
+          // 读不到信息时保持缺省
+        }
       }
       return node
     })
@@ -85,6 +111,15 @@ function readTree(dir: string, depth: number): LocalNode[] {  return readdirSync
 /** 列出本地存档目录树（md 文件 + 子目录，两层） */
 export function listLocalDocs(): LocalNode[] {
   return readTree(ensureDocsRoot(), 1)
+}
+
+/** 删除本地 md 文件（仅限存档根目录内；文件不存在视为成功） */
+export function deleteLocalFile(root: string, p: string): void {
+  const abs = assertInside(root, p)
+  if (!existsSync(abs)) return
+  const st = statSync(abs)
+  if (st.isDirectory()) throw new Error('不能删除目录，仅支持删除文章文件')
+  unlinkSync(abs)
 }
 
 /** 读本地 md 文件（仅限存档根目录内） */

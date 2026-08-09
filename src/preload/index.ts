@@ -72,6 +72,8 @@ const api = {
     ipcRenderer.invoke('hqsf:write-local-file', path, content),
   createLocalDraft: (title: string, content: string): Promise<ApiResult<string>> =>
     ipcRenderer.invoke('hqsf:create-local-draft', title, content),
+  /** v0.0.6：删除本地文章文件（含二次确认由渲染层负责） */
+  deleteLocalDoc: (path: string): Promise<ApiResult<null>> => ipcRenderer.invoke('hqsf:delete-local-file', path),
   chooseDocsDir: (): Promise<ApiResult<string | null>> => ipcRenderer.invoke('hqsf:choose-docs-dir'),
 
   // ---- 四态索引 ----

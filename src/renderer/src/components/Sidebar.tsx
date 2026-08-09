@@ -371,6 +371,8 @@ export function Sidebar(): React.JSX.Element {
                 className={`nav-item ${section === key ? 'active' : ''}`}
                 onClick={() => {
                   closeArticle()
+                  // v0.0.6：点击「写作」回到写作首页（关闭当前打开的编辑器文档）
+                  if (key === 'writing') void useEditorStore.getState().close()
                   setSection(key)
                 }}
                 title={collapsed ? SECTION_LABELS[key] : undefined}

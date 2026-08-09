@@ -78,6 +78,8 @@ export interface HqsfApi {
   readLocalFile: (path: string) => Promise<ApiResult<string>>
   writeLocalFile: (path: string, content: string) => Promise<ApiResult<null>>
   createLocalDraft: (title: string, content: string) => Promise<ApiResult<string>>
+  /** v0.0.6：删除本地文章文件 */
+  deleteLocalDoc: (path: string) => Promise<ApiResult<null>>
   chooseDocsDir: () => Promise<ApiResult<string | null>>
   listArticles: () => Promise<ApiResult<ArticleRow[]>>
   listRemoteArticles: (opts?: ArticleListOptions) => Promise<ApiResult<{ items: RemoteArticle[]; total: number }>>
