@@ -16,6 +16,7 @@
 - **阅读**：推荐（精选 / AI 模型 / 首页置顶与内容流）、连载（推荐合集 / 推荐连载）、练笔活动（近期活动 / 活动树展开文章）、作品库五大栏目；正文安全净化渲染；列表排序支持评分 / 点赞 / 评论 / 阅读 / 字数 / 时间 / 回复，全部可倒序（↑/↓），并列排名同名次
 - **评审**：接入官方五维评审体系（设定 / 文笔 / 人物 / 情节 / 思想性）；「我的评审 / 所有评审」双视图，可随时编辑自己的评审；所有评审按时间 / 评分 / 开心 / 有用 / 认真排序 + 倒序；评审栏与正文可拖动分栏（默认 1:2）、字号与正文一致、编辑框随内容自动增高、实时平均分预示、评者头像
 - **活动**：活动按钮红点提示未完成评审任务；进行中 / 评审中活动带状态标记，且其文章不进入评分榜、不显示评分与排名
+- **界面与交互**：无边框自绘顶栏（页面标题居中 / 窗口控件 / 返回列表，顶栏与左栏空白处可拖动窗口）；左栏可折叠、宽度可调；阅读页右栏「目录 / 评论 / 评审」一体 tab，评论与评审双向联动（同一评审的评论聚合、跳转对应评审、回复评审）；互动按钮悬浮文章右下角（投币 / 点赞 / 收藏 / 分享 + 置顶）；文章卡片高度统一、封面加载失败占位兜底
 - **安全**：登录凭据经系统级加密（safeStorage）仅存主进程、渲染层沙箱隔离、远端内容白名单净化防 XSS；任意界面 Ctrl+F12 打开开发者工具
 
 ## 界面
@@ -32,9 +33,9 @@
 
 | 平台 | 文件 |
 | --- | --- |
-| Windows | [hq-scifi.Setup.0.0.3.exe](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.3/hq-scifi.Setup.0.0.3.exe) |
-| Linux | [hq-scifi-0.0.3.AppImage](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.3/hq-scifi-0.0.3.AppImage)（无需安装，直接运行） |
-| Linux | [hq-scifi_0.0.3_amd64.deb](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.3/hq-scifi_0.0.3_amd64.deb)（Debian/Ubuntu 系） |
+| Windows | [hq-scifi.Setup.0.0.4.exe](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.4/hq-scifi.Setup.0.0.4.exe) |
+| Linux | [hq-scifi-0.0.4.AppImage](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.4/hq-scifi-0.0.4.AppImage)（无需安装，直接运行） |
+| Linux | [hq-scifi_0.0.4_amd64.deb](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.4/hq-scifi_0.0.4_amd64.deb)（Debian/Ubuntu 系） |
 
 > **v0.0.4**：无边框窗口与自绘顶栏（页面标题居中 / 窗口控件 / 返回列表）、左栏图标与折叠调宽、阅读页右栏 tab 化（目录 / 评论 / 评审）与评论-评审双向联动、互动悬浮按钮、写作首页本地存档、文章卡片统一高度、图片加载失败兜底等；**v0.0.3**：v0.0.2 样式改进交付（排序倒序 / 字数 / 并列排名、栏目首页、活动树与红点、评审「我的 / 所有评审」与编辑、拖动分栏、活动卡片统计等）；**v0.0.2**：修复 Windows 版无法打开界面的问题（Linux 交叉打包时原生模块 `better-sqlite3` 误打包为 Linux 版二进制，现自动注入 Windows 版 prebuild）。更新日志见 [CHANGELOG.md](CHANGELOG.md) 与 [Releases](https://github.com/Kide-Lee/HQ-SciFi/releases)。
 
