@@ -1630,12 +1630,22 @@ body {
   opacity: 0.9;
 }
 
-/* v0.0.3：评论区（正文下方） */
+/* v0.0.3：评论区（正文下方）；v0.0.5：作为右栏 tab 子级时 min-width:0 允许随栏收缩 */
 .reader-comments {
   max-width: 760px;
   margin: 32px auto 0;
   border-top: 1px solid var(--border);
   padding-top: 20px;
+  /* v0.0.5：父级 .reader-panel-scroll 是 flex column，本元素是 flex item，
+     默认 min-width:auto 会被内部不可断行内容撑破（详见 .comment-card-head） */
+  min-width: 0;
+  /* v0.0.5：移入右栏 tab 后，正文下方样式的 margin:auto 居中会在 flex 交叉轴
+     把宽度收缩到内容 min-content（而非填满可用宽）→ 撑出水平滚动条；
+     在右栏语境下重置为撑满 */
+  margin: 0;
+  max-width: none;
+  border-top: none;
+  padding-top: 0;
 }
 .reader-comments-head {
   display: flex;
@@ -1721,6 +1731,9 @@ body {
   font-size: 12px;
   color: #b91c1c;
   margin-right: auto;
+  /* v0.0.5：长错误文案在窄栏下可换行，避免撑破 */
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .comment-submit {
   display: inline-flex;
@@ -1761,12 +1774,17 @@ body {
 .comment-item {
   padding: 10px 0;
   border-bottom: 1px dashed #f0f1f5;
+  /* v0.0.5：.comment-list 是 flex column，本元素是 flex item，
+     允许收缩以免被 .comment-card-head 的最小内容宽度撑破 */
+  min-width: 0;
 }
 .comment-card-head {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 6px;
+  /* v0.0.5：flex 容器可收缩，内部昵称/时间超宽时省略 */
+  min-width: 0;
 }
 .comment-avatar {
   width: 26px;
@@ -1780,13 +1798,26 @@ body {
   font-size: 13px;
   font-weight: 600;
   color: var(--text);
+  /* v0.0.5：窄栏下昵称过长时省略，避免撑破右栏出现水平滚动条 */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .comment-time {
   font-size: 12px;
   color: var(--text-muted);
+  /* v0.0.5：窄栏（楼中楼子评论更窄）下允许收缩省略，
+     否则固定宽度总和超过容器 → 撑出水平滚动条 */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 1;
 }
 .comment-reply-btn {
   margin-left: auto;
+  flex-shrink: 0;
   border: none;
   background: none;
   color: var(--text-muted);
@@ -1849,6 +1880,8 @@ body {
   border-radius: 8px;
   background: #fbfbfd;
   padding: 0 12px 2px;
+  /* v0.0.5：flex column 父级下允许收缩（与 .comment-item 同理） */
+  min-width: 0;
 }
 
 .review-comment-group-head {
@@ -1908,6 +1941,7 @@ body {
 .comment-reply-review-bar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   font-size: 12px;
   color: var(--accent);
@@ -1959,8 +1993,9 @@ body {
   /* v0.0.3：作为右栏 tab 容器（reader-panel）的子级，宽度应为 100%
      而非独立的 33.33%（原百分比相对父面板导致不自适应） */
   width: 100%;
-  /* v0.0.3：右栏自适应宽度——允许窄于 280px 随分栏比例收缩 */
-  min-width: 220px;
+  /* v0.0.5：min-width 由父级 .reader-panel 兜底，本元素跟随父宽
+     （原 min-width:220px 在父宽 219px 时反而撑出 1px 溢出） */
+  min-width: 0;
   max-width: 100%;
   flex-shrink: 0;
   border-left: 1px solid var(--border);
@@ -2185,6 +2220,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  /* v0.0.5：窄栏下允许收缩（flex column 子级） */
+  min-width: 0;
 }
 
 .review-form h4 {
@@ -2195,12 +2232,14 @@ body {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
 }
 
 .review-form-row {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .review-form-label {
@@ -2212,6 +2251,8 @@ body {
 
 .review-form-row input[type='range'] {
   flex: 1;
+  /* v0.0.5：range 固有 min-width 较大，窄栏下会撑破右栏 */
+  min-width: 0;
 }
 
 .review-form-score {
