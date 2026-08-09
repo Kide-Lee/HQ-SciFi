@@ -1136,13 +1136,12 @@ body {
   display: flex;
   align-items: center;
 }
-/* v0.0.6：补齐占位改为黑块（skeleton 风格；最后一行 75% 宽） */
+/* v0.0.6：补齐占位黑块（skeleton 风格；块高占满行高，多行连成整体；末块 75% 宽） */
 .editor-local-excerpt .excerpt-fill-line::after {
   content: '';
   display: block;
-  height: 10px;
+  height: 19.2px;
   width: 100%;
-  border-radius: 3px;
   background: #e8eaed;
 }
 .editor-local-excerpt .excerpt-fill-line.last::after {

@@ -33,13 +33,19 @@ const EXCERPT_MAX_ROWS = 3
 
 function ExcerptFill({ summary }: { summary?: string }): React.JSX.Element {
   const textRef = useRef<HTMLDivElement>(null)
-  const [rows, setRows] = useState(0)
+  // v0.0.6 修复：初始按满行数（不渲染填充），避免填充块参与 flex 布局挤压文本导致行数测少
+  const [rows, setRows] = useState(EXCERPT_MAX_ROWS)
 
   function measure(): void {
     const el = textRef.current
     if (!el) return
+    const wrap = el.parentElement
+    const fill = wrap?.querySelector('.excerpt-fill')
+    // 测量时临时隐藏填充块：它参与 flex 布局会压缩文本高度，使行数偏小
+    if (fill instanceof HTMLElement) fill.style.display = 'none'
     const lh = parseFloat(getComputedStyle(el).lineHeight) || 19.2
     const measured = Math.round(el.offsetHeight / lh)
+    if (fill instanceof HTMLElement) fill.style.display = ''
     setRows(Math.min(EXCERPT_MAX_ROWS, Math.max(0, measured)))
   }
 
