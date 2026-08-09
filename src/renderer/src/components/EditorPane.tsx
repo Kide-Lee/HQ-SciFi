@@ -197,7 +197,7 @@ export function EditorPane(): React.JSX.Element {
         />
       )}
 
-      <div className="editor-body">
+      <div className={`editor-body${currentPath ? ' editing' : ' home'}`}>
         {currentPath ? (
           <div className="cm-host" ref={containerRef} />
         ) : (

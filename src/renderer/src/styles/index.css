@@ -821,6 +821,7 @@ body {
   min-width: 0;
   /* v0.0.3 修复：同 .main-area，防止内容撑高后编辑器内部无法滚动 */
   min-height: 0;
+  /* v0.0.6：编辑态白底（写作首页灰底由 .editor-body.home 控制） */
   background: var(--bg-card);
 }
 
@@ -929,6 +930,10 @@ body {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  /* v0.0.6：写作首页背景与主界面一致（其他页面灰底） */
+}
+.editor-body.home {
+  background: var(--bg);
 }
 
 .cm-host {
