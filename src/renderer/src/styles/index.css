@@ -807,7 +807,8 @@ body {
   background: transparent;
   font: inherit;
   font-size: 12px;
-  color: var(--text-muted);
+  /* v0.0.6：目录名字体颜色与文件名一致（.tree-node 为 #444a54） */
+  color: #444a54;
   cursor: pointer;
   border-radius: 4px;
   text-align: left;
@@ -1016,7 +1017,7 @@ body {
   margin-left: auto;
 }
 
-/* v0.0.6：首页头部按钮组（新建文件夹 + 新建草稿） */
+/* v0.0.6：首页头部按钮组（排序 + 新建文件夹 + 新建草稿） */
 .editor-local-actions {
   margin-left: auto;
   display: flex;
@@ -1025,6 +1026,12 @@ body {
 }
 .editor-local-actions .primary-btn {
   margin-left: 0;
+}
+/* v0.0.6：首页排序按钮组（复用作品库 order-btn 样式） */
+.editor-local-sorts {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
 .editor-local-hint {
@@ -1125,15 +1132,14 @@ body {
   color: var(--text-muted);
 }
 
-/* v0.0.6：面包屑（并入首页 h3 标题行，inline） */
+/* v0.0.6：面包屑（写作首页标题行；独立于标题文字） */
 .editor-local-crumbs {
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 0 2px;
-  margin-left: 10px;
-  font-size: 12px;
-  font-weight: 400;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--text-muted);
   vertical-align: middle;
 }

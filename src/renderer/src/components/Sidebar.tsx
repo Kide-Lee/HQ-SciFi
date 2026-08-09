@@ -3,7 +3,6 @@ import {
   BookOpen,
   CalendarDays,
   ChevronRight,
-  Folder,
   Layers,
   PenLine,
   RefreshCw,
@@ -343,7 +342,7 @@ export function Sidebar(): React.JSX.Element {
           <div key={node.path} className="tree-dir-wrap" style={{ paddingLeft: depth * 8 }}>
             <button className="tree-dir-entry" onClick={() => toggleExpand(k)} title={node.path}>
               <ChevronRight size={12} className={`caret${open ? ' open' : ''}`} />
-              <Folder size={12} />
+              {/* v0.0.6：目录不再显示 Folder 图标（与文件名样式一致） */}
               <span className="tree-dir-name">{node.name}</span>
             </button>
             {open && node.children && (

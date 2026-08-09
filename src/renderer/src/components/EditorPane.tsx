@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { ChevronRight, Folder, Trash2, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ArrowDown, ArrowUp, ChevronRight, Folder, Trash2, X } from 'lucide-react'
 import { EditorView, keymap } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
 import { basicSetup } from 'codemirror'
@@ -60,6 +60,9 @@ export function EditorPane(): React.JSX.Element {
   // v0.0.6：新建文件夹输入框状态
   const [showNewDir, setShowNewDir] = useState(false)
   const [newDirName, setNewDirName] = useState('')
+  // v0.0.6：首页排序（编辑时间/字数 + 升降序，默认编辑时间降序）
+  const [sortBy, setSortBy] = useState<'mtime' | 'words'>('mtime')
+  const [sortAsc, setSortAsc] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   // v0.0.6：待二次确认删除的本地文件 path（再点一次执行删除；点击其他处恢复）
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
@@ -70,6 +73,17 @@ export function EditorPane(): React.JSX.Element {
   // v0.0.6：当前浏览目录的子树（根目录时直接用整棵树）
   const dirNode = currentDir ? findDirNode(localTree, currentDir) : null
   const items = currentDir ? (dirNode?.children ?? []) : localTree
+  // v0.0.6：排序——文件夹始终在前（名称序），文件按编辑时间/字数排序（支持升降序）
+  const sortedItems = useMemo<LocalNode[]>(() => {
+    const dirs = items.filter((n) => n.isDir)
+    const files = items.filter((n) => !n.isDir)
+    const key = (n: LocalNode): number => (sortBy === 'words' ? n.words ?? 0 : n.mtime ?? 0)
+    const sorted = [...files].sort((a, b) => {
+      const diff = key(b) - key(a)
+      return sortAsc ? -diff : diff
+    })
+    return [...dirs, ...sorted]
+  }, [items, sortBy, sortAsc])
 
   // 切换文档时重建编辑器实例
   useEffect(() => {
@@ -287,44 +301,63 @@ export function EditorPane(): React.JSX.Element {
           /* v0.0.6：写作首页——本地存档目录导航 + 文章卡片 */
           <div className="editor-empty editor-local-home">
             <div className="editor-local-home-head">
-              <h3>
-                本地存档
-                {/* v0.0.6：面包屑并入标题行（inline），点击返回对应层级 */}
-                <span className="editor-local-crumbs">
-                  <button
-                    className={`crumb ${currentDir === '' ? 'current' : ''}`}
-                    onClick={() => setCurrentDir('')}
-                  >
-                    存档根
-                  </button>
-                  {(dirNode?.rel ?? '')
-                    .split('/')
-                    .filter(Boolean)
-                    .map((seg, i, arr) => {
-                      const targetAbs = relPathToAbs(localTree, arr.slice(0, i + 1))
-                      return (
-                        <span key={`${seg}-${i}`} className="crumb-seg">
-                          <span className="crumb-sep">/</span>
-                          <button
-                            className={`crumb ${i === arr.length - 1 ? 'current' : ''}`}
-                            onClick={() => targetAbs && setCurrentDir(targetAbs)}
-                          >
-                            {seg}
-                          </button>
-                        </span>
-                      )
-                    })}
-                </span>
-              </h3>
+              {/* v0.0.6：面包屑（原「本地存档」标题改为纯面包屑） */}
+              <span className="editor-local-crumbs">
+                <button
+                  className={`crumb ${currentDir === '' ? 'current' : ''}`}
+                  onClick={() => setCurrentDir('')}
+                >
+                  存档根
+                </button>
+                {(dirNode?.rel ?? '')
+                  .split('/')
+                  .filter(Boolean)
+                  .map((seg, i, arr) => {
+                    const targetAbs = relPathToAbs(localTree, arr.slice(0, i + 1))
+                    return (
+                      <span key={`${seg}-${i}`} className="crumb-seg">
+                        <span className="crumb-sep">/</span>
+                        <button
+                          className={`crumb ${i === arr.length - 1 ? 'current' : ''}`}
+                          onClick={() => targetAbs && setCurrentDir(targetAbs)}
+                        >
+                          {seg}
+                        </button>
+                      </span>
+                    )
+                  })}
+              </span>
               {localTree.length > 0 && (
                 <span className="editor-local-count">{countAllDocs(localTree)} 项</span>
               )}
               <div className="editor-local-actions">
-                {/* v0.0.6：两个新建按钮样式一致；均在当前浏览目录内创建 */}
-                <button className="primary-btn" onClick={() => setShowNewDir((v) => !v)}>
+                {/* v0.0.6：排序（编辑时间/字数 + 升降序），样式类似作品库列表工具栏 */}
+                <div className="editor-local-sorts">
+                  <button
+                    className={`order-btn ${sortBy === 'mtime' ? 'active' : ''}`}
+                    onClick={() => setSortBy('mtime')}
+                  >
+                    编辑时间
+                  </button>
+                  <button
+                    className={`order-btn ${sortBy === 'words' ? 'active' : ''}`}
+                    onClick={() => setSortBy('words')}
+                  >
+                    字数
+                  </button>
+                  <button
+                    className={`order-btn order-dir-btn ${sortAsc ? 'asc' : ''}`}
+                    onClick={() => setSortAsc((v) => !v)}
+                    title={sortAsc ? '当前升序（小→大），点击切回降序' : '当前降序（大→小），点击切换为升序'}
+                  >
+                    {sortAsc ? <ArrowUp size={13} /> : <ArrowDown size={13} />}
+                  </button>
+                </div>
+                {/* v0.0.6：两个新建按钮统一轻量描边样式，均在当前浏览目录内创建 */}
+                <button className="ghost-btn" onClick={() => setShowNewDir((v) => !v)}>
                   + 新建文件夹
                 </button>
-                <button className="primary-btn" onClick={() => setShowNew(true)}>
+                <button className="ghost-btn" onClick={() => setShowNew(true)}>
                   + 新建草稿
                 </button>
               </div>
@@ -351,40 +384,13 @@ export function EditorPane(): React.JSX.Element {
               </div>
             )}
 
-            {/* v0.0.6：面包屑导航（相对存档根的路径分段；点击返回对应层级） */}
-            <div className="editor-local-crumbs">
-              <button
-                className={`crumb ${currentDir === '' ? 'current' : ''}`}
-                onClick={() => setCurrentDir('')}
-              >
-                存档根
-              </button>
-              {(dirNode?.rel ?? '')
-                .split('/')
-                .filter(Boolean)
-                .map((seg, i, arr) => {
-                  const targetAbs = relPathToAbs(localTree, arr.slice(0, i + 1))
-                  return (
-                    <span key={`${seg}-${i}`} className="crumb-seg">
-                      <span className="crumb-sep">/</span>
-                      <button
-                        className={`crumb ${i === arr.length - 1 ? 'current' : ''}`}
-                        onClick={() => targetAbs && setCurrentDir(targetAbs)}
-                      >
-                        {seg}
-                      </button>
-                    </span>
-                  )
-                })}
-            </div>
-
-            {items.length === 0 ? (
+            {sortedItems.length === 0 ? (
               <p className="muted editor-local-hint">
                 {currentDir ? '此文件夹为空。' : '本地存档为空。点「+ 新建草稿」开始写作，或从左侧栏同步远端草稿。'}
               </p>
             ) : (
               <div className="editor-local-cards">
-                {items.map((node) =>
+                {sortedItems.map((node) =>
                   node.isDir ? (
                     <button
                       key={node.path}
