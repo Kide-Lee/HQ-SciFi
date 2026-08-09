@@ -2221,8 +2221,7 @@ body {
   font-weight: 600;
 }
 
-/* v0.0.5：回复评审 / 查看评审评论 纯图标按钮（窄胶囊） */
-.review-reply-btn,
+/* v0.0.5：评论评审按钮（纯图标 + 数量徽标，窄胶囊） */
 .review-comments-btn {
   display: inline-flex;
   align-items: center;

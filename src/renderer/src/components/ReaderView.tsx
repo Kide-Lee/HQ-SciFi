@@ -7,7 +7,7 @@ import { cachedImageUrl, formatSize, formatTs, expandMediaTags, sanitizeHtml, sc
 import { ErrorBanner } from './ErrorBanner'
 import { CommentSection, CommentCard, ridOf } from './ReaderComments'
 import { ReaderInteractions } from './ReaderInteractions'
-import { ArrowDown, ArrowUp, MessageCircle, MessageSquare, PenLine, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, MessageCircle, PenLine, X } from 'lucide-react'
 import type { ArticleDetail, CommentItem, MetaRef, ReviewItem, ReviewPayload } from '../../../shared/types'
 
 /** 活动状态缓存（mid → phase；从文章跳转活动列表时用，避免重复请求） */
@@ -593,27 +593,28 @@ function ReviewItemCard({
             <PenLine size={12} /> 编辑
           </button>
         )}
-        {/* v0.0.5：回复评审 = 展开卡片内评论区并聚焦回复框（不再切到评论 tab） */}
+        {/* v0.0.6：评论评审（合并原「回复评审」+「查看评审评论」）——
+            展开/收起卡片内评论区并聚焦回复框，显示评论数量 */}
         <button
-          className="attitude-btn review-reply-btn"
-          onClick={() => {
-            setCommentsOpen(true)
-            setReplyIntent(true)
-          }}
-          title="评论这条评审"
+          className={`attitude-btn review-comments-btn ${commentsOpen ? 'active' : ''}`}
+          onClick={() =>
+            setCommentsOpen((v) => {
+              const next = !v
+              if (next) setReplyIntent(true)
+              return next
+            })
+          }
+          title={
+            commentsOpen
+              ? '收起评审评论'
+              : commentCount > 0
+                ? `查看/回复这条评审的评论（${commentCount} 条）`
+                : '评论这条评审'
+          }
         >
-          <MessageSquare size={13} />
+          <MessageCircle size={13} />
+          {commentCount > 0 ? <span className="review-comments-count">{commentCount}</span> : null}
         </button>
-        {commentCount > 0 && (
-          <button
-            className={`attitude-btn review-comments-btn ${commentsOpen ? 'active' : ''}`}
-            onClick={() => setCommentsOpen((v) => !v)}
-            title={commentsOpen ? '收起评审评论' : `查看针对这条评审的评论（${commentCount} 条）`}
-          >
-            <MessageCircle size={13} />
-            <span className="review-comments-count">{commentCount}</span>
-          </button>
-        )}
       </div>
       {/* v0.0.5：评审评论内嵌区（默认收起；包含回复框与评论列表） */}
       {commentsOpen && (
