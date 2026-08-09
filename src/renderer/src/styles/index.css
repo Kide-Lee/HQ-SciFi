@@ -1119,6 +1119,8 @@ body {
 .article-card-excerpt.editor-local-excerpt {
   display: flex;
   align-items: center;
+  /* v0.0.7：摘要水平居中 */
+  justify-content: center;
   height: 57.6px; /* 3 行 × 19.2px */
   overflow: hidden;
 }

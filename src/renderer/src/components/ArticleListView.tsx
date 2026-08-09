@@ -284,7 +284,7 @@ export function ArticleCard({
         {article.text ? (
           <div className="article-card-excerpt">{article.text}</div>
         ) : (
-          <div className="article-card-excerpt article-card-excerpt-none">无法提取到摘要</div>
+          <div className="article-card-excerpt article-card-excerpt-none">😅 无法提取到摘要</div>
         )}
         <div className="article-card-meta">
           <span className="article-card-author">
