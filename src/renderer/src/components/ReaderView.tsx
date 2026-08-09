@@ -545,7 +545,12 @@ function ReviewItemCard({
               </div>
             )
         )}
-        {review.zonghe && <div className="review-dim review-zonghe">综合：{review.zonghe}</div>}
+        {review.zonghe && (
+          <div className="review-dim review-zonghe">
+            <span className="review-dim-label">综合</span>
+            <span className="review-dim-text">{review.zonghe}</span>
+          </div>
+        )}
       </div>
       <div className="review-item-actions">
         {[

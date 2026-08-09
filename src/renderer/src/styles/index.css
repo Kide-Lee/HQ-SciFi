@@ -2163,23 +2163,24 @@ body {
 .review-dims {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  /* v0.0.5：维度上下排布后间距放宽，区分相邻维度 */
+  gap: 8px;
 }
 
 .review-dim {
+  /* v0.0.5：维度名在上、内容在下（上下排布） */
   display: flex;
-  gap: 6px;
+  flex-direction: column;
+  gap: 1px;
   font-size: 12px;
   line-height: 1.6;
 }
 
+/* v0.0.5：维度名改为小标题样式（原灰底 chip 只适合横向排布） */
 .review-dim-label {
-  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
   color: var(--text-muted);
-  background: #f0f1f5;
-  border-radius: 4px;
-  padding: 0 5px;
-  height: fit-content;
 }
 
 .review-dim-text {
@@ -2189,6 +2190,10 @@ body {
 
 .review-zonghe {
   color: var(--text-muted);
+  margin-top: 2px;
+}
+.review-zonghe .review-dim-text {
+  color: var(--text);
 }
 
 .review-item-actions {
