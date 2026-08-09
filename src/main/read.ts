@@ -46,6 +46,17 @@ function normTs(v: unknown): number {
   return n > 1e12 ? Math.floor(n / 1000) : n
 }
 
+/**
+ * 剥离正文外的媒体标记（列表摘要/标题/导言里出现的音乐/视频占位文本）：
+ * 方括号版（正文 markExpand 语法）与紧凑版（列表摘要实测如 "music163509720124/music163"）。
+ * 正文渲染仍需保留标记（expandMediaTags 展开成播放器），仅展示类文本剥离。
+ */
+const MEDIA_TAG_RE =
+  /(?:\[music\s+163\]\s*\d{3,20}\s*\[\/music\s+163\]|\[music\s+qq\]\s*\d{3,20}\s*\[\/music\s+qq\]|\[video\s+bilibili\]\s*BV[0-9A-Za-z]{6,20}\s*\[\/video\s+bilibili\]|music163\s*\d{3,20}\s*\/music163|musicqq\s*\d{3,20}\s*\/musicqq)/g
+function stripMediaTags(v: unknown): string {
+  return str(v).replace(MEDIA_TAG_RE, '')
+}
+
 /** 列表条目 → RemoteArticle（字段做类型规整，缺失给默认值） */
 /** 栏目引用规整（active/category/collection/tag 数组项，含 name+mid） */
 function toMetaRef(v: unknown): MetaRef {
@@ -62,18 +73,18 @@ function toMetaRef(v: unknown): MetaRef {
 function toRemoteArticle(item: Record<string, unknown>, index: number): RemoteArticle {
   return {
     cid: str(item.cid ?? item.id ?? ''),
-    title: str(item.title ?? '未命名'),
+    title: stripMediaTags(item.title ?? '未命名'),
     type: str(item.type),
     status: str(item.status),
     score: str(item.score),
-    text: str(item.text),
+    text: stripMediaTags(item.text),
     authorId: str(item.authorId ?? ''),
     authorInfo: (item.authorInfo as Record<string, unknown> | undefined) ?? undefined,
     category: Array.isArray(item.category) ? item.category.map(toMetaRef) : undefined,
     tag: Array.isArray(item.tag) ? item.tag.map(toMetaRef) : undefined,
     collection: Array.isArray(item.collection) ? item.collection.map(toMetaRef) : undefined,
     cover: str(item.cover),
-    introduction: str(item.introduction),
+    introduction: stripMediaTags(item.introduction),
     views: num(item.views),
     likes: num(item.likes),
     commentsNum: num(item.commentsNum),
@@ -259,7 +270,7 @@ export async function fetchRemoteArticle(token: string, cid: string): Promise<Ar
     collection: Array.isArray(obj.collection) ? obj.collection.map(toMetaRef) : undefined,
     active: Array.isArray(obj.active) ? obj.active.map(toMetaRef) : null,
     markdown: num(obj.markdown),
-    introduction: str(obj.introduction) || undefined,
+    introduction: stripMediaTags(obj.introduction) || undefined,
     isLikes: num(obj.isLikes)
   }
   setReadCache(cacheKey, detail)

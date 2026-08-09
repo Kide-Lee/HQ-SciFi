@@ -142,6 +142,9 @@ export function ReaderView(): React.JSX.Element {
   }
 
   const safeHtml = useMemo(() => (detail ? expandMediaTags(sanitizeHtml(detail.text)) : ''), [detail])
+  // v0.0.6：稳定引用（详见 article dangerouslySetInnerHTML 注释）——右栏/边栏操作 re-render 时
+  // 不重写正文 innerHTML，正文内音乐 iframe 等保持不中断
+  const bodyHtml = useMemo(() => ({ __html: safeHtml }), [safeHtml])
   const bodyRef = useRef<HTMLElement | null>(null)
 
   /** 导言：详情 introduction 优先；缺省时从当前列表缓存匹配同 cid 条目（列表接口实测含 introduction） */
@@ -286,7 +289,9 @@ export function ReaderView(): React.JSX.Element {
             ref={bodyRef}
             className="reader-body"
             // 正文已经 sanitizeHtml 白名单净化，无脚本/事件/危险协议
-            dangerouslySetInnerHTML={{ __html: safeHtml }}
+            // v0.0.6：dangerouslySetInnerHTML 传稳定引用——React 按对象引用比较，
+            // 若每次渲染新建对象会重写 innerHTML 导致正文 iframe（音乐播放器）被重建中断
+            dangerouslySetInnerHTML={bodyHtml}
           />
           {/* v0.0.3：互动悬浮按钮组（投币/点赞/收藏/分享 + 置顶，右下角）；返回列表已移到顶栏 */}
           <ReaderInteractions detail={detail} />
