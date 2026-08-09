@@ -2132,16 +2132,39 @@ body {
   border-color: var(--accent);
 }
 
+/* v0.0.5：头像 + meta（名字/时间）+ 评分两行布局 */
 .review-item-head {
   display: flex;
   align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.review-item-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.review-item-meta-top {
+  display: flex;
+  align-items: center;
   gap: 6px;
-  margin-bottom: 6px;
 }
 
 .review-item-author {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* v0.0.5：评审发布时间（名字下方一行） */
+.review-item-time {
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 .review-ai-tag,
@@ -2151,13 +2174,16 @@ body {
   border-radius: 4px;
   background: #eef1fe;
   color: var(--accent);
+  flex-shrink: 0;
 }
 
+/* v0.0.5：评分随头像/meta 两行布局放大 */
 .review-item-score {
   margin-left: auto;
-  font-size: 12px;
+  font-size: 16px;
   color: #b25e09;
-  font-weight: 600;
+  font-weight: 700;
+  flex-shrink: 0;
 }
 
 .review-dims {
@@ -2918,6 +2944,11 @@ body {
   font-size: 15px;
 }
 
+/* v0.0.5：评分字号比正文/评语再大一档（head 两行布局后更醒目） */
+.review-panel .review-item-score {
+  font-size: 16px;
+}
+
 /* 我的评审 / 所有评审 tab */
 .review-tabs {
   display: flex;
@@ -2982,10 +3013,10 @@ body {
   background: var(--accent-soft);
 }
 
-/* 评者头像 */
+/* 评者头像（v0.0.5：随 meta 两行布局放大到 32px） */
 .review-item-avatar {
-  width: 20px;
-  height: 20px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;

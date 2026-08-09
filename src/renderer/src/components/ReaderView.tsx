@@ -527,8 +527,14 @@ function ReviewItemCard({
         {avatar ? (
           <img className="review-item-avatar" src={avatar} alt="" referrerPolicy="no-referrer" />
         ) : null}
-        <span className="review-item-author">{rName}</span>
-        {review.isAi ? <span className="review-ai-tag">AI</span> : null}
+        {/* v0.0.5：头像右侧 meta 分组——评审者名字一行，下方一行评审发布时间 */}
+        <div className="review-item-meta">
+          <div className="review-item-meta-top">
+            <span className="review-item-author">{rName}</span>
+            {review.isAi ? <span className="review-ai-tag">AI</span> : null}
+          </div>
+          {review.created ? <span className="review-item-time">{formatTs(Number(review.created))}</span> : null}
+        </div>
         <span
           className="review-item-score"
           style={scoreColorValue ? { color: scoreColorValue } : undefined}
