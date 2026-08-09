@@ -432,7 +432,7 @@ export function EditorPane(): React.JSX.Element {
                             {node.summary ? (
                               <span className="excerpt-text">{node.summary}</span>
                             ) : (
-                              <span className="excerpt-none">😅 无法提取到摘要</span>
+                              <span className="excerpt-none">{`(´･ω･\`) 无法提取到摘要`}</span>
                             )}
                           </div>
                           <div className="article-card-meta">
