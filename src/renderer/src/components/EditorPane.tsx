@@ -25,6 +25,56 @@ function countAllDocs(nodes: LocalNode[]): number {
   )
 }
 
+/**
+ * v0.0.6：摘要占位补齐——写作首页卡片摘要不足三行时，剩余行用横线补足
+ * （摘要文字所在行不画线；补足的最后一行横线只占 75% 宽度）
+ */
+const EXCERPT_MAX_ROWS = 3
+
+function ExcerptFill({ summary }: { summary?: string }): React.JSX.Element {
+  const textRef = useRef<HTMLDivElement>(null)
+  const [rows, setRows] = useState(0)
+
+  function measure(): void {
+    const el = textRef.current
+    if (!el) return
+    const lh = parseFloat(getComputedStyle(el).lineHeight) || 19.2
+    const measured = Math.round(el.offsetHeight / lh)
+    setRows(Math.min(EXCERPT_MAX_ROWS, Math.max(0, measured)))
+  }
+
+  useEffect(() => {
+    measure()
+  }, [summary])
+
+  // 窗口/布局宽度变化会改变换行数，重测
+  useEffect(() => {
+    const el = textRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => measure())
+    ro.observe(el.parentElement ?? el)
+    return () => ro.disconnect()
+  }, [summary])
+
+  const fillCount = Math.max(0, EXCERPT_MAX_ROWS - rows)
+  return (
+    <div className="editor-local-excerpt">
+      {summary ? (
+        <div className="excerpt-text" ref={textRef}>
+          {summary}
+        </div>
+      ) : (
+        <div className="excerpt-text" ref={textRef} />
+      )}
+      <div className="excerpt-fill">
+        {Array.from({ length: fillCount }).map((_, i) => (
+          <div key={i} className={`excerpt-fill-line${i === fillCount - 1 ? ' last' : ''}`} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 /** 编辑器视图：CodeMirror 6 编辑本地 md + 工具栏（同步到草稿/发布/保存） */
 export function EditorPane(): React.JSX.Element {
   const currentPath = useEditorStore((s) => s.currentPath)
@@ -427,7 +477,8 @@ export function EditorPane(): React.JSX.Element {
                           <div className="article-card-title">
                             <span className="article-card-title-text">{node.name.replace(/\.md$/i, '')}</span>
                           </div>
-                          {node.summary ? <div className="article-card-excerpt">{node.summary}</div> : null}
+                          {/* v0.0.6：摘要不足三行用横线补足 */}
+                          <ExcerptFill summary={node.summary} />
                           <div className="article-card-meta">
                             <span className="article-card-stats">
                               {node.words != null && <span>{formatSize(node.words)} 字</span>}
