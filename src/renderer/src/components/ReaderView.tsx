@@ -521,6 +521,8 @@ function ReviewItemCard({
     const parts = raw.split(',').map((s) => Number(s.trim()))
     return parts.length === 5 && parts.every((n) => Number.isFinite(n)) ? parts : null
   }, [review.score])
+  // v0.0.5：关联该评审的评论数（0 时隐藏「查看评审评论」按钮）
+  const commentCount = Number(review.replyNum) || 0
   return (
     <div className={`review-item ${isMine ? 'mine' : ''}`} data-review-id={String(review.id)}>
       <div className="review-item-head">
@@ -573,26 +575,31 @@ function ReviewItemCard({
         )}
       </div>
       <div className="review-item-actions">
+        {/* v0.0.5：态度按钮 emoji 化（Discord「添加反应」风格：emoji + 计数） */}
         {[
-          ['joy', '开心', 0],
-          ['helpful', '有用', 1],
-          ['earnest', '认真', 2]
-        ].map(([key, label, type]) => (
-          <button
-            key={String(key)}
-            className={`attitude-btn ${Number(review.attitudeType) === Number(type) ? 'active' : ''}`}
-            onClick={() => void setAttitude(review.id, Number(type))}
-            title={`表态：${String(label)}`}
-          >
-            {String(label)} {Number(review[key as 'joy']) > 0 ? Number(review[key as 'joy']) : ''}
-          </button>
-        ))}
+          ['joy', '😄', '开心', 0],
+          ['helpful', '👍', '有用', 1],
+          ['earnest', '🧐', '认真', 2]
+        ].map(([key, emoji, label, type]) => {
+          const count = Number(review[key as 'joy']) || 0
+          return (
+            <button
+              key={String(key)}
+              className={`attitude-btn attitude-emoji ${Number(review.attitudeType) === Number(type) ? 'active' : ''}`}
+              onClick={() => void setAttitude(review.id, Number(type))}
+              title={`表态：${String(label)}${count > 0 ? `（${count}）` : ''}`}
+            >
+              <span className="attitude-emoji-glyph">{emoji}</span>
+              {count > 0 ? <span className="attitude-count">{count}</span> : null}
+            </button>
+          )
+        })}
         {isMine && onEdit && (
           <button className="attitude-btn review-edit-btn" onClick={onEdit} title="编辑我的评审">
             <PenLine size={12} /> 编辑
           </button>
         )}
-        {/* v0.0.3：回复评审（跳评论 tab 并预填该评审）；查看评审评论（跳评论 tab 并定位分组） */}
+        {/* v0.0.5：回复评审用纯图标；查看评审评论用图标+数量（数量为 0 时隐藏） */}
         <button
           className="attitude-btn review-reply-btn"
           onClick={() => {
@@ -601,18 +608,21 @@ function ReviewItemCard({
           }}
           title="发表评论回复这条评审"
         >
-          <MessageSquare size={12} /> 回复评审
+          <MessageSquare size={13} />
         </button>
-        <button
-          className="attitude-btn review-comments-btn"
-          onClick={() => {
-            setPanelTab('comments')
-            setJumpCommentGroup(String(review.id))
-          }}
-          title="查看针对这条评审的评论"
-        >
-          <MessageCircle size={12} /> 查看评审评论
-        </button>
+        {commentCount > 0 && (
+          <button
+            className="attitude-btn review-comments-btn"
+            onClick={() => {
+              setPanelTab('comments')
+              setJumpCommentGroup(String(review.id))
+            }}
+            title={`查看针对这条评审的评论（${commentCount} 条）`}
+          >
+            <MessageCircle size={13} />
+            <span className="review-comments-count">{commentCount}</span>
+          </button>
+        )}
       </div>
     </div>
   )

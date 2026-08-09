@@ -2246,6 +2246,8 @@ body {
   display: flex;
   gap: 6px;
   margin-top: 8px;
+  /* v0.0.5：按钮增多（emoji×3 + 图标×2），窄栏下允许换行 */
+  flex-wrap: wrap;
 }
 
 .attitude-btn {
@@ -2263,6 +2265,37 @@ body {
   border-color: var(--accent);
   color: var(--accent);
   background: var(--accent-soft);
+}
+
+/* v0.0.5：态度按钮 emoji 化（Discord「添加反应」风格：emoji + 计数） */
+.attitude-emoji {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  border-radius: 14px;
+}
+.attitude-emoji-glyph {
+  font-size: 15px;
+  line-height: 1;
+}
+.attitude-count {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* v0.0.5：回复评审 / 查看评审评论 纯图标按钮（窄胶囊） */
+.review-reply-btn,
+.review-comments-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 7px;
+}
+.review-comments-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
 }
 
 /* 评审表单 */

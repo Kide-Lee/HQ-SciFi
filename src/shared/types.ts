@@ -235,6 +235,8 @@ export interface ReviewItem {
   joy?: number
   helpful?: number
   earnest?: number
+  /** 关联该评审的评论数（reviewList 返回 replyNum，实测与评论列表 reviewid 关联数一致） */
+  replyNum?: number
   userJson?: Record<string, unknown>
   /** 被评审文章信息（reviewList 的 articleInfo） */
   articleInfo?: Record<string, unknown>
