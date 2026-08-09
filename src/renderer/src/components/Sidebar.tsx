@@ -87,6 +87,18 @@ export function Sidebar(): React.JSX.Element {
 
   // v0.0.3：左栏折叠状态提升到 ui store（顶栏按钮切换，localStorage 持久化）
   const collapsed = useUiStore((s) => s.sidebarCollapsed)
+  // macOS：红绿灯（hiddenInset）悬浮在窗口左上角，左栏加 sidebar-mac 让顶部 36px 给红绿灯让位
+  const [platform, setPlatform] = useState('')
+  useEffect(() => {
+    let alive = true
+    void window.hqsf.getAppInfo().then((info) => {
+      if (alive) setPlatform(info.platform)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
+  const isMac = platform === 'darwin'
   const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
     const v = Number(localStorage.getItem('hqsf-sidebar-width'))
     return v >= SIDEBAR_MIN && v <= SIDEBAR_MAX ? v : SIDEBAR_DEFAULT
@@ -373,7 +385,7 @@ export function Sidebar(): React.JSX.Element {
 
   return (
     <aside
-      className={`sidebar${collapsed ? ' collapsed' : ''}${resizing ? ' dragging' : ''}`}
+      className={`sidebar${collapsed ? ' collapsed' : ''}${resizing ? ' dragging' : ''}${isMac ? ' sidebar-mac' : ''}`}
       style={collapsed ? undefined : { width: sidebarWidth }}
     >
       {/* v0.0.3：右缘拖动分隔条（仅展开态） */}

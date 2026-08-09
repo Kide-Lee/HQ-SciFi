@@ -26,6 +26,18 @@ win:
     - target: nsis
       arch: [x64]
 
+# macOS：dmg 打包依赖 hdiutil，只能在 macOS 上构建（Mac 真机或 CI macos runner），
+# 执行 npm run build:mac。未配置签名证书时产出未签名包（首次打开需右键→打开）；
+# resources/ 暂无 icon.icns，会用 Electron 默认图标（与 win/linux 现状一致）。
+mac:
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+    - target: zip
+      arch: [x64, arm64]
+  artifactName: ${productName}-${version}-${arch}.${ext}
+  category: public.app-category.productivity
+
 linux:
   target:
     - target: deb

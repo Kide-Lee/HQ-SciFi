@@ -2,7 +2,7 @@
 
 [![Release](https://img.shields.io/github/v/release/Kide-Lee/HQ-SciFi)](https://github.com/Kide-Lee/HQ-SciFi/releases)
 [![License](https://img.shields.io/github/license/Kide-Lee/HQ-SciFi)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-blue)](https://github.com/Kide-Lee/HQ-SciFi/releases)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-blue)](https://github.com/Kide-Lee/HQ-SciFi/releases)
 
 > ⚠️ **第三方非官方客户端**：本项目为独立开发的桌面客户端，与「荒启科幻」官方无隶属关系。
 
@@ -48,9 +48,12 @@ npm install
 npm run dev          # 开发模式（热更新）
 npm run build:win    # 打包 Windows 安装包（dist/；自动注入 Windows 原生模块 prebuild）
 npm run build:linux  # 打包 Linux（deb + AppImage，dist/）
+npm run build:mac    # 打包 macOS（dmg + zip，x64 + arm64，dist/）
 ```
 
 > Windows 包在 Linux 交叉打包时，`build:win` 会自动下载 better-sqlite3 的 Windows prebuild 替换原生二进制（打包后恢复），无需 Windows 环境；升级 Electron 后首次打包会重新下载匹配 ABI 的 prebuild（需联网访问 GitHub Releases）。
+>
+> macOS 的 dmg 打包依赖系统 hdiutil，**只能在 macOS 上执行** `build:mac`（Mac 真机或 CI 的 macos runner），Linux 无法交叉产出 mac 包。macOS 上 better-sqlite3 由官方 darwin prebuild 自动匹配，无需额外脚本。未配置 Apple 签名证书时产出未签名包，首次打开需右键 → 打开。
 
 ## 使用
 

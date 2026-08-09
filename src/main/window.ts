@@ -10,6 +10,9 @@ function rendererUrl(): string {
 }
 
 export function createWindow(): BrowserWindow {
+  // macOS：用 titleBarStyle:'hiddenInset' 隐藏标题栏但保留原生红绿灯（traffic lights），
+  // 红绿灯下移到自绘顶栏（36px）内垂直居中；其余平台维持 frame:false 由渲染层自绘窗口控件。
+  const isMac = process.platform === 'darwin'
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -17,7 +20,9 @@ export function createWindow(): BrowserWindow {
     minHeight: 600,
     show: false,
     // v0.0.3：取消系统标题栏，窗口控件（最小化/全屏/关闭）由渲染层顶栏自绘
-    frame: false,
+    ...(isMac
+      ? { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 12, y: 12 } }
+      : { frame: false }),
     autoHideMenuBar: true,
     title: '荒启科幻',
     backgroundColor: '#f7f8fa',

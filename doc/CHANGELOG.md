@@ -1,5 +1,10 @@
 # 更新日志
 
+## v0.0.6（开发中，未发布）
+
+### 改进
+- **macOS 兼容**：新增 `npm run build:mac`（dmg + zip，x64 + arm64；dmg 依赖 hdiutil，只能在 macOS 上构建）；macOS 窗口改用 `titleBarStyle:'hiddenInset'` 保留原生红绿灯（traffic lights），渲染层隐藏自绘窗口按钮并为红绿灯让位；归档脚本支持 mac 产物；README 平台徽章与构建说明更新。已在 macOS 15.7.9 虚拟机（x86_64）实测：x64/arm64 四产物打包成功、应用启动、原生模块加载、登录页渲染与红绿灯功能正常（未签名，首次打开需右键 → 打开）
+
 ## v0.0.5（2026-08-09）
 
 ### 修复

@@ -51,8 +51,21 @@ export function TopBar(): React.JSX.Element {
     }
   }, [])
 
+  // macOS 用原生红绿灯（hiddenInset），渲染层隐藏自绘窗口按钮、左栏避开红绿灯
+  const [platform, setPlatform] = useState('')
+  useEffect(() => {
+    let alive = true
+    void window.hqsf.getAppInfo().then((info) => {
+      if (alive) setPlatform(info.platform)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
+  const isMac = platform === 'darwin'
+
   return (
-    <header className="topbar">
+    <header className={isMac ? 'topbar topbar-mac' : 'topbar'}>
       {/* v0.0.3：左侧——阅读态显示「返回列表」 */}
       <div className="topbar-left">
         {readingCid && (
@@ -82,23 +95,28 @@ export function TopBar(): React.JSX.Element {
             <PanelRight size={14} />
           </button>
         )}
-        <button className="topbar-btn" onClick={() => void window.hqsf.windowControls.minimize()} title="最小化">
-          <Minus size={14} />
-        </button>
-        <button
-          className="topbar-btn"
-          onClick={() => void window.hqsf.windowControls.toggleMaximize()}
-          title={maximized ? '还原窗口' : '全屏'}
-        >
-          {maximized ? <Copy size={13} /> : <Square size={12} />}
-        </button>
-        <button
-          className="topbar-btn topbar-close"
-          onClick={() => void window.hqsf.windowControls.close()}
-          title="关闭"
-        >
-          <X size={15} />
-        </button>
+        {/* macOS 用原生红绿灯，不渲染自绘窗口按钮 */}
+        {!isMac && (
+          <>
+            <button className="topbar-btn" onClick={() => void window.hqsf.windowControls.minimize()} title="最小化">
+              <Minus size={14} />
+            </button>
+            <button
+              className="topbar-btn"
+              onClick={() => void window.hqsf.windowControls.toggleMaximize()}
+              title={maximized ? '还原窗口' : '全屏'}
+            >
+              {maximized ? <Copy size={13} /> : <Square size={12} />}
+            </button>
+            <button
+              className="topbar-btn topbar-close"
+              onClick={() => void window.hqsf.windowControls.close()}
+              title="关闭"
+            >
+              <X size={15} />
+            </button>
+          </>
+        )}
       </div>
     </header>
   )

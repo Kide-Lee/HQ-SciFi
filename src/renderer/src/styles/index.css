@@ -74,6 +74,11 @@ body {
   padding-left: 8px;
 }
 
+/* macOS：原生红绿灯（hiddenInset）悬浮于左上角，左栏内容右移避开（三灯宽约 52px） */
+.topbar-mac .topbar-left {
+  padding-left: 72px;
+}
+
 .topbar-title {
   grid-column: 2;
   justify-self: center;
@@ -155,6 +160,11 @@ body {
   position: relative;
   /* v0.0.6：折叠/展开动画；拖动调整宽度时由 .dragging 禁用过渡 */
   transition: width 0.25s ease;
+}
+/* macOS：hiddenInset 红绿灯悬浮于窗口左上角（y 12–24，高 12），
+   左栏内容整体下移 36px 让位（红绿灯垂直居中于预留区；折叠态同样生效） */
+.sidebar-mac {
+  padding-top: 36px;
 }
 /* v0.0.6：拖动调整左栏宽度时禁用过渡（实时跟手） */
 .sidebar.dragging {
@@ -351,6 +361,30 @@ body {
 /* v0.0.3：左栏折叠态（窄条，仅模块图标） */
 .sidebar.collapsed {
   width: 56px !important;
+}
+
+/* macOS：折叠态加宽到 76px，让左上角红绿灯（三灯 x 12–64）在左栏内左右边距相同（各 12px），
+   与展开态一致让红绿灯留在左栏顶部（其余平台维持 56px 标准窄条） */
+.sidebar-mac.collapsed {
+  width: 76px !important;
+}
+
+/* macOS 折叠态：栏目项「图标 + 名称」垂直两行（图标在上、名称在下居中），
+   名称溢出省略号截断；display 用 !important 压过 .sidebar.collapsed .nav-label 的
+   display:none（实测级联异常：同源样式表中更高特异性的 inline 未生效，需 !important 兜底） */
+.sidebar-mac.collapsed .nav-item {
+  padding: 9px 8px !important;
+}
+.sidebar-mac.collapsed .nav-item-label {
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.sidebar-mac.collapsed .nav-label {
+  display: inline !important;
+  font-size: 11px;
+  line-height: 1.2;
+  max-width: 100%;
 }
 
 .sidebar.collapsed .sidebar-top {

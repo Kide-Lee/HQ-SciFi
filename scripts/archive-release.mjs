@@ -29,7 +29,11 @@ const artifacts = [
   [`hq-scifi Setup ${version}.exe`, `hq-scifi.Setup.${version}.exe`],
   [`hq-scifi.Setup.${version}.exe`, `hq-scifi.Setup.${version}.exe`],
   [`hq-scifi-${version}.AppImage`, `hq-scifi-${version}.AppImage`],
-  [`hq-scifi_${version}_amd64.deb`, `hq-scifi_${version}_amd64.deb`]
+  [`hq-scifi_${version}_amd64.deb`, `hq-scifi_${version}_amd64.deb`],
+  [`hq-scifi-${version}-x64.dmg`, `hq-scifi-${version}-x64.dmg`],
+  [`hq-scifi-${version}-arm64.dmg`, `hq-scifi-${version}-arm64.dmg`],
+  [`hq-scifi-${version}-x64.zip`, `hq-scifi-${version}-x64.zip`],
+  [`hq-scifi-${version}-arm64.zip`, `hq-scifi-${version}-arm64.zip`]
 ]
 
 mkdirSync(targetDir, { recursive: true })
