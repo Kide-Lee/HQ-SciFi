@@ -282,8 +282,13 @@ function CommentCard({
         ) : (
           <span className="comment-avatar comment-avatar-placeholder" />
         )}
-        <span className="comment-author">{comment.author || '匿名'}</span>
-        {comment.created ? <span className="comment-time">· {formatTs(comment.created)}</span> : null}
+        {/* v0.0.5：头像右侧 meta 分组——昵称一行，下方评论时间一行（与评审卡片一致） */}
+        <div className="comment-meta">
+          <div className="comment-meta-top">
+            <span className="comment-author">{comment.author || '匿名'}</span>
+          </div>
+          {comment.created ? <span className="comment-time">{formatTs(comment.created)}</span> : null}
+        </div>
         <button className="comment-reply-btn" onClick={onReply}>
           回复
         </button>

@@ -1786,16 +1786,31 @@ body {
   /* v0.0.5：flex 容器可收缩，内部昵称/时间超宽时省略 */
   min-width: 0;
 }
+/* v0.0.5：头像右侧 meta 分组（昵称一行 + 时间一行，与评审卡片一致） */
+.comment-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.comment-meta-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
 .comment-avatar {
-  width: 26px;
-  height: 26px;
+  /* v0.0.5：随两行布局放大到 32px（与评审头像一致） */
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   object-fit: cover;
   background: #f0f1f5;
   flex-shrink: 0;
 }
 .comment-author {
-  font-size: 13px;
+  /* v0.0.5：随 meta 两行布局放大 */
+  font-size: 14px;
   font-weight: 600;
   color: var(--text);
   /* v0.0.5：窄栏下昵称过长时省略，避免撑破右栏出现水平滚动条 */
@@ -1807,13 +1822,10 @@ body {
 .comment-time {
   font-size: 12px;
   color: var(--text-muted);
-  /* v0.0.5：窄栏（楼中楼子评论更窄）下允许收缩省略，
-     否则固定宽度总和超过容器 → 撑出水平滚动条 */
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex-shrink: 1;
 }
 .comment-reply-btn {
   margin-left: auto;
