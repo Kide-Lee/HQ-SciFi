@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useUiStore } from '../stores/ui'
 import { ACTIVITY_PHASE_LABEL, activityPhase, sortActivities } from '../lib/activity'
 import { cachedImageUrl, formatSize, formatTs } from '../lib/sanitize'
+import { CoverImage } from './CoverImage'
 import { ErrorBanner } from './ErrorBanner'
 import type { MetaInfo } from '../../../shared/types'
 
@@ -95,11 +96,6 @@ export function ActivityHome(): React.JSX.Element {
 
   return (
     <div className="home-view">
-      <header className="home-header">
-        <h2>活动</h2>
-        <span className="muted">近期活动</span>
-      </header>
-
       {error && <ErrorBanner title="活动栏目加载失败" message={error} />}
 
       {loading ? (
@@ -129,7 +125,7 @@ export function ActivityHome(): React.JSX.Element {
                   title={m.description || m.name}
                 >
                   {cover ? (
-                    <img className="activity-card-cover" src={cover} alt="" loading="lazy" referrerPolicy="no-referrer" />
+                    <CoverImage className="activity-card-cover" src={cover} alt="" />
                   ) : (
                     <div className="activity-card-cover placeholder" />
                   )}

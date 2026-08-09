@@ -16,6 +16,8 @@ export function createWindow(): BrowserWindow {
     minWidth: 900,
     minHeight: 600,
     show: false,
+    // v0.0.3：取消系统标题栏，窗口控件（最小化/全屏/关闭）由渲染层顶栏自绘
+    frame: false,
     autoHideMenuBar: true,
     title: '荒启科幻',
     backgroundColor: '#f7f8fa',
@@ -46,6 +48,10 @@ export function createWindow(): BrowserWindow {
       else win.webContents.openDevTools()
     }
   })
+
+  // v0.0.3：无边框窗口——最大化状态变化通知渲染层（自绘顶栏按钮同步图标）
+  win.on('maximize', () => win.webContents.send('hqsf:window-maximized-changed', true))
+  win.on('unmaximize', () => win.webContents.send('hqsf:window-maximized-changed', false))
 
   // 外部链接一律交给系统浏览器，不在应用内新开窗口
   win.webContents.setWindowOpenHandler(({ url }) => {

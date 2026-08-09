@@ -1,5 +1,15 @@
 import { useEffect, useState } from 'react'
-import { ChevronRight, RefreshCw, Settings } from 'lucide-react'
+import {
+  BookOpen,
+  CalendarDays,
+  ChevronRight,
+  Layers,
+  PenLine,
+  RefreshCw,
+  Settings,
+  Sparkles
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { SECTION_LABELS, TopSection, useUiStore } from '../stores/ui'
 import { useAuthStore } from '../stores/auth'
 import { useDocsStore } from '../stores/docs'
@@ -9,6 +19,20 @@ import { sortActivities, activityPhase, ACTIVITY_PHASE_LABEL } from '../lib/acti
 import type { ArticleRow, MetaInfo, RemoteArticle } from '../../../shared/types'
 
 const SECTIONS: TopSection[] = ['writing', 'recommend', 'serial', 'activity', 'library']
+
+/** v0.0.3：左栏五个模块图标 */
+const SECTION_ICONS: Record<TopSection, LucideIcon> = {
+  writing: PenLine,
+  recommend: Sparkles,
+  serial: Layers,
+  activity: CalendarDays,
+  library: BookOpen
+}
+
+/** v0.0.3：左栏宽度约束（拖动调整） */
+const SIDEBAR_MIN = 180
+const SIDEBAR_MAX = 380
+const SIDEBAR_DEFAULT = 220
 
 /** 作品库分类节点（M2 动态拉取 metasList type=category 后填充） */
 const LIBRARY_DEFAULT = ['原创作品', '科幻杂谈', '官方公告', '外文翻译']
@@ -60,6 +84,31 @@ export function Sidebar(): React.JSX.Element {
   const loadReviewTasks = useReaderStore((s) => s.loadReviewTasks)
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
+
+  // v0.0.3：左栏折叠状态提升到 ui store（顶栏按钮切换，localStorage 持久化）
+  const collapsed = useUiStore((s) => s.sidebarCollapsed)
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    const v = Number(localStorage.getItem('hqsf-sidebar-width'))
+    return v >= SIDEBAR_MIN && v <= SIDEBAR_MAX ? v : SIDEBAR_DEFAULT
+  })
+
+  useEffect(() => {
+    localStorage.setItem('hqsf-sidebar-width', String(sidebarWidth))
+  }, [sidebarWidth])
+
+  // v0.0.3：拖动左栏右缘调整宽度
+  function onSidebarResizeDown(e: React.MouseEvent): void {
+    e.preventDefault()
+    const onMove = (ev: MouseEvent): void => {
+      setSidebarWidth(Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, ev.clientX)))
+    }
+    const onUp = (): void => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
   /** 作品库分类（metasList type=category 实测返回 mid，作为列表过滤参数） */
   const [libraryCats, setLibraryCats] = useState<Array<{ mid: number | string; name: string }>>([])
   /** 连载栏目：serial/collection 两组 metas */
@@ -286,7 +335,12 @@ export function Sidebar(): React.JSX.Element {
   const pendingTasks = Object.values(reviewTaskByCid).filter((s) => s === 0).length
 
   return (
-    <aside className="sidebar">
+    <aside
+      className={`sidebar${collapsed ? ' collapsed' : ''}`}
+      style={collapsed ? undefined : { width: sidebarWidth }}
+    >
+      {/* v0.0.3：右缘拖动分隔条（仅展开态） */}
+      {!collapsed && <div className="sidebar-resizer" onMouseDown={onSidebarResizeDown} title="拖动调整左栏宽度" />}
       <div className="sidebar-top">
         <div className="user-card">
           <div className="avatar">
@@ -306,24 +360,32 @@ export function Sidebar(): React.JSX.Element {
         </div>
 
         <nav className="nav-sections">
-          {SECTIONS.map((key) => (
-            <button
-              key={key}
-              className={`nav-item ${section === key ? 'active' : ''}`}
-              onClick={() => {
-                closeArticle()
-                setSection(key)
-              }}
-            >
-              {SECTION_LABELS[key]}
-              {/* v0.0.2：活动按钮右侧红点 = 未完成评审任务数 */}
-              {key === 'activity' && pendingTasks > 0 && (
-                <span className="nav-badge" title={`${pendingTasks} 个未完成评审任务`}>
-                  {pendingTasks}
+          {SECTIONS.map((key) => {
+            const Icon = SECTION_ICONS[key]
+            return (
+              <button
+                key={key}
+                className={`nav-item ${section === key ? 'active' : ''}`}
+                onClick={() => {
+                  closeArticle()
+                  setSection(key)
+                }}
+                title={collapsed ? SECTION_LABELS[key] : undefined}
+              >
+                {/* v0.0.3：模块图标（折叠态仅显示图标） */}
+                <span className="nav-item-label">
+                  <Icon size={15} />
+                  <span className="nav-label">{SECTION_LABELS[key]}</span>
                 </span>
-              )}
-            </button>
-          ))}
+                {/* v0.0.2：活动按钮右侧红点 = 未完成评审任务数 */}
+                {key === 'activity' && pendingTasks > 0 && (
+                  <span className="nav-badge" title={`${pendingTasks} 个未完成评审任务`}>
+                    {pendingTasks}
+                  </span>
+                )}
+              </button>
+            )
+          })}
         </nav>
       </div>
 
@@ -533,7 +595,7 @@ export function Sidebar(): React.JSX.Element {
 
       <div className="sidebar-bottom">
         <button className="settings-btn" title="设置（颜色/字号/字体）">
-          <Settings size={14} /> 设置
+          <Settings size={14} /> <span>设置</span>
         </button>
       </div>
     </aside>

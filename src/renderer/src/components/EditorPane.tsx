@@ -27,10 +27,12 @@ export function EditorPane(): React.JSX.Element {
   const update = useEditorStore((s) => s.update)
   const save = useEditorStore((s) => s.save)
   const createDraft = useEditorStore((s) => s.createDraft)
+  const openDoc = useEditorStore((s) => s.open)
   const close = useEditorStore((s) => s.close)
   const push = useDocsStore((s) => s.push)
   const pushing = useDocsStore((s) => s.pushing)
   const refreshLocal = useDocsStore((s) => s.refreshLocal)
+  const localTree = useDocsStore((s) => s.localTree)
   const docError = useDocsStore((s) => s.error)
   const clearDocError = useDocsStore((s) => s.clearError)
   const lastPull = useDocsStore((s) => s.lastPull)
@@ -199,11 +201,36 @@ export function EditorPane(): React.JSX.Element {
         {currentPath ? (
           <div className="cm-host" ref={containerRef} />
         ) : (
-          <div className="editor-empty">
-            <p>从左侧选择一篇本地草稿，或新建一篇开始写作</p>
-            <button className="primary-btn" onClick={() => setShowNew(true)}>
-              + 新建草稿
-            </button>
+          /* v0.0.3：写作首页——本地存档中存在内容时展示本地存档列表 */
+          <div className="editor-empty editor-local-home">
+            <div className="editor-local-home-head">
+              <h3>本地存档</h3>
+              {localTree.length > 0 && <span className="editor-local-count">{localTree.length} 项</span>}
+              <button className="primary-btn" onClick={() => setShowNew(true)}>
+                + 新建草稿
+              </button>
+            </div>
+            {localTree.length === 0 ? (
+              <p className="muted editor-local-hint">
+                本地存档为空。点「+ 新建草稿」开始写作，或从左侧栏同步远端草稿。
+              </p>
+            ) : (
+              <ul className="editor-local-list">
+                {localTree.map((node) =>
+                  node.isDir ? (
+                    <li key={node.path} className="editor-local-dir">
+                      {node.name}/
+                    </li>
+                  ) : (
+                    <li key={node.path} className="editor-local-file">
+                      <button onClick={() => void openDoc(node.path)} title={node.path}>
+                        {node.name.replace(/\.md$/i, '')}
+                      </button>
+                    </li>
+                  )
+                )}
+              </ul>
+            )}
           </div>
         )}
       </div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useUiStore } from '../stores/ui'
 import { cachedImageUrl } from '../lib/sanitize'
 import { ErrorBanner } from './ErrorBanner'
+import { CoverImage } from './CoverImage'
 import type { MetaInfo } from '../../../shared/types'
 
 /** 每组推荐的展示数量上限（v0.0.2：避免栏目过长） */
@@ -55,18 +56,13 @@ export function SerialHome(): React.JSX.Element {
 
   return (
     <div className="home-view">
-      <header className="home-header">
-        <h2>连载</h2>
-        <span className="muted">推荐合集 · 推荐连载</span>
-      </header>
-
       {error && <ErrorBanner title="连载栏目加载失败" message={error} />}
 
       {loading ? (
         <>
           {GROUPS.map((g) => (
             <section className="home-section" key={g.type}>
-              <h3 className="home-section-title">{g.title}</h3>
+              <h2 className="home-section-title">{g.title}</h2>
               <div className="home-meta-grid">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} className="skeleton-meta" />
@@ -81,12 +77,12 @@ export function SerialHome(): React.JSX.Element {
           const total = (groups[g.type] ?? []).length
           return (
             <section className="home-section" key={g.type}>
-              <h3 className="home-section-title">
+              <h2 className="home-section-title">
                 {g.title}
                 {total > MAX_PER_GROUP && (
                   <span className="muted home-section-sub">共 {total} 个，展示前 {MAX_PER_GROUP} 个</span>
                 )}
-              </h3>
+              </h2>
               <div className="home-meta-grid">
                 {metas.length === 0 && <div className="list-empty muted">（暂无）</div>}
                 {metas.map((m) => {
@@ -100,7 +96,7 @@ export function SerialHome(): React.JSX.Element {
                       title={m.description || m.name}
                     >
                       {cover ? (
-                        <img className="meta-card-cover" src={cover} alt="" loading="lazy" referrerPolicy="no-referrer" />
+                        <CoverImage className="meta-card-cover" src={cover} alt="" />
                       ) : (
                         <div className="meta-card-cover placeholder" />
                       )}

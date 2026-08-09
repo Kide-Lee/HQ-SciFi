@@ -34,6 +34,20 @@ const api = {
     ipcRenderer.invoke('hqsf:get-app-info'),
   copyText: (text: string): Promise<ApiResult<null>> => ipcRenderer.invoke('hqsf:copy-text', text),
 
+  // ---- 窗口控制（v0.0.3 无边框窗口自绘顶栏；裸值接口，失败静默） ----
+  windowControls: {
+    minimize: (): Promise<void> => ipcRenderer.invoke('hqsf:window-minimize'),
+    toggleMaximize: (): Promise<boolean> => ipcRenderer.invoke('hqsf:window-maximize-toggle'),
+    close: (): Promise<void> => ipcRenderer.invoke('hqsf:window-close'),
+    isMaximized: (): Promise<boolean> => ipcRenderer.invoke('hqsf:window-is-maximized'),
+    /** 订阅最大化状态变化，返回取消订阅函数 */
+    onMaximizedChanged: (cb: (max: boolean) => void): (() => void) => {
+      const listener = (_e: Electron.IpcRendererEvent, max: boolean): void => cb(max)
+      ipcRenderer.on('hqsf:window-maximized-changed', listener)
+      return () => ipcRenderer.removeListener('hqsf:window-maximized-changed', listener)
+    }
+  },
+
   // ---- 认证 ----
   loginPassword: (name: string, password: string): Promise<ApiResult<LoginResult>> =>
     ipcRenderer.invoke('hqsf:login-password', name, password),
@@ -95,9 +109,10 @@ const api = {
   listComments: (cid: string, opts?: { limit?: number; page?: number; order?: string }): Promise<
     ApiResult<{ items: CommentItem[]; total: number }>
   > => ipcRenderer.invoke('hqsf:list-comments', cid, opts),
-  /** 发表评论（parent 为回复的上级评论 coid，可省略） */
-  addComment: (payload: { cid: string; text: string; parent?: number | string }): Promise<ApiResult<CommentSubmitResult>> =>
-    ipcRenderer.invoke('hqsf:add-comment', payload),
+  /** 发表评论（parent 为回复的上级评论 coid；reviewid 为关联评审 id，可省略） */
+  addComment: (payload: { cid: string; text: string; parent?: number | string; reviewid?: number | string }): Promise<
+    ApiResult<CommentSubmitResult>
+  > => ipcRenderer.invoke('hqsf:add-comment', payload),
 
   // ---- 用户互动（点赞 / 收藏 / 投币，hqUserlog/） ----
   /** 点赞（likes，每日一次）/ 收藏（mark）/ 投币（reward，需 num 积分） */

@@ -91,8 +91,8 @@ interface ReaderState {
 
   // ---- 评论动作 ----
   loadComments: (cid: string, opts?: { append?: boolean }) => Promise<void>
-  /** 发表/回复评论；成功后重拉列表并提示，返回是否成功 */
-  submitComment: (payload: { cid: string; text: string; parent?: number | string }) => Promise<boolean>
+  /** 发表/回复评论（reviewid 为关联评审 id）；成功后重拉列表并提示，返回是否成功 */
+  submitComment: (payload: { cid: string; text: string; parent?: number | string; reviewid?: number | string }) => Promise<boolean>
   clearCommentMessage: () => void
 
   loadList: (opts?: { searchParams?: Record<string, unknown>; mid?: number | string; order?: string; append?: boolean; choice?: boolean }) => Promise<void>

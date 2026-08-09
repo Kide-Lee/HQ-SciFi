@@ -7,7 +7,7 @@ import { cachedImageUrl, formatSize, formatTs, expandMediaTags, sanitizeHtml, sc
 import { ErrorBanner } from './ErrorBanner'
 import { CommentSection } from './ReaderComments'
 import { ReaderInteractions } from './ReaderInteractions'
-import { ArrowDown, ArrowLeft, ArrowUp, ChevronRight, PenLine, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, MessageCircle, MessageSquare, PenLine, X } from 'lucide-react'
 import type { ArticleDetail, MetaRef, ReviewItem, ReviewPayload } from '../../../shared/types'
 
 /** 活动状态缓存（mid → phase；从文章跳转活动列表时用，避免重复请求） */
@@ -104,7 +104,8 @@ export function ReaderView(): React.JSX.Element {
   const closeArticle = useReaderStore((s) => s.closeArticle)
   const session = useAuthStore((s) => s.session)
 
-  const [showReview, setShowReview] = useState(false)
+  // v0.0.3：右栏（目录/评论/评审）展开与 tab 由 ui store 管理（顶栏「展开右栏」按钮切换）
+  const panelOpen = useUiStore((s) => s.readerPanelOpen)
 
   // v0.0.2：评审栏宽度比例（评审:总宽），默认 1/3（正文:评审 = 2:1），localStorage 持久化
   const [splitRatio, setSplitRatio] = useState<number>(() => {
@@ -135,10 +136,11 @@ export function ReaderView(): React.JSX.Element {
     window.addEventListener('mouseup', onUp)
   }
 
-  // 打开新文章时默认收起评审面板
+  // v0.0.3：打开新文章时清除右栏跳转目标（面板展开与 tab 保留用户选择）
+  const clearReaderPanelTargets = useUiStore((s) => s.clearReaderPanelTargets)
   useEffect(() => {
-    setShowReview(false)
-  }, [detail?.cid])
+    clearReaderPanelTargets()
+  }, [detail?.cid, clearReaderPanelTargets])
 
   const safeHtml = useMemo(() => (detail ? expandMediaTags(sanitizeHtml(detail.text)) : ''), [detail])
   const bodyRef = useRef<HTMLElement | null>(null)
@@ -259,56 +261,36 @@ export function ReaderView(): React.JSX.Element {
                 </span>
               ) : null}
               {!isMine && (
-                <button className="review-toggle" onClick={() => setShowReview((v) => !v)}>
-                  <PenLine size={14} /> {showReview ? '收起评审' : '评审这篇文章'}
+                <button
+                  className="review-toggle"
+                  onClick={() => {
+                    if (!panelOpen) useUiStore.getState().toggleReaderPanel()
+                    useUiStore.getState().setReaderPanelTab('review')
+                  }}
+                  title="在右栏查看与撰写评审"
+                >
+                  <PenLine size={14} /> 评审
                 </button>
               )}
-              {/* v0.0.3：互动操作条（投币/点赞/收藏/分享） */}
-              <ReaderInteractions detail={detail} />
             </div>
           </header>
           {intro && <div className="reader-intro">{intro}</div>}
-          {toc.length >= 2 && (
-            <details className="reader-toc">
-              <summary>
-                <ChevronRight size={14} className="toc-chevron" /> 目录
-              </summary>
-              <ul className="reader-toc-list">
-                {toc.map((t) => (
-                  <li key={t.idx} className={`reader-toc-item lv-${Math.min(6, Math.max(1, t.level))}`}>
-                    <a
-                      href={`#toc-${t.idx + 1}`}
-                      onClick={(e) => {
-                        e.preventDefault()
-                        jumpTo(t.idx)
-                      }}
-                    >
-                      {t.text}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </details>
-          )}
+          {/* v0.0.3：目录已移入右栏 tab；正文下方评论区已移入右栏 tab */}
           <article
             ref={bodyRef}
             className="reader-body"
             // 正文已经 sanitizeHtml 白名单净化，无脚本/事件/危险协议
             dangerouslySetInnerHTML={{ __html: safeHtml }}
           />
-          {/* v0.0.3：评论区（正文下方） */}
-          <CommentSection cid={detail.cid} />
-          <div className="reader-footer">
-            <button className="toolbar-btn" onClick={closeArticle}>
-              <ArrowLeft size={14} /> 返回列表
-            </button>
-          </div>
+          {/* v0.0.3：互动悬浮按钮组（投币/点赞/收藏/分享 + 置顶，右下角）；返回列表已移到顶栏 */}
+          <ReaderInteractions detail={detail} />
         </div>
-        {!isMine && showReview && (
+        {panelOpen && (
           <>
-            {/* v0.0.2：可拖动分栏分隔条 */}
-            <div className="reader-divider" onMouseDown={onDividerDown} title="拖动调整正文与评审栏比例" />
-            <ReviewPanel splitRatio={splitRatio} />
+            {/* v0.0.2：可拖动分栏分隔条（正文:右栏比例，默认 1:2） */}
+            <div className="reader-divider" onMouseDown={onDividerDown} title="拖动调整正文与右栏比例" />
+            {/* v0.0.3：右栏 tab 容器（目录 / 评论 / 评审） */}
+            <ReaderPanel splitRatio={splitRatio} toc={toc} jumpTo={jumpTo} isMine={isMine} />
           </>
         )}
       </div>
@@ -512,7 +494,7 @@ function AutoGrowTextarea({
   )
 }
 
-/** 评审条目（评者头像 + 五维 + 态度计数 + 评分着色；我的评审含编辑按钮） */
+/** 评审条目（评者头像 + 五维 + 态度计数 + 评分着色；v0.0.3 加「回复评审/查看评审评论」；我的评审含编辑按钮） */
 function ReviewItemCard({
   review,
   isMine,
@@ -523,13 +505,16 @@ function ReviewItemCard({
   onEdit?: () => void
 }): React.JSX.Element {
   const setAttitude = useReaderStore((s) => s.setAttitude)
+  const setPanelTab = useUiStore((s) => s.setReaderPanelTab)
+  const setReplyReview = useUiStore((s) => s.setReaderReplyReview)
+  const setJumpCommentGroup = useUiStore((s) => s.setReaderJumpCommentGroup)
   const u = review.userJson ?? {}
   const rName = String(u.nickname ?? u.nick ?? u.nickName ?? u.name ?? `UID ${String(u.uid ?? review.uid ?? '')}`)
   const avatarRaw = String(u.avatar ?? u.headImg ?? u.headImgUrl ?? u.avatarUrl ?? '')
   const avatar = avatarRaw && /^https?:\/\//i.test(avatarRaw) ? cachedImageUrl(avatarRaw) : undefined
   const scoreColorValue = review.actualscore && review.actualscore !== '-.-' ? scoreColor(review.actualscore) : undefined
   return (
-    <div className={`review-item ${isMine ? 'mine' : ''}`}>
+    <div className={`review-item ${isMine ? 'mine' : ''}`} data-review-id={String(review.id)}>
       <div className="review-item-head">
         {avatar ? (
           <img className="review-item-avatar" src={avatar} alt="" referrerPolicy="no-referrer" />
@@ -582,13 +567,34 @@ function ReviewItemCard({
             <PenLine size={12} /> 编辑
           </button>
         )}
+        {/* v0.0.3：回复评审（跳评论 tab 并预填该评审）；查看评审评论（跳评论 tab 并定位分组） */}
+        <button
+          className="attitude-btn review-reply-btn"
+          onClick={() => {
+            setPanelTab('comments')
+            setReplyReview(String(review.id))
+          }}
+          title="发表评论回复这条评审"
+        >
+          <MessageSquare size={12} /> 回复评审
+        </button>
+        <button
+          className="attitude-btn review-comments-btn"
+          onClick={() => {
+            setPanelTab('comments')
+            setJumpCommentGroup(String(review.id))
+          }}
+          title="查看针对这条评审的评论"
+        >
+          <MessageCircle size={12} /> 查看评审评论
+        </button>
       </div>
     </div>
   )
 }
 
-/** 评审面板（v0.0.2）：「我的评审」/「所有评审」两个 tab + 排序 + 编辑模式 */
-function ReviewPanel({ splitRatio }: { splitRatio: number }): React.JSX.Element {
+/** 评审面板（v0.0.2）：「我的评审」/「所有评审」两个 tab + 排序 + 编辑模式（v0.0.3 移入右栏 tab 容器） */
+function ReviewPanel(): React.JSX.Element {
   const reviews = useReaderStore((s) => s.reviews)
   const reviewsLoading = useReaderStore((s) => s.reviewsLoading)
   const submitting = useReaderStore((s) => s.submitting)
@@ -611,13 +617,36 @@ function ReviewPanel({ splitRatio }: { splitRatio: number }): React.JSX.Element 
     if (detail?.cid) void loadReviews(detail.cid)
   }, [detail?.cid, loadReviews, clearSubmitMessage])
 
+  // v0.0.3：评论区「跳转到对应评审」→ 滚动到该评审卡片（必要时切到「所有评审」tab）
+  const jumpReviewId = useUiStore((s) => s.readerJumpReviewId)
+  const setJumpReviewId = useUiStore((s) => s.setReaderJumpReviewId)
+  useEffect(() => {
+    if (jumpReviewId == null) return
+    const myUidNow = String(useAuthStore.getState().session?.userinfo?.uid ?? '')
+    const allReviews = useReaderStore.getState().reviews
+    const target = allReviews.find((r) => String(r.id) === jumpReviewId)
+    if (!target) {
+      setJumpReviewId(null)
+      return
+    }
+    const targetUid = String(target.uid ?? (target.userJson as Record<string, unknown> | undefined)?.uid ?? '')
+    if (!(myUidNow !== '' && targetUid === myUidNow) && tab !== 'all') setTab('all')
+    // 等 tab 切换完成后再滚动定位
+    requestAnimationFrame(() => {
+      const el = document.querySelector(`[data-review-id="${CSS.escape(jumpReviewId)}"]`)
+      el?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+      setJumpReviewId(null)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jumpReviewId, setJumpReviewId])
+
   const myUid = String(useAuthStore.getState().session?.userinfo?.uid ?? '')
   const mine = reviews.filter((r) => myUid !== '' && String(r.uid ?? (r.userJson as Record<string, unknown> | undefined)?.uid ?? '') === myUid)
   const myReview = mine[0]
   const others = reviews.filter((r) => !mine.includes(r))
 
   return (
-    <aside className="review-panel" style={{ width: `${splitRatio * 100}%` }}>
+    <aside className="review-panel">
       <div className="review-panel-head">
         <h3>作品评审</h3>
         <span className="review-count">{reviews.length} 条</span>
@@ -724,6 +753,86 @@ function ReviewPanel({ splitRatio }: { splitRatio: number }): React.JSX.Element 
           </div>
         </>
       )}
+    </aside>
+  )
+}
+
+/**
+ * v0.0.3：阅读页右栏 tab 容器（目录 / 评论 / 评审）。
+ * 宽度由拖动分栏比例控制（ReaderView splitRatio）；评审 tab 对本人文章隐藏。
+ */
+function ReaderPanel({
+  splitRatio,
+  toc,
+  jumpTo,
+  isMine
+}: {
+  splitRatio: number
+  toc: Array<{ idx: number; level: number; text: string }>
+  jumpTo: (idx: number) => void
+  isMine: boolean
+}): React.JSX.Element {
+  const tab = useUiStore((s) => s.readerPanelTab)
+  const setTab = useUiStore((s) => s.setReaderPanelTab)
+  const cid = useReaderStore((s) => s.detail)?.cid ?? ''
+
+  return (
+    <aside className="reader-panel" style={{ width: `${splitRatio * 100}%` }}>
+      <div className="reader-panel-tabs">
+        <button className={`reader-panel-tab ${tab === 'toc' ? 'active' : ''}`} onClick={() => setTab('toc')}>
+          目录
+        </button>
+        <button
+          className={`reader-panel-tab ${tab === 'comments' ? 'active' : ''}`}
+          onClick={() => setTab('comments')}
+        >
+          评论
+        </button>
+        {!isMine && (
+          <button className={`reader-panel-tab ${tab === 'review' ? 'active' : ''}`} onClick={() => setTab('review')}>
+            评审
+          </button>
+        )}
+      </div>
+
+      {tab === 'toc' && (
+        <div className="reader-panel-scroll">
+          {toc.length === 0 ? (
+            <div className="muted reader-toc-empty">（本文没有目录）</div>
+          ) : (
+            <ul className="reader-toc-list">
+              {toc.map((t) => (
+                <li key={t.idx} className={`reader-toc-item lv-${Math.min(6, Math.max(1, t.level))}`}>
+                  <a
+                    href={`#toc-${t.idx + 1}`}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      jumpTo(t.idx)
+                    }}
+                  >
+                    {t.text}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {tab === 'comments' && (
+        <div className="reader-panel-scroll">
+          <CommentSection cid={cid} />
+        </div>
+      )}
+
+      {tab === 'review' &&
+        (isMine ? (
+          <div className="reader-panel-scroll">
+            <div className="muted review-empty">这是你自己的文章，无需评审。</div>
+          </div>
+        ) : (
+          <ReviewPanel />
+        ))}
     </aside>
   )
 }

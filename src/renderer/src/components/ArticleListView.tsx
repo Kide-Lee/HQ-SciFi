@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp } from 'lucide-react'
 import { ARTICLE_ORDERS, useReaderStore } from '../stores/reader'
 import { cachedImageUrl, formatSize, formatTs, scoreColor } from '../lib/sanitize'
 import { ErrorBanner } from './ErrorBanner'
+import { CoverImage } from './CoverImage'
 import type { RemoteArticle } from '../../../shared/types'
 
 /**
@@ -148,12 +149,7 @@ export function ArticleListView({
       {activityMeta && (
         <div className="activity-info">
           {activityMeta.imgurl && /^https?:\/\//i.test(activityMeta.imgurl) ? (
-            <img
-              className="activity-info-cover"
-              src={cachedImageUrl(activityMeta.imgurl)}
-              alt=""
-              referrerPolicy="no-referrer"
-            />
+            <CoverImage className="activity-info-cover" src={cachedImageUrl(activityMeta.imgurl)} alt="" />
           ) : null}
           <div className="activity-info-body">
             <div className="activity-info-head">
@@ -270,7 +266,7 @@ export function ArticleCard({
     >
       {cover ? (
         <div className="article-card-cover">
-          <img src={cover} alt="" loading="lazy" referrerPolicy="no-referrer" />
+          <CoverImage className="cover-img" src={cover} alt="" />
         </div>
       ) : null}
       <div className="article-card-body">

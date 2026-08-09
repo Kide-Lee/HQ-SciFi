@@ -419,7 +419,9 @@ function toCommentItem(item: Record<string, unknown>): CommentItem {
     avatar: str(item.avatar) || str(userJson.avatar) || undefined,
     created: normTs(item.created),
     subNum: num(item.subNum),
-    parentComments: (item.parentComments as CommentItem['parentComments'] | undefined) ?? undefined
+    parentComments: (item.parentComments as CommentItem['parentComments'] | undefined) ?? undefined,
+    // v0.0.3：评论-评审关联（荒启定制版 reviewid，实测 2026-08）
+    reviewid: item.reviewid != null ? str(item.reviewid) : undefined
   }
 }
 
@@ -455,12 +457,14 @@ export async function listComments(
  */
 export async function addComment(
   token: string,
-  payload: { cid: string; text: string; parent?: number | string }
+  payload: { cid: string; text: string; parent?: number | string; reviewid?: number | string }
 ): Promise<CommentSubmitResult> {
   const text = String(payload.text ?? '').trim()
   if (text.length < 4) return { ok: false, error: '评论内容至少 4 个字' }
   const params: Record<string, unknown> = { cid: String(payload.cid), text }
   if (payload.parent != null && String(payload.parent) !== '0') params.parent = payload.parent
+  // v0.0.3：评论-评审关联（h5 前端「回复评审」即传 reviewid，实测字段存在于评论条目）
+  if (payload.reviewid != null && String(payload.reviewid) !== '0') params.reviewid = payload.reviewid
   try {
     const resp = await apiRequest('hqComments/commentsAdd', {
       method: 'GET',

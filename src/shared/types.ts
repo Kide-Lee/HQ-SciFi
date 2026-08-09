@@ -309,6 +309,11 @@ export interface CommentItem {
   subNum?: number
   /** 父评论摘要（commentsList 返回 parentComments：author/text/created） */
   parentComments?: { author?: string; text?: string; created?: string }
+  /**
+   * v0.0.3：关联的评审 id（荒启定制版字段，实测 2026-08：0=普通评论，>0=对某评审的回复/讨论）。
+   * 由 hqComments/commentsList 与 commentsAdd 的 reviewid 参数承载。
+   */
+  reviewid?: number | string
 }
 
 /** 评论提交结果（commentsAdd） */

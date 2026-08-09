@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Bookmark, Coins, Share2, ThumbsUp, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { ArrowUp, HandCoins, Plus, Share2, Star, ThumbsUp, X } from 'lucide-react'
 import { useAuthStore } from '../stores/auth'
 import type { ArticleDetail } from '../../../shared/types'
 
@@ -19,7 +19,9 @@ function lastLikedAt(cid: string): number {
 }
 
 /**
- * 互动操作条（投币 / 点赞 / 收藏 / 分享）。
+ * v0.0.3：文章页互动悬浮按钮组（投币 / 点赞 / 收藏 / 分享 + 置顶）。
+ * 悬浮在正文右下角，圆形图标按钮垂直分布；「+/-」展开收起（默认收起只显示一个 +/- 按钮），
+ * 底部常驻「置顶」按钮（平滑滚回正文顶部）。
  * 全部走 hqUserlog/*（addLog：likes 每日一次 / mark 收藏 / reward 投币扣积分；isMark 查询、removeLog 取消）。
  * token 只在主进程；按钮操作均真实作用于平台账号，投币有确认弹层。
  */
@@ -30,6 +32,10 @@ export function ReaderInteractions({ detail }: { detail: ArticleDetail }): React
   const cid = detail.cid
   const myUid = String(session?.userinfo?.uid ?? session?.userinfo?.id ?? '')
   const isMine = myUid !== '' && String(detail.authorId) === myUid
+
+  // v0.0.3：悬浮组展开状态（默认收起）
+  const [expanded, setExpanded] = useState(false)
+  const groupRef = useRef<HTMLDivElement | null>(null)
 
   // 收藏状态（进入文章时查询；toggle 用 addLog mark / removeLog logid）
   const [marked, setMarked] = useState(false)
@@ -50,6 +56,7 @@ export function ReaderInteractions({ detail }: { detail: ArticleDetail }): React
     setLikedNow(detail.isLikes === 1 || Date.now() - lastLikedAt(cid) < DAY_MS)
     setNotice(null)
     setRewardOpen(false)
+    setExpanded(false)
     if (!loggedIn) return
     void window.hqsf.isMark(cid).then((res) => {
       if (!res.ok) return
@@ -58,10 +65,21 @@ export function ReaderInteractions({ detail }: { detail: ArticleDetail }): React
     })
   }, [cid, loggedIn])
 
+  // 展开时自动滚到可见区域（右下角悬浮组高度超过剩余视口时）
+  useEffect(() => {
+    if (!expanded || !groupRef.current) return
+    groupRef.current.scrollIntoView({ block: 'nearest' })
+  }, [expanded])
+
   function requireLogin(): boolean {
     if (loggedIn) return true
     setNotice('请先登录后再操作')
     return false
+  }
+
+  function scrollToTop(): void {
+    const scroller = groupRef.current?.closest('.reader-main')
+    scroller?.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   async function toggleMark(): Promise<void> {
@@ -128,39 +146,60 @@ export function ReaderInteractions({ detail }: { detail: ArticleDetail }): React
   const likeCount = detail.likes + (likedNow ? 1 : 0)
 
   return (
-    <div className="reader-actions">
+    <div className="reader-float-actions" ref={groupRef}>
       {notice && (
-        <div className="reader-actions-notice">
+        <div className="reader-float-notice">
           {notice}
           <button className="dismiss" onClick={() => setNotice(null)} title="关闭">
             <X size={12} />
           </button>
         </div>
       )}
-      <div className="reader-actions-row">
-        {!isMine && (
-          <button className={`reader-action-btn ${rewardOpen ? 'active' : ''}`} onClick={() => setRewardOpen((v) => !v)} title="投币给作者（消耗你的积分）">
-            <Coins size={14} /> 投币
+
+      {expanded && (
+        <>
+          {!isMine && (
+            <button
+              className={`reader-float-btn ${rewardOpen ? 'active' : ''}`}
+              onClick={() => setRewardOpen((v) => !v)}
+              title="投币给作者（消耗你的积分）"
+            >
+              <HandCoins size={17} />
+            </button>
+          )}
+          <button
+            className={`reader-float-btn ${likedNow ? 'active' : ''}`}
+            onClick={() => void doLike()}
+            title={`点赞（每天一次）${likeCount > 0 ? ` · ${likeCount}` : ''}`}
+          >
+            <ThumbsUp size={17} />
           </button>
-        )}
-        <button
-          className={`reader-action-btn ${likedNow ? 'active' : ''}`}
-          onClick={() => void doLike()}
-          title="点赞（每天一次）"
-        >
-          <ThumbsUp size={14} /> 赞 {likeCount > 0 ? likeCount : ''}
-        </button>
-        <button
-          className={`reader-action-btn ${marked ? 'active' : ''}`}
-          onClick={() => void toggleMark()}
-          title={marked ? '取消收藏' : '收藏'}
-        >
-          <Bookmark size={14} fill={marked ? 'currentColor' : 'none'} /> {marked ? '已收藏' : '收藏'}
-        </button>
-        <button className="reader-action-btn" onClick={() => void doShare()} title="复制文章链接">
-          <Share2 size={14} /> 分享
-        </button>
-      </div>
+          <button
+            className={`reader-float-btn ${marked ? 'active' : ''}`}
+            onClick={() => void toggleMark()}
+            title={marked ? '取消收藏' : '收藏'}
+          >
+            <Star size={17} fill={marked ? 'currentColor' : 'none'} />
+          </button>
+          <button className="reader-float-btn" onClick={() => void doShare()} title="复制文章链接分享">
+            <Share2 size={17} />
+          </button>
+        </>
+      )}
+
+      {/* v0.0.3：+/- 展开收起（默认收起） */}
+      <button
+        className={`reader-float-btn reader-float-toggle ${expanded ? 'active' : ''}`}
+        onClick={() => setExpanded((v) => !v)}
+        title={expanded ? '收起操作按钮' : '展开操作按钮'}
+      >
+        <Plus size={18} className={`float-toggle-icon${expanded ? ' rotated' : ''}`} />
+      </button>
+
+      {/* 置顶：常驻 */}
+      <button className="reader-float-btn reader-float-top" onClick={scrollToTop} title="回到正文顶部">
+        <ArrowUp size={17} />
+      </button>
 
       {rewardOpen && (
         <div className="reward-modal" onClick={() => setRewardOpen(false)}>

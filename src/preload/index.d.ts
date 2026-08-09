@@ -51,10 +51,20 @@ export interface AppInfo {
   packaged: boolean
 }
 
+/** 无边框窗口控制（v0.0.3 自绘顶栏） */
+export interface WindowControls {
+  minimize: () => Promise<void>
+  toggleMaximize: () => Promise<boolean>
+  close: () => Promise<void>
+  isMaximized: () => Promise<boolean>
+  onMaximizedChanged: (cb: (max: boolean) => void) => () => void
+}
+
 export interface HqsfApi {
   ping: () => Promise<string>
   getAppInfo: () => Promise<AppInfo>
   copyText: (text: string) => Promise<ApiResult<null>>
+  windowControls: WindowControls
   loginPassword: (name: string, password: string) => Promise<ApiResult<LoginResult>>
   sendSmsCode: (phone: string) => Promise<ApiResult<{ ok: boolean; error?: string }>>
   loginPhone: (phone: string, code: string) => Promise<ApiResult<LoginResult>>
@@ -86,7 +96,9 @@ export interface HqsfApi {
   listComments: (cid: string, opts?: { limit?: number; page?: number; order?: string }) => Promise<
     ApiResult<{ items: CommentItem[]; total: number }>
   >
-  addComment: (payload: { cid: string; text: string; parent?: number | string }) => Promise<ApiResult<CommentSubmitResult>>
+  addComment: (payload: { cid: string; text: string; parent?: number | string; reviewid?: number | string }) => Promise<
+    ApiResult<CommentSubmitResult>
+  >
   addLog: (type: 'likes' | 'mark' | 'reward', params: Record<string, unknown>) => Promise<ApiResult<LogOpResult>>
   isMark: (cid: string) => Promise<ApiResult<MarkStatus>>
   removeLog: (key: number | string) => Promise<ApiResult<LogOpResult>>

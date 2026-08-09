@@ -36,7 +36,7 @@
 | Linux | [hq-scifi-0.0.3.AppImage](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.3/hq-scifi-0.0.3.AppImage)（无需安装，直接运行） |
 | Linux | [hq-scifi_0.0.3_amd64.deb](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.3/hq-scifi_0.0.3_amd64.deb)（Debian/Ubuntu 系） |
 
-> **v0.0.3**：v0.0.2 样式改进交付（排序倒序 / 字数 / 并列排名、栏目首页、活动树与红点、评审「我的 / 所有评审」与编辑、拖动分栏、活动卡片统计等）；**v0.0.2**：修复 Windows 版无法打开界面的问题（Linux 交叉打包时原生模块 `better-sqlite3` 误打包为 Linux 版二进制，现自动注入 Windows 版 prebuild）。更新日志见 [Releases](https://github.com/Kide-Lee/HQ-SciFi/releases)。
+> **v0.0.4**：无边框窗口与自绘顶栏（页面标题居中 / 窗口控件 / 返回列表）、左栏图标与折叠调宽、阅读页右栏 tab 化（目录 / 评论 / 评审）与评论-评审双向联动、互动悬浮按钮、写作首页本地存档、文章卡片统一高度、图片加载失败兜底等；**v0.0.3**：v0.0.2 样式改进交付（排序倒序 / 字数 / 并列排名、栏目首页、活动树与红点、评审「我的 / 所有评审」与编辑、拖动分栏、活动卡片统计等）；**v0.0.2**：修复 Windows 版无法打开界面的问题（Linux 交叉打包时原生模块 `better-sqlite3` 误打包为 Linux 版二进制，现自动注入 Windows 版 prebuild）。更新日志见 [CHANGELOG.md](CHANGELOG.md) 与 [Releases](https://github.com/Kide-Lee/HQ-SciFi/releases)。
 
 ### 从源码构建
 

@@ -52,18 +52,13 @@ export function RecommendHome(): React.JSX.Element {
 
   return (
     <div className="home-view">
-      <header className="home-header">
-        <h2>推荐</h2>
-        <span className="muted">荒启科幻 · 首页</span>
-      </header>
-
       {error && <ErrorBanner title="首页加载失败" message={error} />}
 
       {loading ? (
         // v0.0.2：加载骨架——整行铺满 #home-view 宽度（不采用 grid，避免窄条）
         <>
           <section className="home-section">
-            <h3 className="home-section-title">置顶文章</h3>
+            <h2 className="home-section-title">置顶文章</h2>
             <div className="home-list">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="skeleton-row" />
@@ -71,7 +66,7 @@ export function RecommendHome(): React.JSX.Element {
             </div>
           </section>
           <section className="home-section">
-            <h3 className="home-section-title">最新发布</h3>
+            <h2 className="home-section-title">最新发布</h2>
             <div className="home-list">
               {Array.from({ length: 12 }).map((_, i) => (
                 <div key={i} className="skeleton-row" />
@@ -83,7 +78,7 @@ export function RecommendHome(): React.JSX.Element {
         <>
           {top.length > 0 && (
             <section className="home-section">
-              <h3 className="home-section-title">置顶文章</h3>
+              <h2 className="home-section-title">置顶文章</h2>
               <div className="home-top-grid">
                 {top.map((a) => (
                   <ArticleCard
@@ -99,7 +94,7 @@ export function RecommendHome(): React.JSX.Element {
           )}
 
           <section className="home-section">
-            <h3 className="home-section-title">最新发布</h3>
+            <h2 className="home-section-title">最新发布</h2>
             <div className="home-list">
               {latest.length === 0 && <div className="list-empty muted">（暂无文章）</div>}
               {latest.map((a) => (

@@ -62,6 +62,30 @@ export function registerIpcHandlers(): void {
     packaged: app.isPackaged
   }))
 
+  // ---- 窗口控制（v0.0.3 无边框窗口自绘顶栏） ----
+  const windowOf = (event: Electron.IpcMainInvokeEvent): BrowserWindow | null =>
+    BrowserWindow.fromWebContents(event.sender)
+
+  ipcMain.handle('hqsf:window-minimize', (event) => {
+    windowOf(event)?.minimize()
+  })
+
+  ipcMain.handle('hqsf:window-maximize-toggle', (event) => {
+    const win = windowOf(event)
+    if (!win) return false
+    if (win.isMaximized()) win.unmaximize()
+    else win.maximize()
+    return win.isMaximized()
+  })
+
+  ipcMain.handle('hqsf:window-close', (event) => {
+    windowOf(event)?.close()
+  })
+
+  ipcMain.handle('hqsf:window-is-maximized', (event) => {
+    return windowOf(event)?.isMaximized() ?? false
+  })
+
   // ---- 认证与会话 ----
   ipcMain.handle('hqsf:login-password', async (_e, name: string, password: string) => {
     try {
@@ -306,26 +330,33 @@ export function registerIpcHandlers(): void {
     }
   })
 
-  ipcMain.handle('hqsf:add-comment', async (_e, payload: { cid: string; text: string; parent?: number | string }) => {
-    const blocked = trusted(_e)
-    if (blocked) return fail(blocked)
-    const token = getStoredToken()
-    if (!token) return fail(new Error('未登录，无法评论'))
-    if (!payload || typeof payload !== 'object') return fail(new Error('无效的评论数据'))
-    const cid = String(payload.cid ?? '').trim()
-    if (!cid) return fail(new Error('缺少目标文章 ID'))
-    const text = String(payload.text ?? '').trim()
-    if (text.length < 4) return fail(new Error('评论内容至少 4 个字'))
-    if (text.length > 2000) return fail(new Error('评论内容过长（最多 2000 字）'))
-    if (payload.parent != null && typeof payload.parent !== 'string' && typeof payload.parent !== 'number') {
-      return fail(new Error('无效的回复目标'))
+  ipcMain.handle(
+    'hqsf:add-comment',
+    async (_e, payload: { cid: string; text: string; parent?: number | string; reviewid?: number | string }) => {
+      const blocked = trusted(_e)
+      if (blocked) return fail(blocked)
+      const token = getStoredToken()
+      if (!token) return fail(new Error('未登录，无法评论'))
+      if (!payload || typeof payload !== 'object') return fail(new Error('无效的评论数据'))
+      const cid = String(payload.cid ?? '').trim()
+      if (!cid) return fail(new Error('缺少目标文章 ID'))
+      const text = String(payload.text ?? '').trim()
+      if (text.length < 4) return fail(new Error('评论内容至少 4 个字'))
+      if (text.length > 2000) return fail(new Error('评论内容过长（最多 2000 字）'))
+      if (payload.parent != null && typeof payload.parent !== 'string' && typeof payload.parent !== 'number') {
+        return fail(new Error('无效的回复目标'))
+      }
+      // v0.0.3：评论-评审关联（reviewid 透传；0/空视为不关联）
+      if (payload.reviewid != null && typeof payload.reviewid !== 'string' && typeof payload.reviewid !== 'number') {
+        return fail(new Error('无效的评审关联'))
+      }
+      try {
+        return ok(await addComment(token, { cid, text, parent: payload.parent, reviewid: payload.reviewid }))
+      } catch (err) {
+        return fail(err)
+      }
     }
-    try {
-      return ok(await addComment(token, { cid, text, parent: payload.parent }))
-    } catch (err) {
-      return fail(err)
-    }
-  })
+  )
 
   // ---- 用户互动（hqUserlog/：点赞 / 收藏 / 投币） ----
   ipcMain.handle('hqsf:add-log', async (_e, type: 'likes' | 'mark' | 'reward', params: Record<string, unknown> = {}) => {
