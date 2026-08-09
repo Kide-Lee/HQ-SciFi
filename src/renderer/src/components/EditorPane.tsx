@@ -244,20 +244,28 @@ export function EditorPane(): React.JSX.Element {
                       {node.name}/
                     </div>
                   ) : (
-                    <div key={node.path} className="editor-local-card">
+                    <div key={node.path} className="article-card editor-local-card">
                       <button
-                        className="editor-local-card-main"
+                        className="article-card-main"
                         onClick={() => {
                           setConfirmDelete(null)
                           void openDoc(node.path)
                         }}
                         title={node.path}
                       >
-                        <div className="editor-local-card-title">{node.name.replace(/\.md$/i, '')}</div>
-                        {node.summary ? <div className="editor-local-card-summary">{node.summary}</div> : null}
-                        <div className="editor-local-card-meta">
-                          {node.words != null && <span>{formatSize(node.words)} 字</span>}
-                          {node.mtime != null && <span>最后编辑 {formatTs(Math.floor(node.mtime / 1000))}</span>}
+                        <div className="article-card-body">
+                          <div className="article-card-title">
+                            <span className="article-card-title-text">{node.name.replace(/\.md$/i, '')}</span>
+                          </div>
+                          {node.summary ? <div className="article-card-excerpt">{node.summary}</div> : null}
+                          <div className="article-card-meta">
+                            <span className="article-card-stats">
+                              {node.words != null && <span>{formatSize(node.words)} 字</span>}
+                              {node.mtime != null && (
+                                <span>最后编辑 {formatTs(Math.floor(node.mtime / 1000))}</span>
+                              )}
+                            </span>
+                          </div>
                         </div>
                       </button>
                       <button
