@@ -146,7 +146,7 @@ export function ReaderInteractions({ detail }: { detail: ArticleDetail }): React
   const likeCount = detail.likes + (likedNow ? 1 : 0)
 
   return (
-    <div className="reader-float-actions" ref={groupRef}>
+    <div className={`reader-float-actions${expanded ? ' expanded' : ''}`} ref={groupRef}>
       {notice && (
         <div className="reader-float-notice">
           {notice}
@@ -156,36 +156,35 @@ export function ReaderInteractions({ detail }: { detail: ArticleDetail }): React
         </div>
       )}
 
-      {expanded && (
-        <>
-          {!isMine && (
-            <button
-              className={`reader-float-btn ${rewardOpen ? 'active' : ''}`}
-              onClick={() => setRewardOpen((v) => !v)}
-              title="投币给作者（消耗你的积分）"
-            >
-              <HandCoins size={17} />
-            </button>
-          )}
+      {/* v0.0.6：操作按钮常驻渲染，展开/收起由 expanded class 控制过渡动画（淡入上浮 + 逐项错开） */}
+      <div className="reader-float-btns">
+        {!isMine && (
           <button
-            className={`reader-float-btn ${likedNow ? 'active' : ''}`}
-            onClick={() => void doLike()}
-            title={`点赞（每天一次）${likeCount > 0 ? ` · ${likeCount}` : ''}`}
+            className={`reader-float-btn ${rewardOpen ? 'active' : ''}`}
+            onClick={() => setRewardOpen((v) => !v)}
+            title="投币给作者（消耗你的积分）"
           >
-            <ThumbsUp size={17} />
+            <HandCoins size={17} />
           </button>
-          <button
-            className={`reader-float-btn ${marked ? 'active' : ''}`}
-            onClick={() => void toggleMark()}
-            title={marked ? '取消收藏' : '收藏'}
-          >
-            <Star size={17} fill={marked ? 'currentColor' : 'none'} />
-          </button>
-          <button className="reader-float-btn" onClick={() => void doShare()} title="复制文章链接分享">
-            <Share2 size={17} />
-          </button>
-        </>
-      )}
+        )}
+        <button
+          className={`reader-float-btn ${likedNow ? 'active' : ''}`}
+          onClick={() => void doLike()}
+          title={`点赞（每天一次）${likeCount > 0 ? ` · ${likeCount}` : ''}`}
+        >
+          <ThumbsUp size={17} />
+        </button>
+        <button
+          className={`reader-float-btn ${marked ? 'active' : ''}`}
+          onClick={() => void toggleMark()}
+          title={marked ? '取消收藏' : '收藏'}
+        >
+          <Star size={17} fill={marked ? 'currentColor' : 'none'} />
+        </button>
+        <button className="reader-float-btn" onClick={() => void doShare()} title="复制文章链接分享">
+          <Share2 size={17} />
+        </button>
+      </div>
 
       {/* v0.0.3：+/- 展开收起（默认收起） */}
       <button

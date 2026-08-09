@@ -1501,6 +1501,54 @@ body {
   box-shadow: 0 2px 8px rgba(20, 24, 32, 0.12);
 }
 
+/* v0.0.6：操作按钮组（常驻渲染，展开/收起动画） */
+.reader-float-btns {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  /* 收起态：整体上浮位移；visibility 延迟隐藏（等淡出完成） */
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(10px);
+  transition:
+    transform 0.25s ease,
+    visibility 0s linear 0.25s;
+}
+.reader-float-actions.expanded .reader-float-btns {
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+  transition:
+    transform 0.25s ease,
+    visibility 0s;
+}
+/* 单个按钮：透明 + 下移，展开时淡入上浮（stagger 见下） */
+.reader-float-btns .reader-float-btn {
+  opacity: 0;
+  transform: translateY(8px);
+  transition:
+    opacity 0.18s ease,
+    transform 0.22s ease;
+}
+.reader-float-actions.expanded .reader-float-btns .reader-float-btn {
+  opacity: 1;
+  transform: translateY(0);
+}
+/* 展开时逐项错开出现（收起时按同序消失） */
+.reader-float-actions.expanded .reader-float-btns .reader-float-btn:nth-child(1) {
+  transition-delay: 0s;
+}
+.reader-float-actions.expanded .reader-float-btns .reader-float-btn:nth-child(2) {
+  transition-delay: 0.06s;
+}
+.reader-float-actions.expanded .reader-float-btns .reader-float-btn:nth-child(3) {
+  transition-delay: 0.12s;
+}
+.reader-float-actions.expanded .reader-float-btns .reader-float-btn:nth-child(4) {
+  transition-delay: 0.18s;
+}
+
 .reader-float-btn:hover {
   color: var(--accent);
   border-color: var(--accent);
