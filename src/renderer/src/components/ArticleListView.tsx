@@ -280,7 +280,12 @@ export function ArticleCard({
             </span>
           )}
         </div>
-        {article.text && <div className="article-card-excerpt">{article.text}</div>}
+        {/* v0.0.7：无摘要显示「无法提取到摘要」提示（居中），有摘要原样显示 */}
+        {article.text ? (
+          <div className="article-card-excerpt">{article.text}</div>
+        ) : (
+          <div className="article-card-excerpt article-card-excerpt-none">无法提取到摘要</div>
+        )}
         <div className="article-card-meta">
           <span className="article-card-author">
             {avatar ? (

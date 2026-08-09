@@ -25,62 +25,6 @@ function countAllDocs(nodes: LocalNode[]): number {
   )
 }
 
-/**
- * v0.0.6：摘要占位补齐——写作首页卡片摘要不足三行时，剩余行用横线补足
- * （摘要文字所在行不画线；补足的最后一行横线只占 75% 宽度）
- */
-const EXCERPT_MAX_ROWS = 3
-
-function ExcerptFill({ summary }: { summary?: string }): React.JSX.Element {
-  const textRef = useRef<HTMLDivElement>(null)
-  // v0.0.6 修复：初始按满行数（不渲染填充），避免填充块参与 flex 布局挤压文本导致行数测少
-  const [rows, setRows] = useState(EXCERPT_MAX_ROWS)
-
-  function measure(): void {
-    const el = textRef.current
-    if (!el) return
-    const wrap = el.parentElement
-    const fill = wrap?.querySelector('.excerpt-fill')
-    // 测量时临时隐藏填充块：它参与 flex 布局会压缩文本高度，使行数偏小
-    if (fill instanceof HTMLElement) fill.style.display = 'none'
-    const lh = parseFloat(getComputedStyle(el).lineHeight) || 19.2
-    const measured = Math.round(el.offsetHeight / lh)
-    if (fill instanceof HTMLElement) fill.style.display = ''
-    setRows(Math.min(EXCERPT_MAX_ROWS, Math.max(0, measured)))
-  }
-
-  useEffect(() => {
-    measure()
-  }, [summary])
-
-  // 窗口/布局宽度变化会改变换行数，重测
-  useEffect(() => {
-    const el = textRef.current
-    if (!el || typeof ResizeObserver === 'undefined') return
-    const ro = new ResizeObserver(() => measure())
-    ro.observe(el.parentElement ?? el)
-    return () => ro.disconnect()
-  }, [summary])
-
-  const fillCount = Math.max(0, EXCERPT_MAX_ROWS - rows)
-  return (
-    <div className="editor-local-excerpt">
-      {summary ? (
-        <div className="excerpt-text" ref={textRef}>
-          {summary}
-        </div>
-      ) : (
-        <div className="excerpt-text" ref={textRef} />
-      )}
-      <div className="excerpt-fill">
-        {Array.from({ length: fillCount }).map((_, i) => (
-          <div key={i} className={`excerpt-fill-line${i === fillCount - 1 ? ' last' : ''}`} />
-        ))}
-      </div>
-    </div>
-  )
-}
-
 /** 编辑器视图：CodeMirror 6 编辑本地 md + 工具栏（同步到草稿/发布/保存） */
 export function EditorPane(): React.JSX.Element {
   const currentPath = useEditorStore((s) => s.currentPath)
@@ -483,8 +427,14 @@ export function EditorPane(): React.JSX.Element {
                           <div className="article-card-title">
                             <span className="article-card-title-text">{node.name.replace(/\.md$/i, '')}</span>
                           </div>
-                          {/* v0.0.6：摘要不足三行用横线补足 */}
-                          <ExcerptFill summary={node.summary} />
+                          {/* v0.0.7：有摘要垂直居中；无摘要卡片中央提示无法提取 */}
+                          <div className="article-card-excerpt editor-local-excerpt">
+                            {node.summary ? (
+                              <span className="excerpt-text">{node.summary}</span>
+                            ) : (
+                              <span className="excerpt-none">无法提取到摘要</span>
+                            )}
+                          </div>
                           <div className="article-card-meta">
                             <span className="article-card-stats">
                               {node.words != null && <span>{formatSize(node.words)} 字</span>}

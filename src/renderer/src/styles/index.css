@@ -1115,37 +1115,31 @@ body {
   padding: 6px 10px;
 }
 
-/* v0.0.6：摘要不足三行用横线补足（最后一行 75% 宽；摘要行不画线） */
-.editor-local-excerpt {
-  font-size: 12px;
-  color: var(--text-muted);
-  line-height: 1.6;
+/* v0.0.7：写作首页摘要区——固定三行高，有摘要垂直居中，无摘要卡片中央提示 */
+.article-card-excerpt.editor-local-excerpt {
+  display: flex;
+  align-items: center;
   height: 57.6px; /* 3 行 × 19.2px */
   overflow: hidden;
-  user-select: text;
 }
 .editor-local-excerpt .excerpt-text {
   overflow: hidden;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
-  min-height: 0;
 }
-.editor-local-excerpt .excerpt-fill-line {
-  height: 19.2px;
+.editor-local-excerpt .excerpt-none {
+  color: var(--text-muted);
+  font-size: 12px;
+  opacity: 0.75;
+}
+/* v0.0.7：其他页面文章卡片无摘要提示（居中） */
+.article-card-excerpt.article-card-excerpt-none {
   display: flex;
   align-items: center;
-}
-/* v0.0.6：补齐占位黑块（skeleton 风格；块高占满行高，多行连成整体；末块 75% 宽） */
-.editor-local-excerpt .excerpt-fill-line::after {
-  content: '';
-  display: block;
-  height: 19.2px;
-  width: 100%;
-  background: #e8eaed;
-}
-.editor-local-excerpt .excerpt-fill-line.last::after {
-  width: 75%;
+  justify-content: center;
+  color: var(--text-muted);
+  opacity: 0.75;
 }
 
 /* v0.0.6：文件夹入口（卡片样式类似文章卡片，但更矮） */
