@@ -1,5 +1,13 @@
 # 更新日志
 
+## v0.0.4（开发中，未发布）
+
+### 新增
+
+- **图标系统**：引入 [lucide-react](https://lucide.dev/)（v1.30，**ISC 许可**，与项目 MIT 兼容：允许商用/修改、无署名义务；官方支持 React 19；纯本地 SVG 组件 + tree-shaking，适配离线渲染层），统一替换界面 emoji/unicode 符号
+  - 覆盖：阅读页互动条（投币 `Coins` / 点赞 `ThumbsUp` / 收藏 `Bookmark` / 分享 `Share2`）、评审按钮 `PenLine`、返回列表 `ArrowLeft`、目录与树节点展开箭头 `ChevronRight`、同步 `RefreshCw`、设置 `Settings`、排序方向 `ArrowUp/ArrowDown`、关闭/提示 `X`
+  - 交互细节：收藏态实心切换（`fill=currentColor`）、树节点与目录箭头展开旋转 90°、同步按钮旋转动画（pulling 时 spin）；所有图标随 `currentColor` 使用主题色
+
 ## v0.0.3（2026-08-08）
 
 本版本是 v0.0.2 样式改进的完整交付：排序、栏目首页、活动树、评审栏体验全面升级，并修复 Windows 版无法打开界面的问题。

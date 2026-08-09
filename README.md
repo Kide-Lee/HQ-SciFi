@@ -71,7 +71,7 @@ npm run build:linux  # 打包 Linux（deb + AppImage，dist/）
 
 ## 技术栈
 
-Electron 34 · React 19 · TypeScript · Vite 7（electron-vite 5）· CodeMirror 6 · Zustand · better-sqlite3 · electron-builder 26
+Electron 34 · React 19 · TypeScript · Vite 7（electron-vite 5）· CodeMirror 6 · Zustand · better-sqlite3 · lucide-react（图标）· electron-builder 26
 
 ## 免责声明
 

@@ -28,6 +28,7 @@
 | 编辑器 | CodeMirror 6 | 轻量、专注源码写作、md 文件直编，Obsidian 同路线 |
 | Markdown 渲染 | marked + 代码高亮（prismjs 或 highlight.js） | 轻量，渲染阅读/预览视图 |
 | 状态管理 | Zustand | 轻量、无样板代码 |
+| 图标 | lucide-react（ISC 许可） | 与项目 MIT 兼容；现代扁平线条风格（24×24、stroke + currentColor，可随主题色着色）；纯本地 SVG 组件 + tree-shaking，适配离线渲染层；官方支持 React 19 |
 | 本地索引库 | better-sqlite3 | 存文章元数据/状态索引，正文仍是磁盘 md 文件 |
 | 设置存储 | electron-store（JSON） | 字号/字体/主题/目录路径等 |
 | 打包 | electron-builder | NSIS（Win）+ deb/AppImage（Linux） |

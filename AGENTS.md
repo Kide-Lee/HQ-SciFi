@@ -5,7 +5,7 @@ Electron 桌面客户端，为 [荒启科幻](https://www.huangqisf.com/) 提供
 
 ## Project
 
-- 技术栈：Electron 34 + React 19 + TypeScript + electron-vite 5 + Vite 7 + Zustand 5 + electron-builder 26；better-sqlite3（本地索引）+ CodeMirror 6（编辑器）+ markdown-it/turndown（md⇄HTML 转换）。
+- 技术栈：Electron 34 + React 19 + TypeScript + electron-vite 5 + Vite 7 + Zustand 5 + electron-builder 26；better-sqlite3（本地索引）+ CodeMirror 6（编辑器）+ markdown-it/turndown（md⇄HTML 转换）+ lucide-react（图标，ISC 许可）。
 - 入口：`src/main/index.ts`（单实例锁 → `initApp`）；渲染层入口 `src/renderer/src/main.tsx`。
 - M0（三端骨架 + IPC + API 代理）、M1（写作闭环：登录/同步/编辑/发布/四态）与 M2（读审一体：阅读视图 + 评审面板）代码已交付；GUI 与真实账号接口验证需正常桌面环境（沙箱限制，见 Notes 与 README 验证清单）。
 
