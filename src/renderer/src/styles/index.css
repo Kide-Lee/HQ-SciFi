@@ -153,6 +153,12 @@ body {
   -webkit-app-region: drag;
   /* v0.0.3：供右缘拖动分隔条定位 */
   position: relative;
+  /* v0.0.6：折叠/展开动画；拖动调整宽度时由 .dragging 禁用过渡 */
+  transition: width 0.25s ease;
+}
+/* v0.0.6：拖动调整左栏宽度时禁用过渡（实时跟手） */
+.sidebar.dragging {
+  transition: none;
 }
 
 /* v0.0.3：左栏交互元素不可拖拽窗口（可点击区域） */
@@ -1958,6 +1964,17 @@ body {
   flex-direction: column;
   min-height: 0;
   font-size: 15px;
+  /* v0.0.6：收起/展开动画；拖动分栏时由 .dragging 禁用过渡 */
+  transition: width 0.25s ease, min-width 0.25s ease;
+}
+/* v0.0.6：右栏收起态（width 由内联样式置 0）——去掉 min-width 限制并裁掉内容 */
+.reader-panel.collapsed {
+  min-width: 0;
+  overflow: hidden;
+}
+/* v0.0.6：拖动分栏调整比例时禁用过渡（实时跟手） */
+.reader-panel.dragging {
+  transition: none;
 }
 
 .reader-panel-tabs {

@@ -113,6 +113,8 @@ export function ReaderView(): React.JSX.Element {
     const v = Number(localStorage.getItem('reader-split-ratio'))
     return v >= 0.2 && v <= 0.6 ? v : 1 / 3
   })
+  // v0.0.6：拖动分栏中（禁用右栏宽度过渡，保证实时跟手）
+  const [panResizing, setPanResizing] = useState(false)
   const layoutRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -122,6 +124,7 @@ export function ReaderView(): React.JSX.Element {
   // 拖动分栏
   function onDividerDown(e: React.MouseEvent): void {
     e.preventDefault()
+    setPanResizing(true)
     const onMove = (ev: MouseEvent): void => {
       const layout = layoutRef.current
       if (!layout) return
@@ -130,6 +133,7 @@ export function ReaderView(): React.JSX.Element {
       setSplitRatio(Math.min(0.6, Math.max(0.2, (rect.right - ev.clientX) / rect.width)))
     }
     const onUp = (): void => {
+      setPanResizing(false)
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
@@ -288,13 +292,17 @@ export function ReaderView(): React.JSX.Element {
           <ReaderInteractions detail={detail} />
         </div>
         {panelOpen && (
-          <>
-            {/* v0.0.2：可拖动分栏分隔条（正文:右栏比例，默认 1:2） */}
-            <div className="reader-divider" onMouseDown={onDividerDown} title="拖动调整正文与右栏比例" />
-            {/* v0.0.3：右栏 tab 容器（目录 / 评论 / 评审） */}
-            <ReaderPanel splitRatio={splitRatio} toc={toc} jumpTo={jumpTo} isMine={isMine} />
-          </>
+          <div className="reader-divider" onMouseDown={onDividerDown} title="拖动调整正文与右栏比例" />
         )}
+        {/* v0.0.6：右栏常驻渲染，宽度由 collapsed 控制（0 ↔ 分栏比例），收起/展开带过渡动画 */}
+        <ReaderPanel
+          splitRatio={splitRatio}
+          toc={toc}
+          jumpTo={jumpTo}
+          isMine={isMine}
+          collapsed={!panelOpen}
+          dragging={panResizing}
+        />
       </div>
     </main>
   )
@@ -900,24 +908,32 @@ function ReviewPanel(): React.JSX.Element {
 /**
  * v0.0.3：阅读页右栏 tab 容器（目录 / 评论 / 评审）。
  * 宽度由拖动分栏比例控制（ReaderView splitRatio）；评审 tab 对本人文章隐藏。
+ * v0.0.6：常驻渲染——collapsed 时宽度 0（收起动画），dragging 时禁用过渡。
  */
 function ReaderPanel({
   splitRatio,
   toc,
   jumpTo,
-  isMine
+  isMine,
+  collapsed,
+  dragging
 }: {
   splitRatio: number
   toc: Array<{ idx: number; level: number; text: string }>
   jumpTo: (idx: number) => void
   isMine: boolean
+  collapsed: boolean
+  dragging: boolean
 }): React.JSX.Element {
   const tab = useUiStore((s) => s.readerPanelTab)
   const setTab = useUiStore((s) => s.setReaderPanelTab)
   const cid = useReaderStore((s) => s.detail)?.cid ?? ''
 
   return (
-    <aside className="reader-panel" style={{ width: `${splitRatio * 100}%` }}>
+    <aside
+      className={`reader-panel${collapsed ? ' collapsed' : ''}${dragging ? ' dragging' : ''}`}
+      style={{ width: collapsed ? 0 : `${splitRatio * 100}%` }}
+    >
       <div className="reader-panel-tabs">
         <button className={`reader-panel-tab ${tab === 'toc' ? 'active' : ''}`} onClick={() => setTab('toc')}>
           目录

@@ -97,12 +97,15 @@ export function Sidebar(): React.JSX.Element {
   }, [sidebarWidth])
 
   // v0.0.3：拖动左栏右缘调整宽度
+  const [resizing, setResizing] = useState(false)
   function onSidebarResizeDown(e: React.MouseEvent): void {
     e.preventDefault()
+    setResizing(true)
     const onMove = (ev: MouseEvent): void => {
       setSidebarWidth(Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, ev.clientX)))
     }
     const onUp = (): void => {
+      setResizing(false)
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
@@ -336,7 +339,7 @@ export function Sidebar(): React.JSX.Element {
 
   return (
     <aside
-      className={`sidebar${collapsed ? ' collapsed' : ''}`}
+      className={`sidebar${collapsed ? ' collapsed' : ''}${resizing ? ' dragging' : ''}`}
       style={collapsed ? undefined : { width: sidebarWidth }}
     >
       {/* v0.0.3：右缘拖动分隔条（仅展开态） */}
