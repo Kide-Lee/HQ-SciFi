@@ -359,7 +359,8 @@ export function Sidebar(): React.JSX.Element {
           title={node.path}
           style={{ paddingLeft: 22 + depth * 12 }}
         >
-          {node.name.replace(/\.md$/i, '')}
+          {/* v0.0.6：文件名超宽省略号截断（复用 .tree-node-text 规则） */}
+          <span className="tree-node-text">{node.name.replace(/\.md$/i, '')}</span>
         </button>
       )
     })

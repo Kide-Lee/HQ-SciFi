@@ -817,6 +817,15 @@ body {
   background: var(--accent-soft);
   color: var(--accent);
 }
+/* v0.0.6：目录展开箭头沿用上级 .tree-group-title .caret 样式（打开时旋转 90°） */
+.tree-dir-entry .caret {
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+.tree-dir-entry .caret.open {
+  transform: rotate(90deg);
+}
 .tree-dir-entry .tree-dir-name {
   flex: 1;
   min-width: 0;
@@ -1157,7 +1166,10 @@ body {
   background: var(--accent-soft);
 }
 .editor-local-crumbs .crumb.current {
-  color: var(--text-muted);
+  /* v0.0.6：当前路径段用正文字体样式（正文色、常规字重、正文大小） */
+  color: var(--text);
+  font-weight: 400;
+  font-size: 13px;
   cursor: default;
   background: transparent;
 }
