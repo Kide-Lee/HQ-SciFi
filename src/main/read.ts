@@ -407,14 +407,16 @@ export async function listCategories(token: string | null): Promise<CategoryMeta
 
 /** 评论条目规整（commentsList data 项；coid 为评论 id，parent 为上级评论 coid） */
 function toCommentItem(item: Record<string, unknown>): CommentItem {
+  const userJson = (item.userJson as Record<string, unknown> | undefined) ?? {}
   return {
     coid: str(item.coid ?? item.id ?? ''),
     cid: str(item.cid ?? ''),
     parent: str(item.parent ?? 0),
     text: str(item.text),
-    author: str(item.author ?? '匿名'),
-    authorId: str(item.authorId ?? 0),
-    avatar: str(item.avatar) || undefined,
+    author: str(item.author ?? userJson.name ?? '匿名'),
+    authorId: str(item.authorId ?? userJson.uid ?? 0),
+    // 实测（2026-08）：荒启定制版 commentsList 无顶层 avatar，头像在 userJson.avatar
+    avatar: str(item.avatar) || str(userJson.avatar) || undefined,
     created: normTs(item.created),
     subNum: num(item.subNum),
     parentComments: (item.parentComments as CommentItem['parentComments'] | undefined) ?? undefined
