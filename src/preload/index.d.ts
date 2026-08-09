@@ -3,9 +3,13 @@ import type {
   ArticleDetail,
   ArticleListOptions,
   ArticleRow,
+  CommentItem,
+  CommentSubmitResult,
   GptModel,
   LocalNode,
   LoginResult,
+  LogOpResult,
+  MarkStatus,
   MetaInfo,
   PullResult,
   PushResult,
@@ -22,9 +26,13 @@ export type {
   ArticleDetail,
   ArticleListOptions,
   ArticleRow,
+  CommentItem,
+  CommentSubmitResult,
   GptModel,
   LocalNode,
   LoginResult,
+  LogOpResult,
+  MarkStatus,
   MetaInfo,
   PullResult,
   PushResult,
@@ -75,6 +83,13 @@ export interface HqsfApi {
   listMetas: (type: string) => Promise<ApiResult<MetaInfo[]>>
   listGptModels: () => Promise<ApiResult<GptModel[]>>
   listReviewTasks: () => Promise<ApiResult<ReviewTaskItem[]>>
+  listComments: (cid: string, opts?: { limit?: number; page?: number; order?: string }) => Promise<
+    ApiResult<{ items: CommentItem[]; total: number }>
+  >
+  addComment: (payload: { cid: string; text: string; parent?: number | string }) => Promise<ApiResult<CommentSubmitResult>>
+  addLog: (type: 'likes' | 'mark' | 'reward', params: Record<string, unknown>) => Promise<ApiResult<LogOpResult>>
+  isMark: (cid: string) => Promise<ApiResult<MarkStatus>>
+  removeLog: (key: number | string) => Promise<ApiResult<LogOpResult>>
 }
 
 declare global {

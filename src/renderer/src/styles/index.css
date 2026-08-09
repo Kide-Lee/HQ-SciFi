@@ -1084,6 +1084,423 @@ body {
   margin-top: 28px;
 }
 
+/* v0.0.3：导言块（正文前，引用样式；仅当文章有导言时显示） */
+.reader-intro {
+  max-width: 760px;
+  margin: 0 auto 18px;
+  padding: 14px 18px;
+  background: var(--accent-soft);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  color: #4a5468;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+/* v0.0.3：目录（正文前可折叠块；正文标题 ≥2 个时显示） */
+.reader-toc {
+  max-width: 760px;
+  margin: 0 auto 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  background: var(--bg-card);
+}
+.reader-toc summary {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  user-select: none;
+  list-style: none;
+}
+.reader-toc summary::-webkit-details-marker {
+  display: none;
+}
+.reader-toc summary::before {
+  content: '▸ ';
+  color: var(--text-muted);
+}
+.reader-toc[open] summary::before {
+  content: '▾ ';
+  color: var(--text-muted);
+}
+.reader-toc-list {
+  margin: 10px 0 2px;
+  padding: 8px 0 2px;
+  list-style: none;
+  max-height: 40vh;
+  overflow-y: auto;
+  border-top: 1px dashed var(--border);
+}
+.reader-toc-item a {
+  display: block;
+  padding: 3px 6px;
+  border-radius: 4px;
+  color: #4a5468;
+  font-size: 13px;
+  line-height: 1.6;
+  text-decoration: none;
+}
+.reader-toc-item a:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.reader-toc-item.lv-3 {
+  padding-left: 14px;
+}
+.reader-toc-item.lv-4 {
+  padding-left: 28px;
+}
+.reader-toc-item.lv-5,
+.reader-toc-item.lv-6 {
+  padding-left: 42px;
+}
+
+/* v0.0.3：互动操作条（投币/点赞/收藏/分享） */
+.reader-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+.reader-actions-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.reader-action-btn {
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--bg-card);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.reader-action-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.reader-action-btn.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.reader-actions-notice {
+  font-size: 12px;
+  color: #8a6d1a;
+  background: #fffbe6;
+  border: 1px solid #ffe58f;
+  border-radius: 6px;
+  padding: 4px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.reader-actions-notice .dismiss {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  font-size: 12px;
+  padding: 0;
+}
+
+/* v0.0.3：投币确认弹层 */
+.reward-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 24, 32, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.reward-box {
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 22px 24px;
+  width: 320px;
+  box-shadow: 0 12px 32px rgba(20, 24, 32, 0.2);
+}
+.reward-box h4 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+.reward-tip {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.7;
+  margin: 0 0 14px;
+}
+.reward-amounts {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.reward-amount {
+  width: 44px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.reward-amount.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+.reward-custom {
+  width: 72px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 13px;
+}
+.reward-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.reward-cancel,
+.reward-confirm {
+  padding: 7px 16px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.reward-cancel {
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-muted);
+}
+.reward-confirm {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+.reward-confirm:hover {
+  opacity: 0.9;
+}
+
+/* v0.0.3：评论区（正文下方） */
+.reader-comments {
+  max-width: 760px;
+  margin: 32px auto 0;
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+}
+.reader-comments-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.reader-comments-head h3 {
+  margin: 0;
+  font-size: 16px;
+}
+.reader-comments-count {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.reader-comments-msg {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+  font-size: 13px;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.reader-comments-err {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 13px;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.reader-comments-msg .dismiss,
+.reader-comments-err .dismiss {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  color: inherit;
+  padding: 0;
+}
+.comment-form {
+  margin-bottom: 18px;
+}
+.comment-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 13px;
+  resize: vertical;
+  background: var(--bg-card);
+}
+.comment-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.comment-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  justify-content: flex-end;
+}
+.comment-cancel-reply {
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.comment-local-err {
+  font-size: 12px;
+  color: #b91c1c;
+  margin-right: auto;
+}
+.comment-submit {
+  padding: 6px 18px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.comment-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.comment-login-hint {
+  font-size: 13px;
+  color: var(--text-muted);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+  margin-bottom: 14px;
+}
+.comment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.comment-loading,
+.comment-empty {
+  font-size: 13px;
+  padding: 8px 0;
+}
+.comment-item {
+  padding: 10px 0;
+  border-bottom: 1px dashed #f0f1f5;
+}
+.comment-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.comment-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #f0f1f5;
+  flex-shrink: 0;
+}
+.comment-author {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.comment-time {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.comment-reply-btn {
+  margin-left: auto;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.comment-reply-btn:hover {
+  color: var(--accent);
+}
+.comment-parent-quote {
+  font-size: 12px;
+  color: var(--text-muted);
+  background: #f7f8fa;
+  border-left: 2px solid var(--border);
+  border-radius: 0 4px 4px 0;
+  padding: 4px 10px;
+  margin: 2px 0 6px;
+}
+.comment-parent-author {
+  color: var(--accent);
+}
+.comment-text {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.comment-sub-list {
+  margin-left: 34px;
+  border-left: 2px solid #f0f1f5;
+  padding-left: 12px;
+}
+.comment-more {
+  margin: 14px auto 0;
+  display: block;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 20px;
+  cursor: pointer;
+}
+.comment-more:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 .reader-loading {
   flex: 1;
   display: flex;

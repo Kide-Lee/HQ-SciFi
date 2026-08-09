@@ -4,9 +4,13 @@ import type {
   ArticleDetail,
   ArticleListOptions,
   ArticleRow,
+  CommentItem,
+  CommentSubmitResult,
   GptModel,
   LocalNode,
   LoginResult,
+  LogOpResult,
+  MarkStatus,
   MetaInfo,
   PullResult,
   PushResult,
@@ -84,7 +88,25 @@ const api = {
   /** AI 模型列表（推荐栏目「AI模型」） */
   listGptModels: (): Promise<ApiResult<GptModel[]>> => ipcRenderer.invoke('hqsf:list-gpt-models'),
   /** 当前账号的评审任务（待评审/已完成文章列表） */
-  listReviewTasks: (): Promise<ApiResult<ReviewTaskItem[]>> => ipcRenderer.invoke('hqsf:list-review-tasks')
+  listReviewTasks: (): Promise<ApiResult<ReviewTaskItem[]>> => ipcRenderer.invoke('hqsf:list-review-tasks'),
+
+  // ---- 评论（阅读视图评论区） ----
+  /** 文章评论列表（hqComments/commentsList） */
+  listComments: (cid: string, opts?: { limit?: number; page?: number; order?: string }): Promise<
+    ApiResult<{ items: CommentItem[]; total: number }>
+  > => ipcRenderer.invoke('hqsf:list-comments', cid, opts),
+  /** 发表评论（parent 为回复的上级评论 coid，可省略） */
+  addComment: (payload: { cid: string; text: string; parent?: number | string }): Promise<ApiResult<CommentSubmitResult>> =>
+    ipcRenderer.invoke('hqsf:add-comment', payload),
+
+  // ---- 用户互动（点赞 / 收藏 / 投币，hqUserlog/） ----
+  /** 点赞（likes，每日一次）/ 收藏（mark）/ 投币（reward，需 num 积分） */
+  addLog: (type: 'likes' | 'mark' | 'reward', params: Record<string, unknown>): Promise<ApiResult<LogOpResult>> =>
+    ipcRenderer.invoke('hqsf:add-log', type, params),
+  /** 查询文章收藏状态（返回 marked/logid） */
+  isMark: (cid: string): Promise<ApiResult<MarkStatus>> => ipcRenderer.invoke('hqsf:is-mark', cid),
+  /** 取消收藏（key=isMark 返回的 logid） */
+  removeLog: (key: number | string): Promise<ApiResult<LogOpResult>> => ipcRenderer.invoke('hqsf:remove-log', key)
 }
 
 export type HqsfApi = typeof api

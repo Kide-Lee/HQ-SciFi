@@ -3,7 +3,11 @@ import { deleteReadCache, getReadCache, setReadCache } from './db'
 import type {
   ArticleDetail,
   ArticleListOptions,
+  CommentItem,
+  CommentSubmitResult,
   GptModel,
+  LogOpResult,
+  MarkStatus,
   MetaInfo,
   MetaRef,
   RemoteArticle,
@@ -254,7 +258,9 @@ export async function fetchRemoteArticle(token: string, cid: string): Promise<Ar
     category: Array.isArray(obj.category) ? obj.category.map(toMetaRef) : undefined,
     collection: Array.isArray(obj.collection) ? obj.collection.map(toMetaRef) : undefined,
     active: Array.isArray(obj.active) ? obj.active.map(toMetaRef) : null,
-    markdown: num(obj.markdown)
+    markdown: num(obj.markdown),
+    introduction: str(obj.introduction) || undefined,
+    isLikes: num(obj.isLikes)
   }
   setReadCache(cacheKey, detail)
   return detail
@@ -395,4 +401,121 @@ export async function listCategories(token: string | null): Promise<CategoryMeta
     description: str(m.description),
     count: num(m.count)
   }))
+}
+
+// ---------- 评论（hqComments/，api-research.md §8） ----------
+
+/** 评论条目规整（commentsList data 项；coid 为评论 id，parent 为上级评论 coid） */
+function toCommentItem(item: Record<string, unknown>): CommentItem {
+  return {
+    coid: str(item.coid ?? item.id ?? ''),
+    cid: str(item.cid ?? ''),
+    parent: str(item.parent ?? 0),
+    text: str(item.text),
+    author: str(item.author ?? '匿名'),
+    authorId: str(item.authorId ?? 0),
+    avatar: str(item.avatar) || undefined,
+    created: normTs(item.created),
+    subNum: num(item.subNum),
+    parentComments: (item.parentComments as CommentItem['parentComments'] | undefined) ?? undefined
+  }
+}
+
+/**
+ * 拉取文章评论列表（hqComments/commentsList，GET；searchParams={cid} 过滤，非管理员强制 status=approved）。
+ * order 仅支持 created / coid / cid（服务端白名单）。
+ */
+export async function listComments(
+  token: string | null,
+  cid: string,
+  opts: { limit?: number; page?: number; order?: string } = {}
+): Promise<{ items: CommentItem[]; total: number }> {
+  const query: Record<string, unknown> = {
+    searchParams: JSON.stringify({ cid }),
+    limit: opts.limit ?? PAGE_SIZE,
+    page: opts.page ?? 1,
+    ...(opts.order ? { order: opts.order } : {})
+  }
+  if (token) query.token = token
+  const resp = await apiRequest<ListData>('hqComments/commentsList', {
+    method: 'GET',
+    query
+  })
+  return {
+    items: (resp.data ?? []).map(toCommentItem),
+    total: num(resp.total) || (resp.data ?? []).length
+  }
+}
+
+/**
+ * 发表评论（hqComments/commentsAdd，GET + params JSON；官方校验 text ≥4 字，首次评论可能进审核）。
+ * parent 为回复的上级评论 coid（顶层评论传 0/省略）。
+ */
+export async function addComment(
+  token: string,
+  payload: { cid: string; text: string; parent?: number | string }
+): Promise<CommentSubmitResult> {
+  const text = String(payload.text ?? '').trim()
+  if (text.length < 4) return { ok: false, error: '评论内容至少 4 个字' }
+  const params: Record<string, unknown> = { cid: String(payload.cid), text }
+  if (payload.parent != null && String(payload.parent) !== '0') params.parent = payload.parent
+  try {
+    const resp = await apiRequest('hqComments/commentsAdd', {
+      method: 'GET',
+      query: { params: JSON.stringify(params), token }
+    })
+    if (resp.code === 1) return { ok: true }
+    return { ok: false, error: resp.msg || '评论发布失败' }
+  } catch (err) {
+    return { ok: false, error: (err as Error).message }
+  }
+}
+
+// ---------- 用户互动（hqUserlog/：点赞 / 收藏 / 投币，api-research.md §8） ----------
+
+/**
+ * 用户日志操作（hqUserlog/addLog，GET + params JSON）。
+ * type：likes=点赞（每日每 IP+UA+cid 一次，服务端 likes+1）/ mark=收藏（重复收藏报错）/
+ * reward=投币（扣用户 assets 积分，num>0 且 ≤ 余额，不能打赏自己，作者得积分）。
+ */
+export async function addUserLog(
+  token: string,
+  type: 'likes' | 'mark' | 'reward',
+  params: Record<string, unknown>
+): Promise<LogOpResult> {
+  try {
+    const resp = await apiRequest('hqUserlog/addLog', {
+      method: 'GET',
+      query: { params: JSON.stringify({ type, ...params }), token }
+    })
+    if (resp.code === 1) return { ok: true }
+    return { ok: false, error: resp.msg || '操作失败' }
+  } catch (err) {
+    return { ok: false, error: (err as Error).message }
+  }
+}
+
+/** 查询收藏状态（hqUserlog/isMark，cid + type=content；返回 {isMark, logid}） */
+export async function getMarkStatus(token: string, cid: string): Promise<MarkStatus> {
+  const resp = await apiRequest<Record<string, unknown>>('hqUserlog/isMark', {
+    method: 'GET',
+    query: { cid, type: 'content', token }
+  })
+  const data = (resp.data ?? {}) as Record<string, unknown>
+  const lid = str(data.logid)
+  return { marked: num(data.isMark) > 0, logid: lid && Number(lid) > 0 ? lid : undefined }
+}
+
+/** 取消收藏（hqUserlog/removeLog，key=收藏日志 id，来自 isMark 返回的 logid） */
+export async function removeUserLog(token: string, key: number | string): Promise<LogOpResult> {
+  try {
+    const resp = await apiRequest('hqUserlog/removeLog', {
+      method: 'GET',
+      query: { key: String(key), token }
+    })
+    if (resp.code === 1) return { ok: true }
+    return { ok: false, error: resp.msg || '取消失败' }
+  } catch (err) {
+    return { ok: false, error: (err as Error).message }
+  }
 }

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { ArticleDetail, RemoteArticle, ReviewItem, ReviewPayload } from '../../../shared/types'
+import type { ArticleDetail, CommentItem, RemoteArticle, ReviewItem, ReviewPayload } from '../../../shared/types'
 import { useUiStore } from './ui'
 
 /** 列表排序（对应官方 topList：评分/点赞/评论/阅读/时间/回复；size 按字数为本地排序） */
@@ -43,6 +43,17 @@ interface ReaderState {
   /** 提交结果提示（成功/失败） */
   submitMessage: string | null
 
+  // ---- 评论（评论区） ----
+  comments: CommentItem[]
+  commentsTotal: number
+  commentsLoading: boolean
+  /** 是否还有下一页（按「本页返回条数 == limit」判断，同 listHasMore 策略） */
+  commentsHasMore: boolean
+  /** 发表进行中 */
+  commentSubmitting: boolean
+  /** 发表结果提示（成功/失败文案） */
+  commentMessage: string | null
+
   // ---- 文章列表（作品库/推荐等浏览入口） ----
   list: RemoteArticle[]
   listTotal: number
@@ -78,6 +89,12 @@ interface ReaderState {
   setAttitude: (reviewId: number | string, type: number) => Promise<void>
   clearSubmitMessage: () => void
 
+  // ---- 评论动作 ----
+  loadComments: (cid: string, opts?: { append?: boolean }) => Promise<void>
+  /** 发表/回复评论；成功后重拉列表并提示，返回是否成功 */
+  submitComment: (payload: { cid: string; text: string; parent?: number | string }) => Promise<boolean>
+  clearCommentMessage: () => void
+
   loadList: (opts?: { searchParams?: Record<string, unknown>; mid?: number | string; order?: string; append?: boolean; choice?: boolean }) => Promise<void>
   setOrder: (order: string) => void
   /** 切换当前排序方向（所有排序字段共用一个 ↑/↓） */
@@ -98,6 +115,13 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
   submitting: false,
   submitMessage: null,
 
+  comments: [],
+  commentsTotal: 0,
+  commentsLoading: false,
+  commentsHasMore: true,
+  commentSubmitting: false,
+  commentMessage: null,
+
   list: [],
   listTotal: 0,
   listPage: 1,
@@ -112,12 +136,13 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
 
   openArticle: async (cid) => {
     if (get().readingCid === cid && get().detail) return
-    set({ readingCid: cid, detail: null, detailError: null, detailLoading: true, reviews: [] })
+    set({ readingCid: cid, detail: null, detailError: null, detailLoading: true, reviews: [], comments: [] })
     try {
       const res = await window.hqsf.getRemoteArticle(cid)
       if (res.ok) {
         set({ detail: res.data, detailLoading: false })
         void get().loadReviews(cid)
+        void get().loadComments(cid)
       } else {
         set({ detailError: res.error, detailLoading: false })
       }
@@ -126,7 +151,8 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
     }
   },
 
-  closeArticle: () => set({ readingCid: null, detail: null, detailError: null, reviews: [] }),
+  closeArticle: () =>
+    set({ readingCid: null, detail: null, detailError: null, reviews: [], comments: [], commentMessage: null }),
 
   loadReviews: async (cid) => {
     set({ reviewsLoading: true })
@@ -176,6 +202,48 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
   },
 
   clearSubmitMessage: () => set({ submitMessage: null }),
+
+  loadComments: async (cid, opts = {}) => {
+    const append = opts.append ?? false
+    const limit = 20
+    const page = append ? Math.floor(get().comments.length / limit) + 1 : 1
+    set({ commentsLoading: true })
+    try {
+      // 评论按 coid（自增 id）升序 = 最早在前；新评论靠后，回复楼中楼紧随
+      const res = await window.hqsf.listComments(cid, { order: 'coid', limit, page })
+      if (res.ok) {
+        const items = res.data.items
+        set({
+          comments: append ? [...get().comments, ...items] : items,
+          commentsTotal: res.data.total,
+          commentsLoading: false,
+          commentsHasMore: items.length >= limit
+        })
+      } else {
+        set({ commentsLoading: false, commentsHasMore: false })
+      }
+    } catch (err) {
+      set({ commentsLoading: false, commentsHasMore: false })
+    }
+  },
+
+  submitComment: async (payload) => {
+    if (get().commentSubmitting) return false
+    set({ commentSubmitting: true, commentMessage: null })
+    const res = await window.hqsf.addComment(payload)
+    set({ commentSubmitting: false })
+    if (res.ok && res.data.ok) {
+      // 首次评论可能进审核（auditlevel=1），服务端返回成功但新评论未必立即可见；提示后重拉
+      set({ commentMessage: '评论已提交，感谢参与' })
+      const cid = get().readingCid
+      if (cid) void get().loadComments(cid)
+      return true
+    }
+    set({ commentMessage: `评论发布失败: ${res.ok ? res.data.error : res.error}` })
+    return false
+  },
+
+  clearCommentMessage: () => set({ commentMessage: null }),
 
   loadList: async (opts = {}) => {
     const append = opts.append ?? false

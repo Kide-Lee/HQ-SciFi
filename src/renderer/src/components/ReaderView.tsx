@@ -5,6 +5,8 @@ import { useUiStore } from '../stores/ui'
 import { activityPhase, type ActivityPhase } from '../lib/activity'
 import { cachedImageUrl, formatSize, formatTs, expandMediaTags, sanitizeHtml, scoreColor } from '../lib/sanitize'
 import { ErrorBanner } from './ErrorBanner'
+import { CommentSection } from './ReaderComments'
+import { ReaderInteractions } from './ReaderInteractions'
 import type { ArticleDetail, MetaRef, ReviewItem, ReviewPayload } from '../../../shared/types'
 
 /** 活动状态缓存（mid → phase；从文章跳转活动列表时用，避免重复请求） */
@@ -140,6 +142,44 @@ export function ReaderView(): React.JSX.Element {
   const safeHtml = useMemo(() => (detail ? expandMediaTags(sanitizeHtml(detail.text)) : ''), [detail])
   const bodyRef = useRef<HTMLElement | null>(null)
 
+  /** 导言：详情 introduction 优先；缺省时从当前列表缓存匹配同 cid 条目（列表接口实测含 introduction） */
+  const intro = useMemo(() => {
+    if (!detail) return ''
+    const own = detail.introduction?.trim()
+    if (own) return own
+    const cached = useReaderStore.getState().list.find((it) => it.cid === detail.cid)
+    return cached?.introduction?.trim() ?? ''
+  }, [detail])
+
+  /** 目录：正文注入后提取 h1-h6 标题（≥2 个才显示）。
+   *  注意：React 对 dangerouslySetInnerHTML 每次提交都会重写 innerHTML，effect 捕获的节点会被
+   *  detached，因此跳转时实时查询标题元素（索引与 toc 生成时一致，正文会话内稳定）。 */
+  const [toc, setToc] = useState<Array<{ idx: number; level: number; text: string }>>([])
+  useEffect(() => {
+    const body = bodyRef.current
+    if (!body) {
+      setToc([])
+      return
+    }
+    const items: Array<{ idx: number; level: number; text: string }> = []
+    Array.from(body.querySelectorAll('h1,h2,h3,h4,h5,h6')).forEach((h, i) => {
+      const text = (h.textContent ?? '').trim()
+      if (!text) return
+      items.push({ idx: i, level: Number(h.tagName.slice(1)), text })
+    })
+    setToc(items)
+  }, [safeHtml, detail?.cid])
+
+  function jumpTo(idx: number): void {
+    const body = bodyRef.current
+    const scroller = body?.closest('.reader-main')
+    if (!body || !scroller) return
+    const el = Array.from(body.querySelectorAll('h1,h2,h3,h4,h5,h6'))[idx]
+    if (!el) return
+    const top = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop
+    scroller.scrollTo({ top, behavior: 'smooth' })
+  }
+
   // 横长图处理：宽/高比 ≥ 2 的图放大高度、宽度溢出裁掉（object-fit: cover 由 CSS 实现）
   useEffect(() => {
     const body = bodyRef.current
@@ -222,14 +262,39 @@ export function ReaderView(): React.JSX.Element {
                   {showReview ? '收起评审' : '✎ 评审这篇文章'}
                 </button>
               )}
+              {/* v0.0.3：互动操作条（投币/点赞/收藏/分享） */}
+              <ReaderInteractions detail={detail} />
             </div>
           </header>
+          {intro && <div className="reader-intro">{intro}</div>}
+          {toc.length >= 2 && (
+            <details className="reader-toc">
+              <summary>目录</summary>
+              <ul className="reader-toc-list">
+                {toc.map((t) => (
+                  <li key={t.idx} className={`reader-toc-item lv-${Math.min(6, Math.max(1, t.level))}`}>
+                    <a
+                      href={`#toc-${t.idx + 1}`}
+                      onClick={(e) => {
+                        e.preventDefault()
+                        jumpTo(t.idx)
+                      }}
+                    >
+                      {t.text}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
           <article
             ref={bodyRef}
             className="reader-body"
             // 正文已经 sanitizeHtml 白名单净化，无脚本/事件/危险协议
             dangerouslySetInnerHTML={{ __html: safeHtml }}
           />
+          {/* v0.0.3：评论区（正文下方） */}
+          <CommentSection cid={detail.cid} />
           <div className="reader-footer">
             <button className="toolbar-btn" onClick={closeArticle}>
               ← 返回列表

@@ -156,6 +156,10 @@ export interface ArticleDetail {
   collection?: MetaRef[]
   active?: MetaRef[] | null
   markdown?: number
+  /** 导言（contentsInfo 返回；缺失时客户端从列表缓存回填，避免漏展示有导言的文章） */
+  introduction?: string
+  /** 当前用户是否已点赞（0/1，2026-08 实测 contentsInfo 返回；用于点赞按钮初始态） */
+  isLikes?: number
 }
 
 /** 文章列表拉取选项（contentsList / selectContents / choiceList） */
@@ -279,4 +283,52 @@ export interface ReviewTaskItem {
   activeid?: number | string
   activeName?: string
   articleTitle?: string
+}
+
+// ---------- 评论（hqComments/） ----------
+
+/** 评论条目（commentsList data 项，TypechoComments 表；coid 为评论 id） */
+export interface CommentItem {
+  /** 评论 id（coid） */
+  coid: number | string
+  /** 所属文章 cid */
+  cid: number | string
+  /** 上级评论 coid（0 = 顶层评论；回复他人时传其 coid） */
+  parent: number | string
+  /** 评论内容（纯文本） */
+  text: string
+  /** 作者昵称 */
+  author: string
+  /** 作者 uid（0 = 匿名访客） */
+  authorId: number | string
+  /** 头像 URL */
+  avatar?: string
+  /** 创建时间（秒） */
+  created: number
+  /** 子评论（楼中楼）数 */
+  subNum?: number
+  /** 父评论摘要（commentsList 返回 parentComments：author/text/created） */
+  parentComments?: { author?: string; text?: string; created?: string }
+}
+
+/** 评论提交结果（commentsAdd） */
+export interface CommentSubmitResult {
+  ok: boolean
+  error?: string
+}
+
+// ---------- 用户互动（hqUserlog/：点赞 / 收藏 / 投币） ----------
+
+/** 用户日志操作结果（addLog：likes/mark/reward） */
+export interface LogOpResult {
+  ok: boolean
+  error?: string
+}
+
+/** 收藏状态（isMark 查询：cid + type=content） */
+export interface MarkStatus {
+  /** 是否已收藏 */
+  marked: boolean
+  /** 收藏日志 id（取消收藏时传给 removeLog 的 key） */
+  logid?: number | string
 }

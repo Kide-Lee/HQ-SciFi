@@ -9,7 +9,22 @@ import {
 } from './auth'
 import { getDocsRoot, ensureDocsRoot, listLocalDocs, readLocalFile, writeLocalFile, createLocalDraft, chooseDocsDir } from './fs'
 import { pullRemote, pushToDraft, publish } from './sync'
-import { listRemoteArticles, fetchRemoteArticle, listReviews, submitReview, setReviewAttitude, listCategories, listMetas, listGptModels, listReviewTasks } from './read'
+import {
+  addComment,
+  addUserLog,
+  fetchRemoteArticle,
+  getMarkStatus,
+  listCategories,
+  listComments,
+  listGptModels,
+  listMetas,
+  listRemoteArticles,
+  listReviews,
+  listReviewTasks,
+  removeUserLog,
+  setReviewAttitude,
+  submitReview
+} from './read'
 import { listArticles } from './db'
 import type { ArticleListOptions, ReviewPayload } from '../shared/types'
 
@@ -23,6 +38,15 @@ function fail(error: unknown) {
 }
 
 export function registerIpcHandlers(): void {
+  /** senderFrame 校验：只接受本应用渲染层页面（生产 file://、dev http://localhost），防其他页面借 IPC 通道 */
+  function isTrustedSender(event: Electron.IpcMainInvokeEvent): boolean {
+    const frame = event.senderFrame
+    const url = frame?.url ?? ''
+    return url.startsWith('file://') || /^https?:\/\/localhost(:\d+)?\//.test(url)
+  }
+  const trusted = (event: Electron.IpcMainInvokeEvent): Error | null =>
+    isTrustedSender(event) ? null : new Error('非法调用来源')
+
   ipcMain.handle('hqsf:ping', () => 'pong')
 
   // 复制文本到系统剪贴板（渲染层 sandbox 下 navigator.clipboard 不可靠，走主进程）
@@ -263,6 +287,88 @@ export function registerIpcHandlers(): void {
     if (!uid) return ok([])
     try {
       return ok(await listReviewTasks(token, uid))
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  // ---- 评论（hqComments/） ----
+  ipcMain.handle('hqsf:list-comments', async (_e, cid: string, opts: { limit?: number; page?: number; order?: string } = {}) => {
+    const blocked = trusted(_e)
+    if (blocked) return fail(blocked)
+    const token = getStoredToken()
+    const key = String(cid ?? '').trim()
+    if (!key) return fail(new Error('缺少文章 ID'))
+    try {
+      return ok(await listComments(token, key, opts))
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  ipcMain.handle('hqsf:add-comment', async (_e, payload: { cid: string; text: string; parent?: number | string }) => {
+    const blocked = trusted(_e)
+    if (blocked) return fail(blocked)
+    const token = getStoredToken()
+    if (!token) return fail(new Error('未登录，无法评论'))
+    if (!payload || typeof payload !== 'object') return fail(new Error('无效的评论数据'))
+    const cid = String(payload.cid ?? '').trim()
+    if (!cid) return fail(new Error('缺少目标文章 ID'))
+    const text = String(payload.text ?? '').trim()
+    if (text.length < 4) return fail(new Error('评论内容至少 4 个字'))
+    if (text.length > 2000) return fail(new Error('评论内容过长（最多 2000 字）'))
+    if (payload.parent != null && typeof payload.parent !== 'string' && typeof payload.parent !== 'number') {
+      return fail(new Error('无效的回复目标'))
+    }
+    try {
+      return ok(await addComment(token, { cid, text, parent: payload.parent }))
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  // ---- 用户互动（hqUserlog/：点赞 / 收藏 / 投币） ----
+  ipcMain.handle('hqsf:add-log', async (_e, type: 'likes' | 'mark' | 'reward', params: Record<string, unknown> = {}) => {
+    const blocked = trusted(_e)
+    if (blocked) return fail(blocked)
+    const token = getStoredToken()
+    if (!token) return fail(new Error('未登录，无法操作'))
+    if (type !== 'likes' && type !== 'mark' && type !== 'reward') return fail(new Error('未知的操作类型'))
+    const cid = String(params?.cid ?? '').trim()
+    if (!cid) return fail(new Error('缺少目标文章 ID'))
+    if (type === 'reward') {
+      const num = Number(params?.num)
+      if (!Number.isInteger(num) || num <= 0 || num > 10000) {
+        return fail(new Error('投币数量需为 1-10000 的整数'))
+      }
+      return ok(await addUserLog(token, type, { cid, num }))
+    }
+    return ok(await addUserLog(token, type, { cid }))
+  })
+
+  ipcMain.handle('hqsf:is-mark', async (_e, cid: string) => {
+    const blocked = trusted(_e)
+    if (blocked) return fail(blocked)
+    const token = getStoredToken()
+    if (!token) return fail(new Error('未登录'))
+    const key = String(cid ?? '').trim()
+    if (!key) return fail(new Error('缺少文章 ID'))
+    try {
+      return ok(await getMarkStatus(token, key))
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  ipcMain.handle('hqsf:remove-log', async (_e, key: number | string) => {
+    const blocked = trusted(_e)
+    if (blocked) return fail(blocked)
+    const token = getStoredToken()
+    if (!token) return fail(new Error('未登录'))
+    const logKey = String(key ?? '').trim()
+    if (!logKey) return fail(new Error('缺少收藏记录 ID'))
+    try {
+      return ok(await removeUserLog(token, logKey))
     } catch (err) {
       return fail(err)
     }
