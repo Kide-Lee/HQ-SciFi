@@ -191,9 +191,9 @@ export function registerIpcHandlers(): void {
     }
   })
 
-  ipcMain.handle('hqsf:delete-local-file', (_e, path: string) => {
+  ipcMain.handle('hqsf:delete-local-file', async (_e, path: string) => {
     try {
-      deleteLocalFile(getDocsRoot(), path)
+      await deleteLocalFile(getDocsRoot(), path)
       return ok(null)
     } catch (err) {
       return fail(err)

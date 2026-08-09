@@ -1,5 +1,5 @@
-import { app, dialog, type BrowserWindow } from 'electron'
-import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
+import { app, dialog, shell, type BrowserWindow } from 'electron'
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join, relative, resolve, sep } from 'node:path'
 import { getMeta, setMeta } from './db'
 import type { LocalNode } from '../shared/types'
@@ -142,13 +142,13 @@ export function createLocalDir(root: string, rel: string): string {
   return abs
 }
 
-/** 删除本地 md 文件（仅限存档根目录内；文件不存在视为成功） */
-export function deleteLocalFile(root: string, p: string): void {
+/** 删除本地 md 文件（移入系统回收站，可恢复；文件不存在视为成功） */
+export async function deleteLocalFile(root: string, p: string): Promise<void> {
   const abs = assertInside(root, p)
   if (!existsSync(abs)) return
   const st = statSync(abs)
   if (st.isDirectory()) throw new Error('不能删除目录，仅支持删除文章文件')
-  unlinkSync(abs)
+  await shell.trashItem(abs)
 }
 
 /** 读本地 md 文件（仅限存档根目录内） */

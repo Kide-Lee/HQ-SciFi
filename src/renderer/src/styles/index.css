@@ -987,7 +987,8 @@ body {
 .editor-local-home {
   align-items: stretch;
   justify-content: flex-start;
-  max-width: 560px;
+  /* v0.0.6：与其他功能首页（.home-view）宽度一致 */
+  max-width: 1080px;
   margin: 0 auto;
   padding: 32px 24px;
   width: 100%;
@@ -1057,7 +1058,7 @@ body {
   width: 100%;
 }
 
-/* 删除按钮：悬浮右上角圆形钮，hover 变红；二次确认态红底白字 */
+/* 删除按钮：默认纯图标（无胶囊边框），hover 变红底胶囊；二次确认态红底白字 */
 .editor-local-card-del {
   position: absolute;
   top: 8px;
@@ -1065,51 +1066,53 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--bg-card);
+  border: none;
+  background: transparent;
   color: var(--text-muted);
   font: inherit;
   font-size: 12px;
   line-height: 1;
-  padding: 5px 8px;
+  padding: 6px;
+  border-radius: 14px;
   cursor: pointer;
-  opacity: 0.75;
+  opacity: 0.85;
   transition: color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
 }
 .editor-local-card-del:hover {
   opacity: 1;
   color: #c0392b;
-  border-color: #c0392b;
   background: #fdecec;
 }
 .editor-local-card-del.confirming {
   opacity: 1;
   color: #fff;
   background: #c0392b;
-  border-color: #c0392b;
+  padding: 6px 10px;
 }
 
-/* v0.0.6：文件夹入口（可点击进入） */
+/* v0.0.6：文件夹入口（卡片样式类似文章卡片，但更矮） */
 .editor-local-dir-entry {
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
   text-align: left;
-  border: 1px dashed var(--border);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: transparent;
+  background: var(--bg-card);
   font: inherit;
   font-size: 13px;
   color: var(--text);
   padding: 10px 14px;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .editor-local-dir-entry:hover {
   border-color: var(--accent);
-  background: var(--accent-soft);
+  box-shadow: 0 2px 10px rgba(20, 24, 32, 0.08);
+}
+.editor-local-dir-entry svg:first-child {
+  color: var(--accent);
 }
 .editor-local-dir-entry .editor-local-dir-name {
   flex: 1;
@@ -1122,15 +1125,17 @@ body {
   color: var(--text-muted);
 }
 
-/* v0.0.6：面包屑导航 */
+/* v0.0.6：面包屑（并入首页 h3 标题行，inline） */
 .editor-local-crumbs {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 2px;
-  margin-bottom: 10px;
+  gap: 0 2px;
+  margin-left: 10px;
   font-size: 12px;
+  font-weight: 400;
   color: var(--text-muted);
+  vertical-align: middle;
 }
 .editor-local-crumbs .crumb {
   border: none;
@@ -1146,7 +1151,7 @@ body {
   background: var(--accent-soft);
 }
 .editor-local-crumbs .crumb.current {
-  color: var(--text);
+  color: var(--text-muted);
   cursor: default;
   background: transparent;
 }

@@ -287,12 +287,41 @@ export function EditorPane(): React.JSX.Element {
           /* v0.0.6：写作首页——本地存档目录导航 + 文章卡片 */
           <div className="editor-empty editor-local-home">
             <div className="editor-local-home-head">
-              <h3>本地存档</h3>
+              <h3>
+                本地存档
+                {/* v0.0.6：面包屑并入标题行（inline），点击返回对应层级 */}
+                <span className="editor-local-crumbs">
+                  <button
+                    className={`crumb ${currentDir === '' ? 'current' : ''}`}
+                    onClick={() => setCurrentDir('')}
+                  >
+                    存档根
+                  </button>
+                  {(dirNode?.rel ?? '')
+                    .split('/')
+                    .filter(Boolean)
+                    .map((seg, i, arr) => {
+                      const targetAbs = relPathToAbs(localTree, arr.slice(0, i + 1))
+                      return (
+                        <span key={`${seg}-${i}`} className="crumb-seg">
+                          <span className="crumb-sep">/</span>
+                          <button
+                            className={`crumb ${i === arr.length - 1 ? 'current' : ''}`}
+                            onClick={() => targetAbs && setCurrentDir(targetAbs)}
+                          >
+                            {seg}
+                          </button>
+                        </span>
+                      )
+                    })}
+                </span>
+              </h3>
               {localTree.length > 0 && (
                 <span className="editor-local-count">{countAllDocs(localTree)} 项</span>
               )}
               <div className="editor-local-actions">
-                <button className="toolbar-btn" onClick={() => setShowNewDir((v) => !v)}>
+                {/* v0.0.6：两个新建按钮样式一致；均在当前浏览目录内创建 */}
+                <button className="primary-btn" onClick={() => setShowNewDir((v) => !v)}>
                   + 新建文件夹
                 </button>
                 <button className="primary-btn" onClick={() => setShowNew(true)}>
