@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDown, ArrowUp, ChevronRight, Folder, Trash2, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronRight, FilePlus, Folder, FolderPlus, Trash2, X } from 'lucide-react'
 import { EditorView, keymap } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
 import { basicSetup } from 'codemirror'
@@ -353,12 +353,20 @@ export function EditorPane(): React.JSX.Element {
                     {sortAsc ? <ArrowUp size={13} /> : <ArrowDown size={13} />}
                   </button>
                 </div>
-                {/* v0.0.6：两个新建按钮统一轻量描边样式，均在当前浏览目录内创建 */}
-                <button className="ghost-btn" onClick={() => setShowNewDir((v) => !v)}>
-                  + 新建文件夹
+                {/* v0.0.6：新建文件夹/新建草稿用图标表示（hover 提示） */}
+                <button
+                  className="ghost-btn editor-local-icon-btn"
+                  onClick={() => setShowNewDir((v) => !v)}
+                  title={showNewDir ? '取消新建文件夹' : '新建文件夹'}
+                >
+                  <FolderPlus size={15} />
                 </button>
-                <button className="ghost-btn" onClick={() => setShowNew(true)}>
-                  + 新建草稿
+                <button
+                  className="ghost-btn editor-local-icon-btn"
+                  onClick={() => setShowNew(true)}
+                  title="新建草稿"
+                >
+                  <FilePlus size={15} />
                 </button>
               </div>
             </div>

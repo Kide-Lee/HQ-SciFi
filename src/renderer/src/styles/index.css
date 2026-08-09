@@ -991,6 +991,8 @@ body {
   justify-content: center;
   color: var(--text-muted);
   font-size: 14px;
+  /* v0.0.6 修复：写作首页内容超出窗口时可滚动 */
+  overflow-y: auto;
 }
 
 /* v0.0.3：写作首页本地存档列表（本地文档存在内容时展示） */
@@ -1041,6 +1043,13 @@ body {
   display: flex;
   align-items: center;
   gap: 2px;
+}
+/* v0.0.6：新建文件夹/新建草稿图标按钮（仅图标，hover 提示） */
+.editor-local-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 6px;
 }
 
 .editor-local-hint {
