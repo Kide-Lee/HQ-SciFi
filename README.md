@@ -1,4 +1,4 @@
-# 荒启科幻桌面客户端（hq-scifi）
+# 黄芪饮片桌面客户端（hq-scifi）
 
 [![Release](https://img.shields.io/github/v/release/Kide-Lee/HQ-SciFi)](https://github.com/Kide-Lee/HQ-SciFi/releases)
 [![License](https://img.shields.io/github/license/Kide-Lee/HQ-SciFi)](LICENSE)

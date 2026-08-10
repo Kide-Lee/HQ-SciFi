@@ -15,3 +15,11 @@ reasonix.toml
 
 # 第三方服务端参考实现（RuleApi，荒启服务端同源）：源码 + 编译产物全部忽略
 /vendor/
+
+# 荒启 API 相关调研文档（本地参考，不入库）
+/doc/api-research.md
+/doc/ruleapi-integration.md
+/doc/site-overview.md
+
+# 荒启 API 接口配置（本地持有，不入库；模板见 api.config.example.json）
+api.config.json

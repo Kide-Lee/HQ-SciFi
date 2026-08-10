@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join, relative, resolve } from 'node:path'
 import TurndownService from 'turndown'
-import { API_BASE, apiRequest, downloadBinary, uploadMultipart, type ApiResponse } from './net/api'
+import { apiRequest, apiUrl, downloadBinary, endpoint, uploadMultipart, type ApiResponse } from './net/api'
 import { mdToHtml } from './md2html'
 import {
   assertInside,
@@ -81,7 +81,7 @@ async function listRemote(token: string, authorId: string, type: string): Promis
   const items: RemoteItem[] = []
   let page = 1
   for (;;) {
-    const resp = await apiRequest<RemoteItem[] | null>('hqContents/contentsList', {
+    const resp = await apiRequest<RemoteItem[] | null>(endpoint('contentsList').path, {
       method: 'POST',
       body: {
         searchParams: JSON.stringify({ type, authorId }),
@@ -110,13 +110,13 @@ async function listRemote(token: string, authorId: string, type: string): Promis
 async function fetchFullText(token: string, cid: string): Promise<{ html: string; markdown: boolean }> {
   const attempts: Array<() => Promise<Record<string, unknown>>> = [
     () =>
-      apiRequest<Record<string, unknown>>('hqContents/contentsInfo', {
+      apiRequest<Record<string, unknown>>(endpoint('contentsInfo').path, {
         method: 'POST',
         body: { key: cid, token },
         raw: true
       }),
     () =>
-      apiRequest<Record<string, unknown>>('hqContents/contentsInfo', {
+      apiRequest<Record<string, unknown>>(endpoint('contentsInfo').path, {
         method: 'GET',
         query: { key: cid, isMd: 0, token },
         raw: true
@@ -212,7 +212,7 @@ async function uploadLocalImages(md: string, root: string, token: string): Promi
     const abs = resolve(root, ref)
     if (!existsSync(abs)) continue // 本地文件缺失：保持原引用（编辑器里的无效路径，不阻塞推送）
     const buffer = readFileSync(abs)
-    const url = await uploadMultipart(API_BASE + 'upload/full', token, basename(abs), buffer)
+    const url = await uploadMultipart(apiUrl(endpoint('uploadFile').path), token, basename(abs), buffer)
     out = out.split(ref).join(url)
   }
   return out
@@ -389,8 +389,8 @@ async function upload(
       isMd: 0
     }
     const resp = cid
-      ? await apiRequest('hqContents/contentsUpdate', { method: 'POST', body })
-      : await apiRequest('hqContents/contentsAdd', { method: 'POST', body })
+      ? await apiRequest(endpoint('contentsUpdate').path, { method: 'POST', body })
+      : await apiRequest(endpoint('contentsAdd').path, { method: 'POST', body })
     if (!cid) {
       cid = extractCid(resp)
       // 上传成功但拿不到 cid 时不能静默入库：否则下次推送会重复创建远端文章

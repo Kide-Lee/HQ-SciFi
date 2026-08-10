@@ -60,10 +60,6 @@ interface UiState {
   readerPanelOpen: boolean
   /** v0.0.3：右栏当前 tab（目录 / 评论 / 评审） */
   readerPanelTab: 'toc' | 'comments' | 'review'
-  /**
-   * v0.0.6：登录模态是否打开（未登录也可浏览/写作，登录作为覆盖层从用户卡唤起）
-   */
-  loginOpen: boolean
   setSection: (section: TopSection) => void
   setSelectedId: (id: string | null) => void
   /** 打开栏目列表（作品库分类等） */
@@ -73,8 +69,6 @@ interface UiState {
   toggleReaderPanel: () => void
   toggleSidebarCollapsed: () => void
   setReaderPanelTab: (tab: 'toc' | 'comments' | 'review') => void
-  openLogin: () => void
-  closeLogin: () => void
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -85,7 +79,6 @@ export const useUiStore = create<UiState>((set) => ({
   sidebarCollapsed: localStorage.getItem('hqsf-sidebar-collapsed') === '1',
   readerPanelOpen: false,
   readerPanelTab: 'review',
-  loginOpen: false,
   setSection: (section) => set({ section, selectedId: null, listContext: null }),
   setSelectedId: (selectedId) => set({ selectedId }),
   openList: (ctx) => set({ selectedId: ctx.title, listContext: ctx }),
@@ -98,7 +91,5 @@ export const useUiStore = create<UiState>((set) => ({
       localStorage.setItem('hqsf-sidebar-collapsed', v ? '1' : '0')
       return { sidebarCollapsed: v }
     }),
-  setReaderPanelTab: (readerPanelTab) => set({ readerPanelTab }),
-  openLogin: () => set({ loginOpen: true }),
-  closeLogin: () => set({ loginOpen: false })
+  setReaderPanelTab: (readerPanelTab) => set({ readerPanelTab })
 }))

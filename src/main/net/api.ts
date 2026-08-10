@@ -1,8 +1,9 @@
 import { net } from 'electron'
 import type { ApiRequestOptions } from '../../shared/types'
+import { apiBaseUrl } from './apiconfig'
 
-/** 荒启 API 基址（已实测确认，详见 api-research.md） */
-export const API_BASE = 'https://api.huangqisf.com/'
+export { apiBaseUrl, apiUrl, endpoint, ApiConfigError } from './apiconfig'
+export type { ApiConfig, ApiEndpoint, EndpointName, HttpMethod } from './apiconfig'
 
 export interface ApiResponse<T = unknown> {
   code: number
@@ -41,7 +42,7 @@ export async function apiRequest<T = unknown>(
   options: ApiRequestOptions = {}
 ): Promise<ApiResponse<T> | T> {
   const { method = 'GET', query, body, headers, raw = false } = options
-  const url = new URL(path, API_BASE)
+  const url = new URL(path, apiBaseUrl())
 
   const finalHeaders: Record<string, string> = {
     'Content-Type': 'application/x-www-form-urlencoded',

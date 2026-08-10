@@ -400,17 +400,8 @@ body {
 }
 
 .sidebar.collapsed .user-meta,
-.sidebar.collapsed .logout-btn,
-.sidebar.collapsed .user-card-login .user-meta {
+.sidebar.collapsed .logout-btn {
   display: none;
-}
-
-/* v0.0.6 修复：折叠态未登录用户卡——按钮 width:100% 占满整行，
-   .user-card 的 justify-content 对按钮内部无效，需让按钮内容（头像）居中 */
-.sidebar.collapsed .user-card-login {
-  justify-content: center;
-  gap: 0;
-  padding: 4px 0;
 }
 
 .sidebar.collapsed .nav-item {
@@ -551,10 +542,7 @@ body {
 }
 
 .login-wrap {
-  /* v0.0.6：登录从独占页改为覆盖层模态（未登录可直接浏览/写作） */
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -562,49 +550,12 @@ body {
 }
 
 .login-card {
-  position: relative;
   width: 360px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 32px 28px 24px;
   box-shadow: 0 8px 32px rgba(31, 35, 41, 0.08);
-}
-
-/* v0.0.6：模态右上角关闭 + 底部「先逛逛」入口 */
-.login-close {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 6px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.login-close:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
-.login-skip {
-  display: block;
-  margin: 12px auto 0;
-  border: none;
-  background: transparent;
-  color: var(--accent);
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.login-skip:hover {
-  text-decoration: underline;
 }
 
 .login-brand h1 {
@@ -935,26 +886,6 @@ body {
 
 .logout-btn:hover {
   color: #c0392b;
-}
-
-/* v0.0.6：未登录用户卡 = 登录入口按钮（复用 .user-card 布局） */
-.user-card-login {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  padding: 8px;
-  border: none;
-  border-radius: var(--radius);
-  background: transparent;
-  width: 100%;
-  text-align: left;
-  font: inherit;
-  color: var(--text);
-  cursor: pointer;
-}
-
-.user-card-login:hover {
-  background: var(--bg-hover);
 }
 
 /* ===== M1 追加：编辑器 ===== */
@@ -2096,15 +2027,6 @@ body {
 .comment-submit:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-}
-.comment-login-hint {
-  flex-shrink: 0;
-  font-size: 13px;
-  color: var(--text-muted);
-  border-top: 1px solid var(--border);
-  background: #fbfbfd;
-  padding: 12px;
-  text-align: center;
 }
 /* v0.0.6：评论列表为右栏滚动区（发表框贴底） */
 .comment-list {

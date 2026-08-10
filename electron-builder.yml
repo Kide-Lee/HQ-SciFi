@@ -12,6 +12,12 @@ asarUnpack:
   - node_modules/better-sqlite3/**
 compression: normal
 
+# 荒启 API 接口配置（本地持有，不入库）随包分发：打包机需先创建 api.config.json，
+# 缺失时 electron-builder 会报错（提示给编译本应用的开发者）
+extraResources:
+  - from: api.config.json
+    to: api.config.json
+
 # 窗口标题等显示名（中文），安装器显示名用 shortcutName
 nsis:
   oneClick: false
@@ -19,7 +25,7 @@ nsis:
   perMachine: false
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: 荒启科幻
+  shortcutName: 黄芪饮片
 
 win:
   target:
@@ -46,8 +52,8 @@ linux:
       arch: [x64]
   category: Utility
   maintainer: hqsf <hqsf1904@163.com>
-  synopsis: 荒启科幻桌面客户端
-  description: 荒启科幻（huangqisf.com）桌面客户端 —— 写作-阅读-评审 一站式方案。
+  synopsis: 黄芪饮片桌面客户端
+  description: 黄芪饮片 —— 荒启科幻（huangqisf.com）桌面客户端，写作-阅读-评审 一站式方案。
   executableName: huangqi-scifi
   syncDesktopName: true
 

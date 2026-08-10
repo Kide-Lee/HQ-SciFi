@@ -1,4 +1,4 @@
-import { apiRequest } from './net/api'
+import { apiRequest, endpoint } from './net/api'
 import { loadSession, saveSession, clearSession, isStrongEncryption } from './session'
 import type { LoginResult, UserSession } from '../shared/types'
 
@@ -33,7 +33,7 @@ function normalizeUserinfo(data: unknown): Record<string, unknown> {
 
 export async function loginWithPassword(name: string, password: string): Promise<LoginResult> {
   try {
-    const resp = await apiRequest('hqUsers/userLogin', {
+    const resp = await apiRequest(endpoint('userLogin').path, {
       method: 'POST',
       body: { params: JSON.stringify({ name, password }) }
     })
@@ -52,7 +52,7 @@ export async function loginWithPassword(name: string, password: string): Promise
 
 export async function sendSmsCode(phone: string): Promise<{ ok: boolean; error?: string }> {
   try {
-    await apiRequest('hqUsers/SendCode', {
+    await apiRequest(endpoint('sendCode').path, {
       method: 'POST',
       body: { params: JSON.stringify({ phone }) }
     })
@@ -64,7 +64,7 @@ export async function sendSmsCode(phone: string): Promise<{ ok: boolean; error?:
 
 export async function loginWithPhone(phone: string, code: string): Promise<LoginResult> {
   try {
-    const resp = await apiRequest('hqUsers/phoneLogin', {
+    const resp = await apiRequest(endpoint('phoneLogin').path, {
       method: 'POST',
       body: { params: JSON.stringify({ phone, code }) }
     })
@@ -98,7 +98,7 @@ export async function logout(): Promise<void> {
   const s = loadSession()
   if (s?.token) {
     try {
-      await apiRequest('hqUsers/signOut', { method: 'POST', body: { token: s.token } })
+      await apiRequest(endpoint('signOut').path, { method: 'POST', body: { token: s.token } })
     } catch {
       /* 远端退出失败不阻塞本地清除 */
     }

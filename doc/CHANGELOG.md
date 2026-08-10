@@ -1,5 +1,14 @@
 # 更新日志
 
+## v0.0.7（开发中，未发布）
+
+### 变更
+- **项目更名「黄芪饮片」**：窗口标题、页面标题、登录页品牌名、Windows 快捷方式名、打包描述均改为「黄芪饮片」（`huangqisf.com` 平台名/存档路径/产物名 `hq-scifi` 保持不变）；应用图标（`logo.png`/`icon.png`/`icon.ico`，Windows 多尺寸）采用 ChatGPT 生成的黄芪饮片图像（透明底，替代此前手绘 SVG 版；`logo.svg` 保留为矢量备用）
+
+### 撤销
+- **撤销「允许非注册用户查看文章」设计（v0.0.6 引入）**：恢复「必须登录才能看到内容」——未登录只能看到登录页，登录不再是覆盖层模态；主进程 `fetchRemoteArticle` 恢复 token 必填、`hqsf:get-remote-article` 未登录直接拒绝（移除匿名读全文与 `ArticleUnavailableError` 包装、缓存键不再区分登录态）；渲染层移除登录模态（`loginOpen`/`openLogin`/`closeLogin`）、左栏「点击登录」用户卡、评审区/评论区的未登录分支。右栏读审重构与左栏 UI 优化（折叠按钮移顶栏左侧、设置贴底、评论框贴底自动增高、无目录隐藏目录 tab、数量进 tab）保持不变
+- **接口定义外置**：荒启 API 基址与全部接口 path/method 从代码提取到 `api.config.json`（本地持有，不入库；模板 `api.config.example.json`），程序经 `net/apiconfig.ts` 的 `endpoint(name)` 读取；配置缺失/损坏/缺接口时抛 `ApiConfigError` 并在启动时弹错退出（提示复制 example），打包时经 `extraResources` 随包分发
+
 ## v0.0.6（2026-08-10）
 
 ### 改进

@@ -1,8 +1,9 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, dialog } from 'electron'
 import { join } from 'node:path'
 import { registerIpcHandlers } from './ipc'
 import { initDb } from './db'
 import { registerImageProtocol } from './imgcache'
+import { loadApiConfig } from './net/apiconfig'
 
 /** electron-vite dev 模式下由环境变量注入渲染层 URL */
 function rendererUrl(): string {
@@ -24,7 +25,7 @@ export function createWindow(): BrowserWindow {
       ? { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 12, y: 12 } }
       : { frame: false }),
     autoHideMenuBar: true,
-    title: '荒启科幻',
+    title: '黄芪饮片',
     backgroundColor: '#f7f8fa',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -78,6 +79,21 @@ export function createWindow(): BrowserWindow {
 
 export function initApp(): void {
   app.whenReady().then(() => {
+    // 先加载 API 配置（baseUrl + 全部接口定义）：缺失/损坏时立即报错并退出，
+    // 错误信息面向编译/打包本应用的开发者（提示复制 api.config.example.json 为 api.config.json）。
+    try {
+      loadApiConfig()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      console.error(message)
+      try {
+        dialog.showErrorBox('API 配置加载失败', message)
+      } catch {
+        /* 无 GUI 环境（CI 等）：错误已输出到控制台 */
+      }
+      app.exit(1)
+      return
+    }
     initDb()
     registerImageProtocol()
     registerIpcHandlers()

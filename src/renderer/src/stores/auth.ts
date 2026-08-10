@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 import type { UserSession } from '../../../shared/types'
 import { useReaderStore } from './reader'
-import { useUiStore } from './ui'
 
 interface AuthState {
   /** 当前会话（用户信息；token 只存在主进程，不下发渲染层） */
@@ -81,11 +80,10 @@ export const useAuthStore = create<AuthState>((set) => ({
 }))
 
 /**
- * v0.0.6：登录成功后的收尾——关闭登录模态；重置并重拉评审任务
- * （未登录期间 loadReviewTasks 可能已置 loaded 且为空，需强制重拉出任务徽章）
+ * 登录成功后的收尾——重置并重拉评审任务
+ * （换账号登录时避免上一账号残留的任务徽章/loaded 状态）
  */
 function afterLogin(): void {
-  useUiStore.getState().closeLogin()
   useReaderStore.setState({ reviewTaskByCid: {}, reviewTasksLoaded: false })
   void useReaderStore.getState().loadReviewTasks()
 }

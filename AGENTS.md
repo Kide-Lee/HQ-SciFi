@@ -1,7 +1,7 @@
-# hqsf-client（荒启科幻桌面客户端）
+# hqsf-client（黄芪饮片桌面客户端）
 
-Electron 桌面客户端，为 [荒启科幻](https://www.huangqisf.com/) 提供 写作-阅读-评审 一站式方案。产品与技术设计见 `doc/design.md`，荒启 API 调查报告见 `doc/api-research.md`。
-> 文档归档：除 `README.md` 与 `AGENTS.md` 外的 md 文档（产品与技术设计 `doc/design.md`、荒启 API 调查 `doc/api-research.md`、网站调研 `doc/site-overview.md`）统一存放于 `doc/` 目录。
+Electron 桌面客户端，为 [荒启科幻](https://www.huangqisf.com/) 提供 写作-阅读-评审 一站式方案。产品与技术设计见 `doc/design.md`，荒启 API 接口定义见 `api.config.example.json`（真实配置 `api.config.json` 本地持有，不入库）。
+> 文档归档：除 `README.md` 与 `AGENTS.md` 外的 md 文档（产品与技术设计 `doc/design.md`）统一存放于 `doc/` 目录；荒启 API 调研文档与接口配置不入库（见 `.gitignore`）。
 
 ## Project
 
@@ -23,7 +23,7 @@ Electron 桌面客户端，为 [荒启科幻](https://www.huangqisf.com/) 提供
 
 - `src/main/` — 主进程：
   - `window.ts` 安全窗口（`contextIsolation:true` + `sandbox:true`）；`ipc.ts` 白名单 IPC（22 个 handler，全部 `{ok,data}|{ok,error}` 约定）
-  - `net/api.ts` 荒启 API（`net.fetch`，统一 `{code,msg,data,total}`，`code:1` 成功，基址 `https://api.huangqisf.com/`）
+  - `net/api.ts` 荒启 API 请求层（`net.fetch`，统一 `{code,msg,data,total}`，`code:1` 成功）；`net/apiconfig.ts` 配置驱动——baseUrl 与全部接口 path/method 从 `api.config.json` 读取（启动时加载，缺失抛 `ApiConfigError` 报错退出），代码不硬编码接口路径
   - `db.ts` better-sqlite3 索引（articles/meta 表；存元数据，正文是磁盘 md 文件）
   - `session.ts` safeStorage 加密 token 落盘（basic_text 后端降级标记 insecure）；`auth.ts` 登录/会话（token 不下发渲染层）
   - `fs.ts` 本地存档（根目录 `~/文档/荒启科幻/草稿`，resolve+realpath 双防穿越）；`sync.ts` 同步引擎（拉取/推送/发布/冲突检测）
@@ -39,7 +39,7 @@ Electron 桌面客户端，为 [荒启科幻](https://www.huangqisf.com/) 提供
 - 如果认为用户的设计有模糊之处，应询问用户。
 - **IPC 返回约定**：成功 `{ok:true, data:业务载荷}`，失败 `{ok:false, error:string}`；主进程负责把 `ApiResponse` 解包成载荷。ping/getAppInfo 是 M0 遗留裸值接口。
 - **类型单一来源**：`src/shared/types.ts` 定义跨端类型（ArticleRow/PullResult/UserSession/LocalNode/ApiResult…），主进程/preload/渲染层都从它 import；改类型只改一处。
-- **API 调用坑**：`apiRequest` 默认 GET，GET 分支忽略 `body`；凡 POST 接口必须显式传 `method:'POST'`。对接新接口先查 `doc/api-research.md` 确认 method 与参数。
+- **API 调用坑**：`apiRequest` 默认 GET，GET 分支忽略 `body`；凡 POST 接口必须显式传 `method:'POST'`。接口路径一律经 `endpoint('接口名').path` 从配置取（新增接口需同时在 `api.config.json` 与 `net/apiconfig.ts` 的 `REQUIRED_ENDPOINTS` 中登记）。
 - **token 安全**：token 只存在主进程（safeStorage），`window.hqsf` 不下发；渲染层拿不到任何凭据。
 - **路径安全**：所有本地文件 IPC 都经 `fs.ts` 的 `assertInside`（resolve + realpath 防 `..`/symlink 穿越），以 `getDocsRoot()` 为根。
 - 渲染层状态用 Zustand；UI 文案简体中文。

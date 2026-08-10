@@ -668,8 +668,6 @@ function ReviewInlineComments({
   const commentMessage = useReaderStore((s) => s.commentMessage)
   const clearCommentMessage = useReaderStore((s) => s.clearCommentMessage)
   const submitComment = useReaderStore((s) => s.submitComment)
-  const session = useAuthStore((s) => s.session)
-  const loggedIn = !!session
   const cid = useReaderStore((s) => s.detail)?.cid ?? ''
   const rid = String(review.id)
 
@@ -720,34 +718,30 @@ function ReviewInlineComments({
           </button>
         </div>
       )}
-      {loggedIn ? (
-        <form className="comment-form" onSubmit={(e) => void handleSubmit(e)}>
-          <textarea
-            ref={replyBoxRef}
-            className="comment-input"
-            rows={2}
-            value={draft}
-            placeholder={replyTo ? `回复 @${replyTo.author}（≥4 字）` : '评论这条评审…（≥4 字）'}
-            onChange={(e) => {
-              setDraft(e.target.value)
-              setLocalErr(null)
-            }}
-          />
-          <div className="comment-form-actions">
-            {replyTo && (
-              <button type="button" className="comment-cancel-reply" onClick={() => setReplyTo(null)}>
-                取消回复
-              </button>
-            )}
-            {localErr && <span className="comment-local-err">{localErr}</span>}
-            <button type="submit" className="comment-submit" disabled={commentSubmitting}>
-              {commentSubmitting ? '提交中 …' : '发表评论'}
+      <form className="comment-form" onSubmit={(e) => void handleSubmit(e)}>
+        <textarea
+          ref={replyBoxRef}
+          className="comment-input"
+          rows={2}
+          value={draft}
+          placeholder={replyTo ? `回复 @${replyTo.author}（≥4 字）` : '评论这条评审…（≥4 字）'}
+          onChange={(e) => {
+            setDraft(e.target.value)
+            setLocalErr(null)
+          }}
+        />
+        <div className="comment-form-actions">
+          {replyTo && (
+            <button type="button" className="comment-cancel-reply" onClick={() => setReplyTo(null)}>
+              取消回复
             </button>
-          </div>
-        </form>
-      ) : (
-        <div className="comment-login-hint">登录后可评论这条评审</div>
-      )}
+          )}
+          {localErr && <span className="comment-local-err">{localErr}</span>}
+          <button type="submit" className="comment-submit" disabled={commentSubmitting}>
+            {commentSubmitting ? '提交中 …' : '发表评论'}
+          </button>
+        </div>
+      </form>
       <div className="comment-list">
         {reviewTop.length === 0 && <div className="muted comment-empty">还没有评论这条评审的评论</div>}
         {reviewTop.map((c) => (
@@ -784,15 +778,9 @@ function ReviewPanel(): React.JSX.Element {
   const detail = useReaderStore((s) => s.detail)
   const loadReviews = useReaderStore((s) => s.loadReviews)
   const session = useAuthStore((s) => s.session)
-  const loggedIn = !!session
 
   const [tab, setTab] = useState<'mine' | 'all'>('mine')
   const [editing, setEditing] = useState(false)
-
-  // v0.0.6：未登录时只显示「所有评审」（不提供「我的评审」/评审表单）
-  useEffect(() => {
-    if (!loggedIn) setTab('all')
-  }, [loggedIn])
 
   useEffect(() => {
     clearSubmitMessage()
@@ -807,9 +795,8 @@ function ReviewPanel(): React.JSX.Element {
 
   return (
     <aside className="review-panel">
-      {/* v0.0.2：「我的评审」/「所有评审」tab；v0.0.6：未登录不显示 tab 条，直接展示所有评审列表 */}
-      {loggedIn && (
-        <div className="review-tabs">
+      {/* v0.0.2：「我的评审」/「所有评审」tab */}
+      <div className="review-tabs">
           <button className={`review-tab ${tab === 'mine' ? 'active' : ''}`} onClick={() => setTab('mine')}>
             我的评审
           </button>
@@ -817,7 +804,6 @@ function ReviewPanel(): React.JSX.Element {
             所有评审
           </button>
         </div>
-      )}
 
       {submitMessage && !submitMessage.startsWith('提交失败') && (
         <div className="review-msg">
@@ -835,7 +821,7 @@ function ReviewPanel(): React.JSX.Element {
         />
       )}
 
-      {tab === 'mine' && loggedIn ? (
+      {tab === 'mine' ? (
         /* v0.0.2：已评审 → 展示与编辑二选一（不再同时显示表单）；
            未评审 → 显示新评审表单 */
         myReview ? (

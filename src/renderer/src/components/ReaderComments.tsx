@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { X } from 'lucide-react'
 import { useReaderStore } from '../stores/reader'
-import { useAuthStore } from '../stores/auth'
 import { cachedImageUrl, formatTs } from '../lib/sanitize'
 import type { CommentItem } from '../../../shared/types'
 
@@ -29,9 +28,6 @@ export function CommentSection({ cid }: { cid: string }): React.JSX.Element {
   const loadComments = useReaderStore((s) => s.loadComments)
   const submitComment = useReaderStore((s) => s.submitComment)
   const clearCommentMessage = useReaderStore((s) => s.clearCommentMessage)
-
-  const session = useAuthStore((s) => s.session)
-  const loggedIn = !!session
 
   const [draft, setDraft] = useState('')
   const [replyTo, setReplyTo] = useState<CommentItem | null>(null)
@@ -112,34 +108,30 @@ export function CommentSection({ cid }: { cid: string }): React.JSX.Element {
         )}
       </div>
 
-      {loggedIn ? (
-        <form className="comment-form" onSubmit={(e) => void handleSubmit(e)}>
-          <textarea
-            className="comment-input"
-            rows={3}
-            value={draft}
-            placeholder={replyTo ? `回复 @${replyTo.author}` : '写下你的评论…'}
-            onChange={(e) => {
-              setDraft(e.target.value)
-              setLocalErr(null)
-              autoGrow(e.target)
-            }}
-          />
-          <div className="comment-form-actions">
-            {replyTo && (
-              <button type="button" className="comment-cancel-reply" onClick={() => setReplyTo(null)}>
-                取消回复
-              </button>
-            )}
-            {localErr && <span className="comment-local-err">{localErr}</span>}
-            <button type="submit" className="comment-submit" disabled={commentSubmitting}>
-              {commentSubmitting ? '提交中 …' : '发表评论'}
+      <form className="comment-form" onSubmit={(e) => void handleSubmit(e)}>
+        <textarea
+          className="comment-input"
+          rows={3}
+          value={draft}
+          placeholder={replyTo ? `回复 @${replyTo.author}` : '写下你的评论…'}
+          onChange={(e) => {
+            setDraft(e.target.value)
+            setLocalErr(null)
+            autoGrow(e.target)
+          }}
+        />
+        <div className="comment-form-actions">
+          {replyTo && (
+            <button type="button" className="comment-cancel-reply" onClick={() => setReplyTo(null)}>
+              取消回复
             </button>
-          </div>
-        </form>
-      ) : (
-        <div className="comment-login-hint">登录后可发表评论</div>
-      )}
+          )}
+          {localErr && <span className="comment-local-err">{localErr}</span>}
+          <button type="submit" className="comment-submit" disabled={commentSubmitting}>
+            {commentSubmitting ? '提交中 …' : '发表评论'}
+          </button>
+        </div>
+      </form>
     </section>
   )
 }
