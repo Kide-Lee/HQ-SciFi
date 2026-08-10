@@ -1,28 +1,89 @@
 {
   "baseUrl": "https://api.huangqisf.com/",
   "endpoints": {
-    "userLogin": { "path": "hqUsers/userLogin", "method": "POST" },
-    "sendCode": { "path": "hqUsers/SendCode", "method": "POST" },
-    "phoneLogin": { "path": "hqUsers/phoneLogin", "method": "POST" },
-    "signOut": { "path": "hqUsers/signOut", "method": "POST" },
-    "contentsList": { "path": "hqContents/contentsList", "method": "POST" },
-    "contentsInfo": { "path": "hqContents/contentsInfo", "method": "POST" },
-    "contentsAdd": { "path": "hqContents/contentsAdd", "method": "POST" },
-    "contentsUpdate": { "path": "hqContents/contentsUpdate", "method": "POST" },
-    "uploadFile": { "path": "upload/full", "method": "POST" },
-    "choiceList": { "path": "hqContents/choiceList", "method": "GET" },
-    "selectContents": { "path": "hqMetas/selectContents", "method": "GET" },
-    "metasList": { "path": "hqMetas/metasList", "method": "GET" },
-    "gptList": { "path": "gpt/gptList", "method": "GET" },
-    "reviewTask": { "path": "review/reviewTask", "method": "GET" },
-    "reviewList": { "path": "review/reviewList", "method": "GET" },
-    "addReview": { "path": "review/addReview", "method": "GET" },
-    "editReview": { "path": "review/editReview", "method": "GET" },
-    "attitude": { "path": "review/attitude", "method": "GET" },
-    "commentsList": { "path": "hqComments/commentsList", "method": "GET" },
-    "commentsAdd": { "path": "hqComments/commentsAdd", "method": "GET" },
-    "addLog": { "path": "hqUserlog/addLog", "method": "GET" },
-    "isMark": { "path": "hqUserlog/isMark", "method": "GET" },
-    "removeLog": { "path": "hqUserlog/removeLog", "method": "GET" }
+    "userLogin": {
+      "path": "hqUsers/userLogin",
+      "method": "POST"
+    },
+    "signOut": {
+      "path": "hqUsers/signOut",
+      "method": "POST"
+    },
+    "contentsList": {
+      "path": "hqContents/contentsList",
+      "method": "POST"
+    },
+    "contentsInfo": {
+      "path": "hqContents/contentsInfo",
+      "method": "POST"
+    },
+    "contentsAdd": {
+      "path": "hqContents/contentsAdd",
+      "method": "POST"
+    },
+    "contentsUpdate": {
+      "path": "hqContents/contentsUpdate",
+      "method": "POST"
+    },
+    "uploadFile": {
+      "path": "upload/full",
+      "method": "POST"
+    },
+    "choiceList": {
+      "path": "hqContents/choiceList",
+      "method": "GET"
+    },
+    "selectContents": {
+      "path": "hqMetas/selectContents",
+      "method": "GET"
+    },
+    "metasList": {
+      "path": "hqMetas/metasList",
+      "method": "GET"
+    },
+    "gptList": {
+      "path": "gpt/gptList",
+      "method": "GET"
+    },
+    "reviewTask": {
+      "path": "review/reviewTask",
+      "method": "GET"
+    },
+    "reviewList": {
+      "path": "review/reviewList",
+      "method": "GET"
+    },
+    "addReview": {
+      "path": "review/addReview",
+      "method": "GET"
+    },
+    "editReview": {
+      "path": "review/editReview",
+      "method": "GET"
+    },
+    "attitude": {
+      "path": "review/attitude",
+      "method": "GET"
+    },
+    "commentsList": {
+      "path": "hqComments/commentsList",
+      "method": "GET"
+    },
+    "commentsAdd": {
+      "path": "hqComments/commentsAdd",
+      "method": "GET"
+    },
+    "addLog": {
+      "path": "hqUserlog/addLog",
+      "method": "GET"
+    },
+    "isMark": {
+      "path": "hqUserlog/isMark",
+      "method": "GET"
+    },
+    "removeLog": {
+      "path": "hqUserlog/removeLog",
+      "method": "GET"
+    }
   }
 }

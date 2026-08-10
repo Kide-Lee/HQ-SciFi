@@ -23,7 +23,9 @@ const ALLOWED_ATTR: Record<string, Set<string>> = {
   TH: new Set(['colspan', 'rowspan', 'scope']),
   TABLE: new Set(['border', 'cellpadding', 'cellspacing', 'width']),
   OL: new Set(['start']),
-  LI: new Set(['value'])
+  UL: new Set(['class']), // 荒启协议条目列表（hq-list）
+  LI: new Set(['value', 'class']), // 协议条目层级缩进类（lv-N）
+  SPAN: new Set(['class']) // 协议条目 marker/内容容器（.m/.t）
 }
 
 /** data: 内嵌图最大字节数（base64 解码后），防超大字符串塞爆 DOM */

@@ -1,4 +1,5 @@
 import type {
+  AgreementData,
   ApiResult,
   ArticleDetail,
   ArticleListOptions,
@@ -64,10 +65,12 @@ export interface HqsfApi {
   ping: () => Promise<string>
   getAppInfo: () => Promise<AppInfo>
   copyText: (text: string) => Promise<ApiResult<null>>
+  /** 用户协议（{ version, html }；版本用于比对本地同意状态） */
+  getAgreement: () => Promise<ApiResult<AgreementData>>
+  /** 荒启平台用户协议（网络抓取；失败时渲染层禁用勾选） */
+  getHuangqiAgreement: () => Promise<ApiResult<{ html: string }>>
   windowControls: WindowControls
   loginPassword: (name: string, password: string) => Promise<ApiResult<LoginResult>>
-  sendSmsCode: (phone: string) => Promise<ApiResult<{ ok: boolean; error?: string }>>
-  loginPhone: (phone: string, code: string) => Promise<ApiResult<LoginResult>>
   getSession: () => Promise<ApiResult<UserSession | null>>
   logout: () => Promise<ApiResult<null>>
   syncPull: () => Promise<ApiResult<PullResult>>

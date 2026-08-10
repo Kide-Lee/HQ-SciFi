@@ -33,7 +33,7 @@ export default function App(): React.JSX.Element {
     return <div className="app-loading">正在恢复会话 …</div>
   }
 
-  // 未登录只能看到登录页（阅读/浏览均需登录）
+  // 未登录只能看到登录页（登录前须勾选协议，见 LoginView）
   if (!session) {
     return <LoginView />
   }

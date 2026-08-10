@@ -347,3 +347,11 @@ export interface MarkStatus {
   /** 收藏日志 id（取消收藏时传给 removeLog 的 key） */
   logid?: number | string
 }
+
+// ---------- 用户协议（登录前须阅读并同意） ----------
+
+/** 用户协议内容（主进程读取 md 并渲染为 HTML 后下发；version 用于本地比对是否已同意） */
+export interface AgreementData {
+  version: string
+  html: string
+}

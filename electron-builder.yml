@@ -17,6 +17,9 @@ compression: normal
 extraResources:
   - from: api.config.json
     to: api.config.json
+  # 用户协议（登录前须阅读并同意；打包后主进程从 resources/agreement.md 读取）
+  - from: doc/用户协议.md
+    to: agreement.md
 
 # 窗口标题等显示名（中文），安装器显示名用 shortcutName
 nsis:

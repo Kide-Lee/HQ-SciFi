@@ -71,7 +71,6 @@ body {
   display: flex;
   align-items: center;
   min-width: 0;
-  padding-left: 8px;
 }
 
 /* macOS：原生红绿灯（hiddenInset）悬浮于左上角，左栏内容右移避开（三灯宽约 52px） */
@@ -543,10 +542,36 @@ body {
 
 .login-wrap {
   height: 100%;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   background: linear-gradient(160deg, #eef1fe 0%, #f7f8fa 60%);
+}
+
+/* 无边框窗口拖动条（登录/协议等全屏页顶部；frame:false 下无此区域无法移动窗口） */
+.window-drag-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 36px;
+  -webkit-app-region: drag;
+  z-index: 10;
+}
+
+/* 登录页窗口控件（非 macOS 自绘，右上角；位于拖动条之上且 no-drag 可点击，右侧紧贴窗口边缘） */
+.login-window-controls {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-left: 8px;
+  z-index: 11;
+  -webkit-app-region: no-drag;
 }
 
 .login-card {
@@ -562,6 +587,216 @@ body {
   font-size: 22px;
   text-align: center;
   margin-bottom: 4px;
+}
+
+/* ===== 用户协议（登录页查看并勾选；modal 查看层） ===== */
+.login-agreements {
+  margin: 14px 0 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.login-agreement-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.login-agreement-item input[type='checkbox'] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex: none;
+}
+
+.login-agreement-item input[type='checkbox']:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.login-agreement-link {
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.login-agreement-link:hover {
+  text-decoration: underline;
+}
+
+.login-agreement-tip {
+  margin: 2px 0 0;
+  font-size: 11.5px;
+  color: #c0392b;
+  text-align: center;
+}
+
+/* 协议查看层（modal） */
+.agreement-modal-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 24px;
+}
+
+.agreement-modal {
+  width: 720px;
+  max-width: 100%;
+  max-height: 88%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: 0 8px 32px rgba(31, 35, 41, 0.25);
+}
+
+.agreement-modal > h2 {
+  font-size: 16px;
+  text-align: center;
+  margin: 0 0 12px;
+}
+
+.agreement-modal-footer {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.agreement-modal-footer .primary-btn {
+  min-width: 140px;
+}
+
+.agreement-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--text);
+  background: var(--bg);
+}
+
+.agreement-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 24px 16px;
+}
+
+.agreement-fail {
+  color: #c0392b;
+}
+
+/* 失败提示里的重试按钮 */
+.agreement-fail .agreement-retry {
+  display: block;
+  margin: 14px auto 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  padding: 6px 18px;
+  cursor: pointer;
+}
+
+.agreement-fail .agreement-retry:hover {
+  background: var(--bg-hover);
+}
+
+/* 协议 md 自带的一级标题与卡片标题重复，隐藏 */
+.agreement-body h1:first-child {
+  display: none;
+}
+
+.agreement-body h2 {
+  font-size: 15px;
+  margin: 16px 0 6px;
+}
+
+.agreement-body h3 {
+  font-size: 14px;
+  margin: 12px 0 4px;
+}
+
+.agreement-body p {
+  margin: 6px 0;
+}
+
+.agreement-body ol,
+.agreement-body ul {
+  margin: 4px 0;
+  padding-left: 22px;
+}
+
+/* 荒启协议的数字编号条目（8.1 / 8.1.1 / 8.1.1.1 …）专用：提取的序数作 marker，
+   一级与正文对齐，子级逐级缩进；仅作用于 hq-list（不影响本应用协议 md 的普通列表） */
+.agreement-body ul.hq-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.agreement-body ul.hq-list li {
+  display: flex;
+  gap: 0.6em;
+  margin: 2px 0;
+}
+
+.agreement-body ul.hq-list li.lv-1 {
+  padding-left: 1.2em;
+}
+
+.agreement-body ul.hq-list li.lv-2 {
+  padding-left: 2.4em;
+}
+
+.agreement-body ul.hq-list li.lv-3 {
+  padding-left: 3.6em;
+}
+
+.agreement-body ul.hq-list li .m {
+  flex: none;
+  color: var(--text-muted);
+}
+
+.agreement-body blockquote {
+  margin: 6px 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--border);
+  background: var(--bg-hover);
+  border-radius: 0 6px 6px 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.agreement-body code {
+  background: var(--bg-hover);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 12px;
 }
 
 .login-brand p {
@@ -664,12 +899,6 @@ body {
 .login-tip {
   font-size: 12px;
   color: var(--text-muted);
-}
-
-.login-foot {
-  margin-top: 16px;
-  font-size: 12px;
-  text-align: center;
 }
 
 /* ===== M1 追加：写作树 ===== */

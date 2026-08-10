@@ -1,8 +1,7 @@
 import { app, BrowserWindow, clipboard, ipcMain, shell } from 'electron'
+import { loadAgreement, fetchHuangqiAgreement } from './agreement'
 import {
   loginWithPassword,
-  loginWithPhone,
-  sendSmsCode,
   getSession,
   getStoredToken,
   logout as doLogout
@@ -62,6 +61,24 @@ export function registerIpcHandlers(): void {
     packaged: app.isPackaged
   }))
 
+  // 用户协议（登录前须阅读并同意）：返回 { version, html }，版本用于比对本地同意状态
+  ipcMain.handle('hqsf:get-agreement', () => {
+    try {
+      return ok(loadAgreement())
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  // 荒启平台用户协议（网络抓取）：失败时渲染层禁用勾选、不可同意
+  ipcMain.handle('hqsf:get-huangqi-agreement', async () => {
+    try {
+      return ok({ html: await fetchHuangqiAgreement() })
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
   // ---- 窗口控制（v0.0.3 无边框窗口自绘顶栏） ----
   const windowOf = (event: Electron.IpcMainInvokeEvent): BrowserWindow | null =>
     BrowserWindow.fromWebContents(event.sender)
@@ -90,22 +107,6 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('hqsf:login-password', async (_e, name: string, password: string) => {
     try {
       return ok(await loginWithPassword(name, password))
-    } catch (err) {
-      return fail(err)
-    }
-  })
-
-  ipcMain.handle('hqsf:send-sms-code', async (_e, phone: string) => {
-    try {
-      return ok(await sendSmsCode(phone))
-    } catch (err) {
-      return fail(err)
-    }
-  })
-
-  ipcMain.handle('hqsf:login-phone', async (_e, phone: string, code: string) => {
-    try {
-      return ok(await loginWithPhone(phone, code))
     } catch (err) {
       return fail(err)
     }

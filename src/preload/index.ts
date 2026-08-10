@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
+  AgreementData,
   ApiResult,
   ArticleDetail,
   ArticleListOptions,
@@ -34,6 +35,11 @@ const api = {
     ipcRenderer.invoke('hqsf:get-app-info'),
   copyText: (text: string): Promise<ApiResult<null>> => ipcRenderer.invoke('hqsf:copy-text', text),
 
+  // ---- 用户协议（登录前须阅读并同意） ----
+  getAgreement: (): Promise<ApiResult<AgreementData>> => ipcRenderer.invoke('hqsf:get-agreement'),
+  /** 荒启平台用户协议（网络抓取；失败时渲染层禁用勾选） */
+  getHuangqiAgreement: (): Promise<ApiResult<{ html: string }>> => ipcRenderer.invoke('hqsf:get-huangqi-agreement'),
+
   // ---- 窗口控制（v0.0.3 无边框窗口自绘顶栏；裸值接口，失败静默） ----
   windowControls: {
     minimize: (): Promise<void> => ipcRenderer.invoke('hqsf:window-minimize'),
@@ -51,10 +57,6 @@ const api = {
   // ---- 认证 ----
   loginPassword: (name: string, password: string): Promise<ApiResult<LoginResult>> =>
     ipcRenderer.invoke('hqsf:login-password', name, password),
-  sendSmsCode: (phone: string): Promise<ApiResult<{ ok: boolean; error?: string }>> =>
-    ipcRenderer.invoke('hqsf:send-sms-code', phone),
-  loginPhone: (phone: string, code: string): Promise<ApiResult<LoginResult>> =>
-    ipcRenderer.invoke('hqsf:login-phone', phone, code),
   getSession: (): Promise<ApiResult<UserSession | null>> => ipcRenderer.invoke('hqsf:get-session'),
   logout: (): Promise<ApiResult<null>> => ipcRenderer.invoke('hqsf:logout'),
 

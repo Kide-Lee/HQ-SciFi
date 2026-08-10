@@ -3,7 +3,7 @@ import { loadSession, saveSession, clearSession, isStrongEncryption } from './se
 import type { LoginResult, UserSession } from '../shared/types'
 
 /**
- * 认证（api-research.md 第 2 节）：账号密码 hqUsers/userLogin、手机验证码 phoneLogin + SendCode。
+ * 认证（api-research.md 第 2 节）：账号密码 hqUsers/userLogin。
  * 登录成功后 token 经 safeStorage 加密持久化；退出 signOut。
  */
 
@@ -36,37 +36,6 @@ export async function loginWithPassword(name: string, password: string): Promise
     const resp = await apiRequest(endpoint('userLogin').path, {
       method: 'POST',
       body: { params: JSON.stringify({ name, password }) }
-    })
-    const { token, uid, nickname } = extractIdentity(resp.data)
-    if (!token) return { ok: false, error: '登录响应缺少 token（接口结构可能变化）' }
-    // 顶层 uid 缺失时（uid 嵌在 userinfo 下），从规范化的 userinfo 再补一次
-    const userinfo = normalizeUserinfo(resp.data)
-    if (uid && userinfo.uid == null) userinfo.uid = uid
-    if (nickname && userinfo.nickname == null) userinfo.nickname = nickname
-    saveSession({ token, userinfo })
-    return { ok: true, userinfo, insecure: !isStrongEncryption() }
-  } catch (err) {
-    return { ok: false, error: (err as Error).message }
-  }
-}
-
-export async function sendSmsCode(phone: string): Promise<{ ok: boolean; error?: string }> {
-  try {
-    await apiRequest(endpoint('sendCode').path, {
-      method: 'POST',
-      body: { params: JSON.stringify({ phone }) }
-    })
-    return { ok: true }
-  } catch (err) {
-    return { ok: false, error: (err as Error).message }
-  }
-}
-
-export async function loginWithPhone(phone: string, code: string): Promise<LoginResult> {
-  try {
-    const resp = await apiRequest(endpoint('phoneLogin').path, {
-      method: 'POST',
-      body: { params: JSON.stringify({ phone, code }) }
     })
     const { token, uid, nickname } = extractIdentity(resp.data)
     if (!token) return { ok: false, error: '登录响应缺少 token（接口结构可能变化）' }

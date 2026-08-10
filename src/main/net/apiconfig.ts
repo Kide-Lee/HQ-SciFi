@@ -39,8 +39,6 @@ export interface ApiConfig {
 export const REQUIRED_ENDPOINTS = [
   // 认证（auth.ts）
   'userLogin',
-  'sendCode',
-  'phoneLogin',
   'signOut',
   // 写作同步（sync.ts）
   'contentsList',
@@ -70,8 +68,6 @@ export type EndpointName = (typeof REQUIRED_ENDPOINTS)[number]
 /** 各接口用途说明（报错时提示开发者补全配置用） */
 const ENDPOINT_DESC: Record<EndpointName, string> = {
   userLogin: '账号密码登录',
-  sendCode: '发送手机验证码',
-  phoneLogin: '手机验证码登录',
   signOut: '退出登录',
   contentsList: '文章列表（按状态/作者拉取）',
   contentsInfo: '文章详情（全文）',
