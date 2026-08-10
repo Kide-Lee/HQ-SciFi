@@ -4,11 +4,12 @@ import { MainArea } from './components/MainArea'
 import { TopBar } from './components/TopBar'
 import { LoginView } from './components/LoginView'
 import { useAuthStore } from './stores/auth'
+import { useUiStore } from './stores/ui'
 
 export default function App(): React.JSX.Element {
-  const session = useAuthStore((s) => s.session)
   const restoring = useAuthStore((s) => s.restoring)
   const restore = useAuthStore((s) => s.restore)
+  const loginOpen = useUiStore((s) => s.loginOpen)
 
   useEffect(() => {
     void restore()
@@ -33,17 +34,18 @@ export default function App(): React.JSX.Element {
     return <div className="app-loading">正在恢复会话 …</div>
   }
 
-  if (!session) {
-    return <LoginView />
-  }
-
+  // v0.0.6：取消「必须登录才能看到内容」——未登录直接进入主界面（本地写作/浏览阅读均可），
+  // 登录改为覆盖层模态（用户卡「点击登录」唤起）；session 仅用于展示账号与启用登录态操作
   return (
-    <div className="app-shell">
-      <Sidebar />
-      <div className="app-right">
-        <TopBar />
-        <MainArea />
+    <>
+      <div className="app-shell">
+        <Sidebar />
+        <div className="app-right">
+          <TopBar />
+          <MainArea />
+        </div>
       </div>
-    </div>
+      {loginOpen && <LoginView />}
+    </>
   )
 }

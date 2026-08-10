@@ -427,7 +427,7 @@ export function EditorPane(): React.JSX.Element {
                           <div className="article-card-title">
                             <span className="article-card-title-text">{node.name.replace(/\.md$/i, '')}</span>
                           </div>
-                          {/* v0.0.7：有摘要垂直居中；无摘要卡片中央提示无法提取 */}
+                          {/* v0.0.6：有摘要垂直居中；无摘要卡片中央提示无法提取 */}
                           <div className="article-card-excerpt editor-local-excerpt">
                             {node.summary ? (
                               <span className="excerpt-text">{node.summary}</span>

@@ -68,6 +68,7 @@ export function Sidebar(): React.JSX.Element {
 
   const session = useAuthStore((s) => s.session)
   const logout = useAuthStore((s) => s.logout)
+  const openLogin = useUiStore((s) => s.openLogin)
   const articles = useDocsStore((s) => s.articles)
   const localTree = useDocsStore((s) => s.localTree)
   const refreshLocal = useDocsStore((s) => s.refreshLocal)
@@ -392,20 +393,33 @@ export function Sidebar(): React.JSX.Element {
       {!collapsed && <div className="sidebar-resizer" onMouseDown={onSidebarResizeDown} title="拖动调整左栏宽度" />}
       <div className="sidebar-top">
         <div className="user-card">
-          <div className="avatar">
-            {avatar ? (
-              <img className="avatar-img" src={String(avatar)} alt="" referrerPolicy="no-referrer" />
-            ) : (
-              nickname.slice(0, 1)
-            )}
-          </div>
-          <div className="user-meta">
-            <div className="nickname">{nickname}</div>
-            <div className="intro">{uid}</div>
-          </div>
-          <button className="logout-btn" title="退出登录" onClick={() => void logout()}>
-            退出
-          </button>
+          {session ? (
+            <>
+              <div className="avatar">
+                {avatar ? (
+                  <img className="avatar-img" src={String(avatar)} alt="" referrerPolicy="no-referrer" />
+                ) : (
+                  nickname.slice(0, 1)
+                )}
+              </div>
+              <div className="user-meta">
+                <div className="nickname">{nickname}</div>
+                <div className="intro">{uid}</div>
+              </div>
+              <button className="logout-btn" title="退出登录" onClick={() => void logout()}>
+                退出
+              </button>
+            </>
+          ) : (
+            /* v0.0.6：未登录也可浏览/写作，用户卡变「点击登录」入口（登录为覆盖层模态） */
+            <button className="user-card-login" onClick={openLogin} title="登录后启用同步、发布与评审">
+              <div className="avatar">?</div>
+              <div className="user-meta">
+                <div className="nickname">未登录</div>
+                <div className="intro">点击登录，启用同步与发布</div>
+              </div>
+            </button>
+          )}
         </div>
 
         <nav className="nav-sections">

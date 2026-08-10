@@ -280,7 +280,7 @@ export function ArticleCard({
             </span>
           )}
         </div>
-        {/* v0.0.7：无摘要显示「无法提取到摘要」提示（居中），有摘要原样显示 */}
+        {/* v0.0.6：无摘要显示「无法提取到摘要」提示（居中），有摘要原样显示 */}
         {article.text ? (
           <div className="article-card-excerpt">{article.text}</div>
         ) : (

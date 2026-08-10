@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, Copy, Minus, PanelLeftClose, PanelLeftOpen, PanelRight, Square, X } from 'lucide-react'
+import { ArrowLeft, Copy, Minus, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Square, X } from 'lucide-react'
 import { SECTION_LABELS, useUiStore } from '../stores/ui'
 import { useReaderStore } from '../stores/reader'
 import { useEditorStore } from '../stores/editor'
@@ -68,6 +68,14 @@ export function TopBar(): React.JSX.Element {
     <header className={isMac ? 'topbar topbar-mac' : 'topbar'}>
       {/* v0.0.3：左侧——阅读态显示「返回列表」 */}
       <div className="topbar-left">
+        {/* v0.0.6：折叠左栏按钮移到顶栏左侧（原在右侧窗口控件旁） */}
+        <button
+          className="topbar-btn"
+          onClick={toggleSidebar}
+          title={sidebarCollapsed ? '展开左栏' : '折叠左栏'}
+        >
+          {sidebarCollapsed ? <PanelLeftOpen size={14} /> : <PanelLeftClose size={14} />}
+        </button>
         {readingCid && (
           <button className="topbar-back-btn" onClick={closeArticle} title="返回列表">
             <ArrowLeft size={13} /> 返回列表
@@ -78,21 +86,14 @@ export function TopBar(): React.JSX.Element {
         {title}
       </div>
       <div className="topbar-controls">
-        {/* v0.0.3：折叠左栏（与右栏按钮同排） */}
-        <button
-          className="topbar-btn"
-          onClick={toggleSidebar}
-          title={sidebarCollapsed ? '展开左栏' : '折叠左栏'}
-        >
-          {sidebarCollapsed ? <PanelLeftOpen size={14} /> : <PanelLeftClose size={14} />}
-        </button>
         {readingCid && (
           <button
-            className={`topbar-btn ${panelOpen ? 'active' : ''}`}
+            className="topbar-btn"
             onClick={togglePanel}
             title={panelOpen ? '收起右栏' : '展开右栏'}
           >
-            <PanelRight size={14} />
+            {/* v0.0.6：与左栏折叠按钮统一——收起/展开换图标，不再用 active 变色 */}
+            {panelOpen ? <PanelRightClose size={14} /> : <PanelRightOpen size={14} />}
           </button>
         )}
         {/* macOS 用原生红绿灯，不渲染自绘窗口按钮 */}

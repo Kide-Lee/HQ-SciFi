@@ -22,7 +22,6 @@ export function ridOf(c: CommentItem): string {
 
 export function CommentSection({ cid }: { cid: string }): React.JSX.Element {
   const comments = useReaderStore((s) => s.comments)
-  const commentsTotal = useReaderStore((s) => s.commentsTotal)
   const commentsLoading = useReaderStore((s) => s.commentsLoading)
   const commentsHasMore = useReaderStore((s) => s.commentsHasMore)
   const commentSubmitting = useReaderStore((s) => s.commentSubmitting)
@@ -63,13 +62,18 @@ export function CommentSection({ cid }: { cid: string }): React.JSX.Element {
     }
   }
 
+  /** v0.0.6：评论框随内容自动增高（三行起步），最高为右栏高度的 1/3，超出后内部滚动 */
+  function autoGrow(ta: HTMLTextAreaElement): void {
+    ta.style.height = 'auto'
+    const panel = ta.closest('.reader-panel') as HTMLElement | null
+    const maxH = panel ? Math.max(56, Math.floor(panel.clientHeight / 3)) : 240
+    const h = Math.min(ta.scrollHeight, maxH)
+    ta.style.height = `${h}px`
+    ta.style.overflowY = ta.scrollHeight > maxH ? 'auto' : 'hidden'
+  }
+
   return (
     <section className="reader-comments">
-      <div className="reader-comments-head">
-        <h3>评论区</h3>
-        <span className="reader-comments-count">{commentsTotal > 0 ? `${commentsTotal} 条` : ''}</span>
-      </div>
-
       {commentMessage && (
         <div className={commentMessage.startsWith('评论发布失败') ? 'reader-comments-err' : 'reader-comments-msg'}>
           {commentMessage}
@@ -79,34 +83,7 @@ export function CommentSection({ cid }: { cid: string }): React.JSX.Element {
         </div>
       )}
 
-      {loggedIn ? (
-        <form className="comment-form" onSubmit={(e) => void handleSubmit(e)}>
-          <textarea
-            className="comment-input"
-            rows={2}
-            value={draft}
-            placeholder={replyTo ? `回复 @${replyTo.author}（≥4 字）` : '写下你的评论…（≥4 字）'}
-            onChange={(e) => {
-              setDraft(e.target.value)
-              setLocalErr(null)
-            }}
-          />
-          <div className="comment-form-actions">
-            {replyTo && (
-              <button type="button" className="comment-cancel-reply" onClick={() => setReplyTo(null)}>
-                取消回复
-              </button>
-            )}
-            {localErr && <span className="comment-local-err">{localErr}</span>}
-            <button type="submit" className="comment-submit" disabled={commentSubmitting}>
-              {commentSubmitting ? '提交中 …' : '发表评论'}
-            </button>
-          </div>
-        </form>
-      ) : (
-        <div className="comment-login-hint">登录后可发表评论</div>
-      )}
-
+      {/* v0.0.6：评论列表占满右栏可滚动区域；发表框固定在右栏底部 */}
       <div className="comment-list">
         {commentsLoading && <div className="muted comment-loading">加载评论中 …</div>}
         {!commentsLoading && top.length === 0 && (
@@ -134,6 +111,35 @@ export function CommentSection({ cid }: { cid: string }): React.JSX.Element {
           </button>
         )}
       </div>
+
+      {loggedIn ? (
+        <form className="comment-form" onSubmit={(e) => void handleSubmit(e)}>
+          <textarea
+            className="comment-input"
+            rows={3}
+            value={draft}
+            placeholder={replyTo ? `回复 @${replyTo.author}` : '写下你的评论…'}
+            onChange={(e) => {
+              setDraft(e.target.value)
+              setLocalErr(null)
+              autoGrow(e.target)
+            }}
+          />
+          <div className="comment-form-actions">
+            {replyTo && (
+              <button type="button" className="comment-cancel-reply" onClick={() => setReplyTo(null)}>
+                取消回复
+              </button>
+            )}
+            {localErr && <span className="comment-local-err">{localErr}</span>}
+            <button type="submit" className="comment-submit" disabled={commentSubmitting}>
+              {commentSubmitting ? '提交中 …' : '发表评论'}
+            </button>
+          </div>
+        </form>
+      ) : (
+        <div className="comment-login-hint">登录后可发表评论</div>
+      )}
     </section>
   )
 }

@@ -1,15 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
+import { X } from 'lucide-react'
 import { useAuthStore } from '../stores/auth'
+import { useUiStore } from '../stores/ui'
 
 type Tab = 'password' | 'phone'
 
-/** 登录视图：账号密码 + 手机验证码（M1） */
+/** 登录视图：账号密码 + 手机验证码（M1）；v0.0.6 起为覆盖层模态（未登录可直接浏览/写作，点「先逛逛」关闭） */
 export function LoginView(): React.JSX.Element {
   const busy = useAuthStore((s) => s.busy)
   const error = useAuthStore((s) => s.error)
   const loginPassword = useAuthStore((s) => s.loginPassword)
   const loginPhone = useAuthStore((s) => s.loginPhone)
   const sendSmsCode = useAuthStore((s) => s.sendSmsCode)
+  const closeLogin = useUiStore((s) => s.closeLogin)
 
   const [tab, setTab] = useState<Tab>('password')
   const [name, setName] = useState('')
@@ -56,6 +59,9 @@ export function LoginView(): React.JSX.Element {
   return (
     <div className="login-wrap">
       <div className="login-card">
+        <button className="login-close" onClick={closeLogin} title="先浏览，稍后登录">
+          <X size={16} />
+        </button>
         <div className="login-brand">
           <h1>荒启科幻</h1>
           <p className="muted">本地写作 · 一键同步 · 随时发布</p>
@@ -123,6 +129,9 @@ export function LoginView(): React.JSX.Element {
 
         {error && <div className="login-error">{error}</div>}
         <p className="login-foot muted">使用荒启科幻账号登录，凭据经系统安全存储加密保存</p>
+        <button className="login-skip" onClick={closeLogin}>
+          先逛逛，稍后登录
+        </button>
       </div>
     </div>
   )

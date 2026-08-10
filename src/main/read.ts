@@ -227,26 +227,44 @@ export async function listReviewTasks(token: string | null, uid: number | string
   })
 }
 
-/** 拉取文章详情（完整 HTML 正文；需登录）。contentsInfo 响应为裸对象；结果本地缓存（1 天未使用即丢弃） */
-export async function fetchRemoteArticle(token: string, cid: string): Promise<ArticleDetail> {
-  const cacheKey = `article:${cid}`
+/**
+ * 文章不可读的业务错误（未公开/不存在等服务端拒绝），区别于网络故障等传输错误。
+ * v0.0.6：ipc 层据此决定是否把失败包装成「阅读全文需要登录」——网络故障不误标。
+ */
+export class ArticleUnavailableError extends Error {
+  constructor(msg?: string) {
+    super(`拉取文章失败: ${msg || '未公开或不存在'}`)
+    this.name = 'ArticleUnavailableError'
+  }
+}
+
+/**
+ * 拉取文章详情（完整 HTML 正文）。contentsInfo 响应为裸对象；结果本地缓存（1 天未使用即丢弃）。
+ * v0.0.6：token 可空——未登录也允许尝试匿名 GET（公开文章服务端放行即可读；
+ * 被拒（如「文章暂未公开访问」）由 ipc 层包装成「阅读全文需要登录」提示）。
+ * 缓存键区分登录态（匿名/登录各自缓存），避免服务端按 token 返回不同正文时串态。
+ */
+export async function fetchRemoteArticle(token: string | null, cid: string): Promise<ArticleDetail> {
+  const cacheKey = `article:${token ? 'u' : 'a'}:${cid}`
   const cached = getReadCache<ArticleDetail>(cacheKey)
   if (cached) return cached
 
+  const query: Record<string, unknown> = { key: cid, isMd: 0 }
+  if (token) query.token = token
   const obj = await apiRequest<Record<string, unknown>>('hqContents/contentsInfo', {
     method: 'GET',
-    query: { key: cid, isMd: 0, token },
+    query,
     raw: true
   })
   if (!obj || typeof obj.title !== 'string') {
-    throw new Error(`拉取文章失败: ${str(obj?.msg) || '未公开或不存在'}`)
+    throw new ArticleUnavailableError(str(obj?.msg))
   }
   // 文章未公开/被隐藏（如 cid=1254 热岛，contentsInfo 仍返回 title 但 isopen=0）。
   // 走到此处说明本次缓存未命中（key 通常已被 getReadCache 清理/删除）；deleteReadCache
   // 是幂等兜底：防止并发请求刚写入的缓存、或未来 TTL 策略变化后的残留被读到。
   if (obj.isopen === 0 || obj.isopen === '0') {
     deleteReadCache(cacheKey)
-    throw new Error(`拉取文章失败: ${str(obj?.msg) || '未公开或不存在'}`)
+    throw new ArticleUnavailableError(str(obj?.msg))
   }
   const userJson = obj.userJson as Record<string, unknown> | undefined
   const authorId =

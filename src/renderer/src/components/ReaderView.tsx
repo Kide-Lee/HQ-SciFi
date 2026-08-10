@@ -783,9 +783,16 @@ function ReviewPanel(): React.JSX.Element {
   const toggleReviewOrderAsc = useReaderStore((s) => s.toggleReviewOrderAsc)
   const detail = useReaderStore((s) => s.detail)
   const loadReviews = useReaderStore((s) => s.loadReviews)
+  const session = useAuthStore((s) => s.session)
+  const loggedIn = !!session
 
   const [tab, setTab] = useState<'mine' | 'all'>('mine')
   const [editing, setEditing] = useState(false)
+
+  // v0.0.6：未登录时只显示「所有评审」（不提供「我的评审」/评审表单）
+  useEffect(() => {
+    if (!loggedIn) setTab('all')
+  }, [loggedIn])
 
   useEffect(() => {
     clearSubmitMessage()
@@ -793,27 +800,24 @@ function ReviewPanel(): React.JSX.Element {
     if (detail?.cid) void loadReviews(detail.cid)
   }, [detail?.cid, loadReviews, clearSubmitMessage])
 
-  const myUid = String(useAuthStore.getState().session?.userinfo?.uid ?? '')
+  const myUid = String(session?.userinfo?.uid ?? '')
   const mine = reviews.filter((r) => myUid !== '' && String(r.uid ?? (r.userJson as Record<string, unknown> | undefined)?.uid ?? '') === myUid)
   const myReview = mine[0]
   const others = reviews.filter((r) => !mine.includes(r))
 
   return (
     <aside className="review-panel">
-      <div className="review-panel-head">
-        <h3>作品评审</h3>
-        <span className="review-count">{reviews.length} 条</span>
-      </div>
-
-      {/* v0.0.2：「我的评审」/「所有评审」tab */}
-      <div className="review-tabs">
-        <button className={`review-tab ${tab === 'mine' ? 'active' : ''}`} onClick={() => setTab('mine')}>
-          我的评审
-        </button>
-        <button className={`review-tab ${tab === 'all' ? 'active' : ''}`} onClick={() => setTab('all')}>
-          所有评审
-        </button>
-      </div>
+      {/* v0.0.2：「我的评审」/「所有评审」tab；v0.0.6：未登录不显示 tab 条，直接展示所有评审列表 */}
+      {loggedIn && (
+        <div className="review-tabs">
+          <button className={`review-tab ${tab === 'mine' ? 'active' : ''}`} onClick={() => setTab('mine')}>
+            我的评审
+          </button>
+          <button className={`review-tab ${tab === 'all' ? 'active' : ''}`} onClick={() => setTab('all')}>
+            所有评审
+          </button>
+        </div>
+      )}
 
       {submitMessage && !submitMessage.startsWith('提交失败') && (
         <div className="review-msg">
@@ -831,7 +835,7 @@ function ReviewPanel(): React.JSX.Element {
         />
       )}
 
-      {tab === 'mine' ? (
+      {tab === 'mine' && loggedIn ? (
         /* v0.0.2：已评审 → 展示与编辑二选一（不再同时显示表单）；
            未评审 → 显示新评审表单 */
         myReview ? (
@@ -933,6 +937,14 @@ function ReaderPanel({
   const tab = useUiStore((s) => s.readerPanelTab)
   const setTab = useUiStore((s) => s.setReaderPanelTab)
   const cid = useReaderStore((s) => s.detail)?.cid ?? ''
+  const commentsTotal = useReaderStore((s) => s.commentsTotal)
+  const reviewsCount = useReaderStore((s) => s.reviews.length)
+
+  // v0.0.6：无目录的文章不显示「目录」tab；若当前停在目录 tab 则回退到「评审」
+  const hasToc = toc.length > 0
+  useEffect(() => {
+    if (tab === 'toc' && !hasToc) setTab('review')
+  }, [tab, hasToc, setTab])
 
   return (
     <aside
@@ -940,51 +952,45 @@ function ReaderPanel({
       style={{ width: collapsed ? 0 : `${splitRatio * 100}%` }}
     >
       <div className="reader-panel-tabs">
-        <button className={`reader-panel-tab ${tab === 'toc' ? 'active' : ''}`} onClick={() => setTab('toc')}>
-          目录
-        </button>
+        {hasToc && (
+          <button className={`reader-panel-tab ${tab === 'toc' ? 'active' : ''}`} onClick={() => setTab('toc')}>
+            目录
+          </button>
+        )}
         <button
           className={`reader-panel-tab ${tab === 'comments' ? 'active' : ''}`}
           onClick={() => setTab('comments')}
         >
-          评论
+          评论{commentsTotal > 0 ? ` ${commentsTotal}` : ''}
         </button>
         {!isMine && (
           <button className={`reader-panel-tab ${tab === 'review' ? 'active' : ''}`} onClick={() => setTab('review')}>
-            评审
+            评审{reviewsCount > 0 ? ` ${reviewsCount}` : ''}
           </button>
         )}
       </div>
 
-      {tab === 'toc' && (
+      {tab === 'toc' && hasToc && (
         <div className="reader-panel-scroll">
-          {toc.length === 0 ? (
-            <div className="muted reader-toc-empty">（本文没有目录）</div>
-          ) : (
-            <ul className="reader-toc-list">
-              {toc.map((t) => (
-                <li key={t.idx} className={`reader-toc-item lv-${Math.min(6, Math.max(1, t.level))}`}>
-                  <a
-                    href={`#toc-${t.idx + 1}`}
-                    onClick={(e) => {
-                      e.preventDefault()
-                      jumpTo(t.idx)
-                    }}
-                  >
-                    {t.text}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          )}
+          <ul className="reader-toc-list">
+            {toc.map((t) => (
+              <li key={t.idx} className={`reader-toc-item lv-${Math.min(6, Math.max(1, t.level))}`}>
+                <a
+                  href={`#toc-${t.idx + 1}`}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    jumpTo(t.idx)
+                  }}
+                >
+                  {t.text}
+                </a>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
-      {tab === 'comments' && (
-        <div className="reader-panel-scroll">
-          <CommentSection cid={cid} />
-        </div>
-      )}
+      {tab === 'comments' && <CommentSection cid={cid} />}
 
       {tab === 'review' &&
         (isMine ? (

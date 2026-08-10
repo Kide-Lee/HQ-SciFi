@@ -12,6 +12,7 @@ import { pullRemote, pushToDraft, publish } from './sync'
 import {
   addComment,
   addUserLog,
+  ArticleUnavailableError,
   fetchRemoteArticle,
   getMarkStatus,
   listCategories,
@@ -238,10 +239,15 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('hqsf:get-remote-article', async (_e, cid: string) => {
     const token = getStoredToken()
-    if (!token) return fail(new Error('未登录，无法阅读全文'))
     try {
+      // v0.0.6：token 可空——未登录也允许尝试匿名读公开文章
       return ok(await fetchRemoteArticle(token, String(cid)))
     } catch (err) {
+      // v0.0.6：仅当服务端确认文章不可读（未公开/不存在）时才提示登录；
+      // 网络故障等传输错误按原样报错，避免误标「需要登录」
+      if (!token && err instanceof ArticleUnavailableError) {
+        return fail(new Error(`阅读全文需要登录（${(err as Error).message}）`))
+      }
       return fail(err)
     }
   })
