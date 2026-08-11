@@ -52,7 +52,7 @@ npm run build:linux  # 打包 Linux（deb + AppImage，dist/）
 npm run build:mac    # 打包 macOS（dmg + zip，x64 + arm64，dist/）
 ```
 
-> **本地测试模式**（对接自建 RuleApi / 本地接口联调）：`npm run dev:test`（或 `electron out/main/index.js --test` / 环境变量 `HQSF_TEST=1`）。测试模式与正式使用完全隔离——独立 userData（`~/.config/hqsf-test`，数据库/session/设置不混入正式库）、API 配置优先读本地持有的 `api.config.test.json`（baseUrl 指向本地服务，不入库）、默认存档根为 `~/文档/荒启科幻/草稿-test`。正式模式（`npm run dev`）不受任何影响，两者可同时运行。
+> **本地测试模式**（对接自建 RuleApi / 本地接口联调）：`npm run dev:test`（或 `electron out/main/index.js --test` / 环境变量 `HQSF_TEST=1`；跨平台由 `cross-env` 注入，Windows cmd/PowerShell 亦可用）。测试模式与正式使用完全隔离——独立 userData（`~/.config/hqsf-test`，数据库/session/设置不混入正式库）、API 配置优先读本地持有的 `api.config.test.json`（baseUrl 指向本地服务，不入库）、默认存档根为 `~/文档/荒启科幻/草稿-test`。正式模式（`npm run dev`）不受任何影响，两者可同时运行。
 
 > Windows 包在 Linux 交叉打包时，`build:win` 会自动下载 better-sqlite3 的 Windows prebuild 替换原生二进制（打包后恢复），无需 Windows 环境；升级 Electron 后首次打包会重新下载匹配 ABI 的 prebuild（需联网访问 GitHub Releases）。
 >
