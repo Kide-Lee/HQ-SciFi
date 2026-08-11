@@ -23,6 +23,7 @@
 - **接口定义外置**：荒启 API 基址与全部接口 path/method 从代码提取到 `api.config.json`（本地持有，不入库；模板 `api.config.example.json`），程序经 `net/apiconfig.ts` 的 `endpoint(name)` 读取；配置缺失/损坏/缺接口时抛 `ApiConfigError` 并在启动时弹错退出（提示复制 example），打包时经 `extraResources` 随包分发
 
 ### 修复与工程
+- **API 调用方法与官方文档对齐（signOut/contentsList/attitude）**：对照官方《API 返回类型源码调研》逐接口方法修正 3 处——① `signOut` 由 POST 改为 GET（token 走 query，`api.config.json`/example 同步 `method:"GET"`）；② 同步引擎 `contentsList` 由 POST 改为 GET（searchParams/limit/page/token 走 query），与阅读层同一接口的 GET 形态统一；③ `attitude` 由 GET 改为 POST（token/id/type 走 form body），与官方 POST 一致；三处调用点 + 两份配置全部同步
 - **协议解析逻辑抽取纯模块并补回归测试**：`parseHuangqiAgreementChunk`（TITLE_RE/TEXT_RE/LIST_ITEM_RE 正则）从 `agreement.ts` 抽取到无依赖的纯函数模块 `src/main/agreement-parse.ts`（agreement.ts 仅保留网络/加载逻辑）；新增 `npm run test:agreement-parse` 快照式回归测试（esbuild 临时打包执行，零新增依赖、不留产物），覆盖标题/正文/appname 拼接/数字条目层级/email 占位符/顺序保持等，防上游 Vue 渲染产物正则回归
 - **协议解析失败文案引导联系开发者**：找不到业务脚本入口、找不到协议 chunk、解析无章节三类解析类错误消息末尾追加「若荒启页面改版，请联系开发者更新协议解析逻辑」，与网络类错误（HTTP 状态码）明确区分，避免用户误判为网络问题
 - **清理重复 JSDoc**：`sanitize.ts` 中 `isSafeDataImage` 上方重复两遍的注释块删去短版，保留带「base64 区分大小写」提示的完整版本

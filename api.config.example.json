@@ -7,11 +7,11 @@
     },
     "signOut": {
       "path": "hqUsers/signOut",
-      "method": "POST"
+      "method": "GET"
     },
     "contentsList": {
       "path": "hqContents/contentsList",
-      "method": "POST"
+      "method": "GET"
     },
     "contentsInfo": {
       "path": "hqContents/contentsInfo",
@@ -63,7 +63,7 @@
     },
     "attitude": {
       "path": "review/attitude",
-      "method": "GET"
+      "method": "POST"
     },
     "commentsList": {
       "path": "hqComments/commentsList",

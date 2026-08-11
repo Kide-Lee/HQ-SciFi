@@ -82,8 +82,8 @@ async function listRemote(token: string, authorId: string, type: string): Promis
   let page = 1
   for (;;) {
     const resp = await apiRequest<RemoteItem[] | null>(endpoint('contentsList').path, {
-      method: 'POST',
-      body: {
+      method: 'GET',
+      query: {
         searchParams: JSON.stringify({ type, authorId }),
         limit: PAGE_SIZE,
         page,

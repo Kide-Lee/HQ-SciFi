@@ -67,7 +67,7 @@ export async function logout(): Promise<void> {
   const s = loadSession()
   if (s?.token) {
     try {
-      await apiRequest(endpoint('signOut').path, { method: 'POST', body: { token: s.token } })
+      await apiRequest(endpoint('signOut').path, { method: 'GET', query: { token: s.token } })
     } catch {
       /* 远端退出失败不阻塞本地清除 */
     }

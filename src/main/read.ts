@@ -377,8 +377,8 @@ export async function setReviewAttitude(
 ): Promise<ReviewSubmitResult> {
   try {
     const resp = await apiRequest(endpoint('attitude').path, {
-      method: 'GET',
-      query: { token, id: reviewId, type }
+      method: 'POST',
+      body: { token, id: reviewId, type }
     })
     if (resp.code === 1) return { ok: true }
     return { ok: false, error: resp.msg || '表态失败' }
