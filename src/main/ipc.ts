@@ -24,7 +24,7 @@ import {
   setReviewAttitude,
   submitReview
 } from './read'
-import { listArticles } from './db'
+import { clearArticles, listArticles } from './db'
 import type { ArticleListOptions, ReviewPayload } from '../shared/types'
 
 /** IPC 返回约定：成功 { ok: true, data }，失败 { ok: false, error }（避免 Error 序列化丢 message） */
@@ -106,7 +106,10 @@ export function registerIpcHandlers(): void {
   // ---- 认证与会话 ----
   ipcMain.handle('hqsf:login-password', async (_e, name: string, password: string) => {
     try {
-      return ok(await loginWithPassword(name, password))
+      const res = await loginWithPassword(name, password)
+      // 登录成功 = 可能切换账号：清空上一账号的本地索引，防止旧账号文章串到新账号侧栏四态
+      if (res.ok) clearArticles()
+      return ok(res)
     } catch (err) {
       return fail(err)
     }

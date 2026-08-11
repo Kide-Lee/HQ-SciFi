@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { UserSession } from '../../../shared/types'
 import { useReaderStore } from './reader'
+import { useDocsStore } from './docs'
 
 interface AuthState {
   /** 当前会话（用户信息；token 只存在主进程，不下发渲染层） */
@@ -39,6 +40,8 @@ export const useAuthStore = create<AuthState>((set) => ({
         busy: false
       })
       afterLogin()
+      // 登录成功 = 可能切换账号：主进程已清空本地索引，这里同步刷新侧栏四态（避免残留旧账号文章）
+      void useDocsStore.getState().refreshArticles()
       return true
     }
     set({ busy: false, error: res.ok ? res.data.error ?? '登录失败' : res.error })

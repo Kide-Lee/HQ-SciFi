@@ -103,6 +103,11 @@ export function getDb(): Database.Database {
   return db
 }
 
+/** 清空文章索引（登录切换账号时调用：防止上一账号的索引数据串到新账号的侧栏四态） */
+export function clearArticles(): void {
+  getDb().prepare('DELETE FROM articles').run()
+}
+
 export function upsertArticle(a: ArticleRow): void {
   const d = toDb(a)
   getDb()
