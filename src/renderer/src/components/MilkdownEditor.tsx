@@ -6,6 +6,7 @@ import { gfm } from '@milkdown/kit/preset/gfm'
 import { history } from '@milkdown/kit/plugin/history'
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
 import { nord } from '@milkdown/theme-nord'
+import { MilkdownToolbar } from './MilkdownToolbar'
 import '@milkdown/theme-nord/style.css'
 
 interface MilkdownEditorProps {
@@ -54,8 +55,11 @@ function Inner({ docKey, content, onChange }: MilkdownEditorProps): React.JSX.El
   )
 
   return (
-    <div className="milkdown-theme-nord prose md-editor-host">
-      <Milkdown />
+    <div className="md-editor-wrap">
+      <MilkdownToolbar />
+      <div className="milkdown-theme-nord prose md-editor-host">
+        <Milkdown />
+      </div>
     </div>
   )
 }

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDown, ArrowUp, ChevronRight, Columns2, FilePlus, Folder, FolderPlus, PenLine, Trash2, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronRight, Columns2, FilePlus, Folder, FolderPlus, PenLine, Trash2, X, Zap } from 'lucide-react'
 import { useEditorStore } from '../stores/editor'
 import { useDocsStore } from '../stores/docs'
 import { ErrorBanner } from './ErrorBanner'
 import { formatSize, formatTs } from '../lib/sanitize'
 import type { ArticleRow, LocalNode } from '../../../shared/types'
 import { MilkdownEditor } from './MilkdownEditor'
+import { InstantRenderEditor } from './InstantRenderEditor'
 import { SplitEditor } from './SplitEditor'
 
 /** 远端非草稿类型的展示名（同步/推送后角标显示当前远端状态） */
@@ -50,8 +51,8 @@ export function EditorPane(): React.JSX.Element {
 
   const [showNew, setShowNew] = useState(false)
   const [newTitle, setNewTitle] = useState('')
-  // v0.0.7：编辑模式——所见即所得（milkdown）/ 即时预览（源码 + 渲染分栏）
-  const [mode, setMode] = useState<'wysiwyg' | 'split'>('wysiwyg')
+  // v0.0.7：编辑模式——所见即所得（milkdown+工具栏）/ 即时预览 IR（源码+光标块渲染）/ 分屏预览 SV（源码+整篇渲染）
+  const [mode, setMode] = useState<'wysiwyg' | 'ir' | 'split'>('wysiwyg')
   // v0.0.6：新建文件夹输入框状态
   const [showNewDir, setShowNewDir] = useState(false)
   const [newDirName, setNewDirName] = useState('')
@@ -207,21 +208,28 @@ export function EditorPane(): React.JSX.Element {
           <button className="toolbar-btn" onClick={() => setShowNew((v) => !v)}>
             + 新建草稿
           </button>
-          {/* v0.0.7：编辑模式切换——所见即所得 / 即时预览 */}
+          {/* v0.0.7：编辑模式切换——所见即所得 / 即时预览 IR / 分屏预览 SV */}
           <div className="editor-mode-switch">
             <button
               className={`mode-btn${mode === 'wysiwyg' ? ' active' : ''}`}
               onClick={() => setMode('wysiwyg')}
-              title="所见即所得：输入 Markdown 语法即时渲染为富文本"
+              title="所见即所得：输入 Markdown 语法即时渲染为富文本（带编辑工具栏）"
             >
               <PenLine size={13} /> 所见即所得
             </button>
             <button
+              className={`mode-btn${mode === 'ir' ? ' active' : ''}`}
+              onClick={() => setMode('ir')}
+              title="即时预览（IR）：源码编辑，光标所在块下方实时渲染效果"
+            >
+              <Zap size={13} /> 即时预览
+            </button>
+            <button
               className={`mode-btn${mode === 'split' ? ' active' : ''}`}
               onClick={() => setMode('split')}
-              title="即时预览：左侧源码编辑，右侧实时渲染"
+              title="分屏预览（SV）：左侧源码编辑，右侧整篇实时渲染"
             >
-              <Columns2 size={13} /> 即时预览
+              <Columns2 size={13} /> 分屏预览
             </button>
           </div>
           {currentPath && (
@@ -285,6 +293,8 @@ export function EditorPane(): React.JSX.Element {
         {currentPath ? (
           mode === 'wysiwyg' ? (
             <MilkdownEditor docKey={currentPath} content={content} onChange={update} />
+          ) : mode === 'ir' ? (
+            <InstantRenderEditor docKey={currentPath} content={content} onChange={update} />
           ) : (
             <SplitEditor docKey={currentPath} content={content} onChange={update} />
           )
