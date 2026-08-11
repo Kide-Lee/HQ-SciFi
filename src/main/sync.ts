@@ -339,20 +339,46 @@ export async function pullRemote(token: string, authorId: string): Promise<PullR
   return result
 }
 
-interface AddResultData {
-  cid?: number | string
-  id?: number | string
+/**
+ * 从 contentsAdd/Update 响应提取真实 cid。
+ * 仅当 data 为对象且含 cid/id 字段时可信；contentsAdd 实测成功返回 `data:1`（非 cid，
+ * 见 api-research.md §10），裸数字/字符串一律视为未返回 cid——防止把 1 当 cid 入库
+ * （假 cid 会在下次推送时误更新线上 id=1 的文章）。未取到时由调用方回查列表（findCidByTitle）。
+ */
+function extractCid(resp: ApiResponse<unknown>): string | undefined {
+  const d = resp.data
+  if (d == null || typeof d !== 'object') return undefined
+  const cid = (d as { cid?: unknown; id?: unknown }).cid ?? (d as { cid?: unknown; id?: unknown }).id
+  return cid != null ? String(cid) : undefined
 }
 
-/** 从 data 里取 cid（不同版本返回结构可能为对象或裸值） */
-function extractCid(resp: ApiResponse<unknown>): string | undefined {
-  const d = resp.data as AddResultData | string | number | null | undefined
-  if (d == null) return undefined
-  if (typeof d === 'object') {
-    const cid = d.cid ?? d.id
-    return cid != null ? String(cid) : undefined
+/**
+ * contentsAdd 成功但响应未携带 cid 时回查：在当前账号对应状态（草稿 post_draft / 发布 post）
+ * 列表中按标题精确匹配，取 modified 最新一篇的真实 cid（同名文章可能有多篇）。
+ */
+async function findCidByTitle(token: string, title: string, isDraft: boolean): Promise<string | undefined> {
+  const type = isDraft ? 'post_draft' : 'post'
+  const query: Record<string, unknown> = {
+    searchParams: JSON.stringify({ type }),
+    limit: PAGE_SIZE,
+    page: 1,
+    order: 'modified',
+    token
   }
-  return String(d)
+  if (title) query.searchKey = title
+  try {
+    const resp = await apiRequest<RemoteItem[] | null>(endpoint('contentsList').path, {
+      method: 'GET',
+      query
+    })
+    const items = (resp.data ?? []).filter((it) => it.title === title)
+    if (items.length === 0) return undefined
+    items.sort((a, b) => normTs(b.modified) - normTs(a.modified))
+    const cid = items[0]?.cid
+    return cid != null ? String(cid) : undefined
+  } catch {
+    return undefined
+  }
 }
 
 /**
@@ -393,6 +419,10 @@ async function upload(
       : await apiRequest(endpoint('contentsAdd').path, { method: 'POST', body })
     if (!cid) {
       cid = extractCid(resp)
+      if (!cid) {
+        // 服务端未在响应中携带 cid（contentsAdd 实测返回 data:1）：回查列表匹配真实 cid
+        cid = await findCidByTitle(token, title, isDraft)
+      }
       // 上传成功但拿不到 cid 时不能静默入库：否则下次推送会重复创建远端文章
       if (!cid) {
         return { ok: false, error: '上传成功但未返回文章 ID，请到荒启草稿箱确认后再操作' }
