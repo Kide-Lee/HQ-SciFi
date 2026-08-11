@@ -87,21 +87,18 @@ export function EditorPane(): React.JSX.Element {
     setForbidMsg(null)
   }, [currentPath])
 
-  /** 违禁词检测：本地禁词表（meta 配置）包含匹配；无配置时提示由服务端检测 */
+  /** 违禁词检测：官方接口（hqContents/userTextBlockStatus，付费 5 能量币/次），先确认再检测 */
   async function handleCheckForbidden(): Promise<void> {
+    if (!window.confirm('违禁词检测将消耗 5 能量币，是否继续？')) return
     const fileName = (currentPath ?? '').split('/').pop()?.replace(/\.md$/i, '') ?? ''
+    setForbidMsg(null)
     const res = await window.hqsf.checkForbidden(fileName, content)
     if (!res.ok) {
       setForbidMsg({ ok: false, text: res.error || '检测失败' })
       return
     }
-    if (!res.data.configured) {
-      setForbidMsg({ ok: true, text: '未配置禁词列表（可在设置中添加），发布时由荒启服务端检测' })
-    } else if (res.data.hits.length > 0) {
-      setForbidMsg({ ok: false, text: `发现疑似违禁词：${res.data.hits.join('、')}` })
-    } else {
-      setForbidMsg({ ok: true, text: '未发现违禁词' })
-    }
+    const msg = res.data.msg || '检测完成'
+    setForbidMsg({ ok: msg.includes('无违规'), text: msg })
   }
 
   /** 标签 toggle（meta.tags 数组） */

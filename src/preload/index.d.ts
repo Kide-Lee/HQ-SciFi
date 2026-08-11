@@ -98,8 +98,8 @@ export interface HqsfApi {
     ApiResult<Array<{ mid: number | string; name: string; slug: string; description?: string; imgurl?: string; count?: number }>>
   >
   listMetas: (type: string) => Promise<ApiResult<MetaInfo[]>>
-  /** 违禁词检测（本地禁词表，meta 配置）：返回命中词列表与是否配置了词表 */
-  checkForbidden: (title: string, text: string) => Promise<ApiResult<{ hits: string[]; configured: boolean }>>
+  /** 违禁词检测（官方接口，付费 5 能量币/次）：返回服务端检测结果 { code, msg } */
+  checkForbidden: (title: string, text: string) => Promise<ApiResult<{ code: number; msg: string }>>
   listGptModels: () => Promise<ApiResult<GptModel[]>>
   listReviewTasks: () => Promise<ApiResult<ReviewTaskItem[]>>
   listComments: (cid: string, opts?: { limit?: number; page?: number; order?: string }) => Promise<

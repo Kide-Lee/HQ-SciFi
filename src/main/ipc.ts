@@ -22,9 +22,10 @@ import {
   listReviewTasks,
   removeUserLog,
   setReviewAttitude,
-  submitReview
+  submitReview,
+  checkTextBlockStatus
 } from './read'
-import { clearArticles, getMeta, listArticles } from './db'
+import { clearArticles, listArticles } from './db'
 import type { ArticleListOptions, ReviewPayload } from '../shared/types'
 
 /** IPC 返回约定：成功 { ok: true, data }，失败 { ok: false, error }（避免 Error 序列化丢 message） */
@@ -315,22 +316,15 @@ export function registerIpcHandlers(): void {
   })
 
   /**
-   * 违禁词检测（本地）：按 meta 中配置的禁词列表（逗号分隔）做包含匹配，
-   * 与服务端 getForbidden 规则一致。荒启无公开检测接口，提交时服务端仍会
-   * 独立检测（第三方安全服务）；此按钮用于发布前自查。
+   * 违禁词检测（官方接口 hqContents/userTextBlockStatus，付费 5 能量币/次，腾讯云内容安全）。
+   * 官方编辑器实现：POST { text: 标题+正文HTML, token } → code=1 时 msg 为检测结果。
    */
-  ipcMain.handle('hqsf:check-forbidden', (_e, title: string, text: string) => {
+  ipcMain.handle('hqsf:check-forbidden', async (_e, title: string, text: string) => {
     try {
-      const forbidden = getMeta('forbidden_words') || ''
-      const hits: string[] = []
-      if (forbidden) {
-        for (const word of forbidden.split(',')) {
-          const w = word.trim()
-          if (!w) continue
-          if ((title || '').includes(w) || (text || '').includes(w)) hits.push(w)
-        }
-      }
-      return ok({ hits, configured: forbidden.trim().length > 0 })
+      const token = getStoredToken()
+      if (!token) return fail('未登录')
+      const res = await checkTextBlockStatus(token, String(title ?? ''), String(text ?? ''))
+      return ok({ code: res.code, msg: res.msg })
     } catch (err) {
       return fail(err)
     }

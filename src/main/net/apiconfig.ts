@@ -61,7 +61,9 @@ export const REQUIRED_ENDPOINTS = [
   'commentsAdd',
   'addLog',
   'isMark',
-  'removeLog'
+  'removeLog',
+  // 内容安全（编辑器）
+  'userTextBlockStatus'
 ] as const
 
 export type EndpointName = (typeof REQUIRED_ENDPOINTS)[number]
@@ -88,7 +90,8 @@ const ENDPOINT_DESC: Record<EndpointName, string> = {
   commentsAdd: '发表评论',
   addLog: '用户互动日志（点赞/收藏/投币）',
   isMark: '查询收藏状态',
-  removeLog: '取消收藏'
+  removeLog: '取消收藏',
+  userTextBlockStatus: '违禁词检测（付费，5 能量币/次）'
 }
 
 /** 候选配置文件路径（按优先级尝试；前两个在非 Electron 环境也可用，便于测试） */

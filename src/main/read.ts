@@ -1,4 +1,5 @@
 import { apiRequest, endpoint } from './net/api'
+import { mdToHtml } from './md2html'
 import { deleteReadCache, getReadCache, setReadCache } from './db'
 import type {
   ArticleDetail,
@@ -539,4 +540,18 @@ export async function removeUserLog(token: string, key: number | string): Promis
   } catch (err) {
     return { ok: false, error: (err as Error).message }
   }
+}
+
+/** 违禁词检测（官方接口 hqContents/userTextBlockStatus，付费 5 能量币/次，腾讯云内容安全） */
+export async function checkTextBlockStatus(
+  token: string,
+  title: string,
+  markdown: string
+): Promise<{ code: number; msg: string }> {
+  const text = title + mdToHtml(markdown)
+  const resp = await apiRequest(endpoint('userTextBlockStatus').path, {
+    method: 'POST',
+    body: { text, token }
+  })
+  return { code: resp.code, msg: resp.msg || '' }
 }
