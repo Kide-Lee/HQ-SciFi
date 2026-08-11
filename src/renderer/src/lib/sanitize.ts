@@ -34,10 +34,6 @@ const MAX_DATA_IMAGE_BYTES = 2 * 1024 * 1024
 /**
  * data:image 内嵌图是否放行（仅用于 src，禁止 href）。
  * 只允许常见位图（png/jpeg/gif/webp/avif/bmp）；svg+xml 可能含脚本，一律拒绝。
- */
-/**
- * data:image 内嵌图是否放行（仅用于 src，禁止 href）。
- * 只允许常见位图（png/jpeg/gif/webp/avif/bmp）；svg+xml 可能含脚本，一律拒绝。
  * 注意：base64 内容区分大小写，本函数必须接收未做 toLowerCase 的原始值。
  */
 function isSafeDataImage(raw: string): boolean {

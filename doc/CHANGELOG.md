@@ -22,6 +22,11 @@
 - **撤销「允许非注册用户查看文章」设计（v0.0.6 引入）**：恢复「必须登录才能看到内容」——未登录只能看到登录页，登录不再是覆盖层模态；主进程 `fetchRemoteArticle` 恢复 token 必填、`hqsf:get-remote-article` 未登录直接拒绝（移除匿名读全文与 `ArticleUnavailableError` 包装、缓存键不再区分登录态）；渲染层移除登录模态（`loginOpen`/`openLogin`/`closeLogin`）、左栏「点击登录」用户卡、评审区/评论区的未登录分支。右栏读审重构与左栏 UI 优化（折叠按钮移顶栏左侧、设置贴底、评论框贴底自动增高、无目录隐藏目录 tab、数量进 tab）保持不变
 - **接口定义外置**：荒启 API 基址与全部接口 path/method 从代码提取到 `api.config.json`（本地持有，不入库；模板 `api.config.example.json`），程序经 `net/apiconfig.ts` 的 `endpoint(name)` 读取；配置缺失/损坏/缺接口时抛 `ApiConfigError` 并在启动时弹错退出（提示复制 example），打包时经 `extraResources` 随包分发
 
+### 修复与工程
+- **协议解析逻辑抽取纯模块并补回归测试**：`parseHuangqiAgreementChunk`（TITLE_RE/TEXT_RE/LIST_ITEM_RE 正则）从 `agreement.ts` 抽取到无依赖的纯函数模块 `src/main/agreement-parse.ts`（agreement.ts 仅保留网络/加载逻辑）；新增 `npm run test:agreement-parse` 快照式回归测试（esbuild 临时打包执行，零新增依赖、不留产物），覆盖标题/正文/appname 拼接/数字条目层级/email 占位符/顺序保持等，防上游 Vue 渲染产物正则回归
+- **协议解析失败文案引导联系开发者**：找不到业务脚本入口、找不到协议 chunk、解析无章节三类解析类错误消息末尾追加「若荒启页面改版，请联系开发者更新协议解析逻辑」，与网络类错误（HTTP 状态码）明确区分，避免用户误判为网络问题
+- **清理重复 JSDoc**：`sanitize.ts` 中 `isSafeDataImage` 上方重复两遍的注释块删去短版，保留带「base64 区分大小写」提示的完整版本
+
 ## v0.0.6（2026-08-10）
 
 ### 改进
