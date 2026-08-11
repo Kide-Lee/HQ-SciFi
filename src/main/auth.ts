@@ -57,6 +57,26 @@ export function getSession(): UserSession | null {
   return { userinfo: s.userinfo, insecure: s.insecure }
 }
 
+/**
+ * 校验当前会话 token 是否仍有效。
+ * 服务端对无效 token 在列表类接口（contentsList）会静默降级（强制只查已发布、不报错），
+ * 因此用登录必需接口 hqUserlog/isMark 探测：无效 token 会被 @LoginRequired 拦截并明确报错。
+ * 返回 { valid, reachable }：reachable=false 表示网络异常（无法判定，调用方不应强制登出）。
+ */
+export async function verifySessionToken(): Promise<{ valid: boolean; reachable: boolean }> {
+  const s = loadSession()
+  if (!s?.token) return { valid: false, reachable: true }
+  try {
+    const resp = await apiRequest<Record<string, unknown>>(endpoint('isMark').path, {
+      method: 'GET',
+      query: { cid: '0', type: 'content', token: s.token }
+    })
+    return { valid: resp.code === 1, reachable: true }
+  } catch {
+    return { valid: false, reachable: false }
+  }
+}
+
 /** 仅供主进程内部使用的 token */
 export function getStoredToken(): string | null {
   return loadSession()?.token ?? null

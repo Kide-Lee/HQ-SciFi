@@ -25,7 +25,31 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   restore: async () => {
     const res = await window.hqsf.getSession()
-    set({ session: res.ok ? res.data : null, restoring: false })
+    if (!res.ok || !res.data) {
+      set({ session: null, restoring: false })
+      return
+    }
+    // 校验 token 有效性：服务端对无效 token 在列表接口静默降级（拿到错误的已发布数据），
+    // 失效时清除本地会话并提示重新登录；网络异常（离线）不强制登出
+    try {
+      const v = await window.hqsf.verifySession()
+      if (v.ok && v.data.valid) {
+        set({ session: res.data, restoring: false })
+        return
+      }
+      if (v.ok && !v.data.reachable) {
+        // 无法联网判定：保留会话（离线可继续本地写作）
+        set({ session: res.data, restoring: false })
+        return
+      }
+    } catch {
+      // 校验异常按可保留处理，避免误登出
+      set({ session: res.data, restoring: false })
+      return
+    }
+    // 明确失效：清除主进程会话（signOut 失败不阻塞本地清除），回登录页提示
+    await window.hqsf.logout()
+    set({ session: null, restoring: false, error: '登录已过期，请重新登录' })
   },
 
   loginPassword: async (name, password) => {

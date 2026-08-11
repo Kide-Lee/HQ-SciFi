@@ -72,6 +72,8 @@ export interface HqsfApi {
   windowControls: WindowControls
   loginPassword: (name: string, password: string) => Promise<ApiResult<LoginResult>>
   getSession: () => Promise<ApiResult<UserSession | null>>
+  /** 校验当前会话 token 有效性（失效 valid:false；网络异常 reachable:false 不强制登出） */
+  verifySession: () => Promise<ApiResult<{ valid: boolean; reachable: boolean }>>
   logout: () => Promise<ApiResult<null>>
   syncPull: () => Promise<ApiResult<PullResult>>
   syncPush: (filePath: string, isDraft: boolean) => Promise<ApiResult<PushResult>>

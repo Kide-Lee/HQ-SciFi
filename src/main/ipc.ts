@@ -4,6 +4,7 @@ import {
   loginWithPassword,
   getSession,
   getStoredToken,
+  verifySessionToken,
   logout as doLogout
 } from './auth'
 import { getDocsRoot, ensureDocsRoot, listLocalDocs, readLocalFile, writeLocalFile, createLocalDraft, chooseDocsDir, deleteLocalFile, createLocalDir } from './fs'
@@ -117,6 +118,15 @@ export function registerIpcHandlers(): void {
   })
 
   ipcMain.handle('hqsf:get-session', () => ok(getSession()))
+
+  /** 校验当前会话 token 有效性（失效返回 valid:false；网络异常 reachable:false 不强制登出） */
+  ipcMain.handle('hqsf:verify-session', async () => {
+    try {
+      return ok(await verifySessionToken())
+    } catch (err) {
+      return fail(err)
+    }
+  })
 
   ipcMain.handle('hqsf:logout', async () => {
     try {

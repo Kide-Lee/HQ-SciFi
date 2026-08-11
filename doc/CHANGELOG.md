@@ -26,6 +26,7 @@
 - **接口定义外置**：荒启 API 基址与全部接口 path/method 从代码提取到 `api.config.json`（本地持有，不入库；模板 `api.config.example.json`），程序经 `net/apiconfig.ts` 的 `endpoint(name)` 读取；配置缺失/损坏/缺接口时抛 `ApiConfigError` 并在启动时弹错退出（提示复制 example），打包时经 `extraResources` 随包分发
 
 ### 修复与工程
+- **启动校验 token 有效性（防静默降级）**：服务端对无效 token 在列表类接口（contentsList）静默降级——强制只查已发布、不报错，导致 token 失效时界面仍显示已登录、同步却拿到错误的已发布数据（曾造成待审核拉不到、误判文章不在线上）；现启动 restore 时用登录必需接口 `hqUserlog/isMark`（`@LoginRequired`，token 无效会明确报错）探测：有效则正常进入；**明确失效则清除本地会话、回登录页提示「登录已过期，请重新登录」**；网络异常（离线）不强制登出，保留会话可继续本地写作
 - **修复同步四态参数与官网不一致（文章状态错乱）**：对照官网 h5 投稿列表（`pages-user-userpost`）与服务端 `contentsList` 源码——官方四态参数为「草稿 `{type:post_draft, authorId}`、已发布/待审核/已拒绝 `{type:post, status:publish/waiting/reject, authorId}`」；旧 `sync.ts` 用 `type:waiting`/`type:reject`（**非法 type**，服务端只认 post/post_draft）拉取待审核/已拒绝，且已发布缺 `status`（服务端未传默认 publish）——导致应用「待审核」「已拒绝」永远拉不到、状态与官网不一致；已改为官方参数（`listRemote` 支持 status），实测 `syncPull` 四态调用无错误
 - **测试模式脚本跨平台（cross-env）**：`dev:test` / `start:test` 原先用 Unix shell 的 `HQSF_TEST=1` 前缀，Windows cmd/PowerShell 无法运行；改用 `cross-env` 注入（新 devDependency），Linux/macOS/Windows 均可用，README 说明同步更新
 - **本地测试模式与正式使用隔离**：新增 `src/main/testmode.ts`——`HQSF_TEST=1` 或 `--test` 启动进入测试模式：独立 userData（`~/.config/hqsf-test`，数据库/session/设置与正式库完全隔离，修复此前测试数据混入正式索引的问题）、API 配置优先读本地持有的 `api.config.test.json`（baseUrl 指向本地 RuleApi，不入库）、默认存档根 `~/文档/荒启科幻/草稿-test`；`npm run dev:test` / `start:test` 脚本；正式模式不受影响，两者可同时运行（单实例锁按 userData 隔离）

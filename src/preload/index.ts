@@ -58,6 +58,8 @@ const api = {
   loginPassword: (name: string, password: string): Promise<ApiResult<LoginResult>> =>
     ipcRenderer.invoke('hqsf:login-password', name, password),
   getSession: (): Promise<ApiResult<UserSession | null>> => ipcRenderer.invoke('hqsf:get-session'),
+  verifySession: (): Promise<ApiResult<{ valid: boolean; reachable: boolean }>> =>
+    ipcRenderer.invoke('hqsf:verify-session'),
   logout: (): Promise<ApiResult<null>> => ipcRenderer.invoke('hqsf:logout'),
 
   // ---- 同步 ----
