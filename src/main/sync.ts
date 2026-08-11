@@ -77,15 +77,27 @@ function isLocalDirty(row: ArticleRow): boolean {
   }
 }
 
-/** 拉取远端某类型文章列表（分页直到 total） */
-async function listRemote(token: string, authorId: string, type: string): Promise<RemoteItem[]> {
+/**
+ * 拉取远端某类型文章列表（分页直到 total）。
+ * 四态参数与官网 userpost 一致（对照 h5 pages-user-userpost）：
+ * - 草稿：{ type: post_draft, authorId }（无 status）
+ * - 已发布/待审核/已拒绝：{ type: post, status: publish|waiting|reject, authorId }
+ * 注意：type=waiting/type=reject 不是合法 type（服务端只认 post/post_draft），
+ * 待审核/已拒绝必须用 type=post + status 过滤，否则永远拉不到。
+ */
+async function listRemote(
+  token: string,
+  authorId: string,
+  type: string,
+  status?: string
+): Promise<RemoteItem[]> {
   const items: RemoteItem[] = []
   let page = 1
   for (;;) {
     const resp = await apiRequest<RemoteItem[] | null>(endpoint('contentsList').path, {
       method: 'GET',
       query: {
-        searchParams: JSON.stringify({ type, authorId }),
+        searchParams: JSON.stringify(status ? { type, status, authorId } : { type, authorId }),
         limit: PAGE_SIZE,
         page,
         token
@@ -233,17 +245,17 @@ function resolveTitle(filePath: string, content: string): string {
 export async function pullRemote(token: string, authorId: string): Promise<PullResult> {
   const root = ensureDocsRoot()
   const result: PullResult = { pulled: 0, conflicts: 0, total: 0, errors: [] }
-  const types: Array<{ type: ArticleType; remote: string }> = [
+  const types: Array<{ type: ArticleType; remote: string; status?: string }> = [
     { type: 'post_draft', remote: 'post_draft' },
-    { type: 'waiting', remote: 'waiting' },
-    { type: 'post', remote: 'post' },
-    { type: 'reject', remote: 'reject' }
+    { type: 'waiting', remote: 'post', status: 'waiting' },
+    { type: 'post', remote: 'post', status: 'publish' },
+    { type: 'reject', remote: 'post', status: 'reject' }
   ]
 
-  for (const { type, remote } of types) {
+  for (const { type, remote, status } of types) {
     let items: RemoteItem[]
     try {
-      items = await listRemote(token, authorId, remote)
+      items = await listRemote(token, authorId, remote, status)
     } catch (err) {
       // reject 类型可能不存在（接口未确认），静默忽略；其余记错误
       if (remote !== 'reject') result.errors.push(`${remote}: ${(err as Error).message}`)
