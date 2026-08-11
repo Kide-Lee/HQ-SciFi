@@ -5,7 +5,7 @@ Electron 桌面客户端，为 [荒启科幻](https://www.huangqisf.com/) 提供
 
 ## Project
 
-- 技术栈：Electron 34 + React 19 + TypeScript + electron-vite 5 + Vite 7 + Zustand 5 + electron-builder 26；better-sqlite3（本地索引）+ CodeMirror 6（编辑器）+ markdown-it/turndown（md⇄HTML 转换）+ lucide-react（图标，ISC 许可）。
+- 技术栈：Electron 34 + React 19 + TypeScript + electron-vite 5 + Vite 7 + Zustand 5 + electron-builder 26；better-sqlite3（本地索引）+ Vditor 3（编辑器，三模式一体，渲染核心 Lute 本地打包零 CDN）+ markdown-it/turndown（md⇄HTML 转换）+ lucide-react（图标，ISC 许可）。
 - 入口：`src/main/index.ts`（单实例锁 → `initApp`）；渲染层入口 `src/renderer/src/main.tsx`。
 - M0（三端骨架 + IPC + API 代理）、M1（写作闭环：登录/同步/编辑/发布/四态）与 M2（读审一体：阅读视图 + 评审面板）代码已交付；GUI 与真实账号接口验证需正常桌面环境（沙箱限制，见 Notes 与 README 验证清单）。
 
@@ -31,7 +31,7 @@ Electron 桌面客户端，为 [荒启科幻](https://www.huangqisf.com/) 提供
   - `read.ts` 阅读与评审适配层（文章列表/详情、评审列表/提交/态度、作品库分类）
 - `src/preload/` — `contextBridge` 暴露 `window.hqsf`（白名单方法；不经过 token、不开放通用 API 代理）。
 - `src/shared/` — 三端共享类型单一来源（`types.ts`）。
-- `src/renderer/` — React UI：`LoginView`（账号密码/手机验证码）、`Sidebar`（用户卡 + 写作树：本地存档/草稿/待审核/已发布/已拒绝 + 同步按钮 + 栏目树）、`EditorPane`（CodeMirror 6 + 工具栏：新建/保存/同步到草稿/发布 + 状态角标）、`ReaderView`（M2 阅读视图：净化 HTML 正文 + 元信息 + 评审面板 `ReviewPanel` 五维表单）、`ArticleListView`（文章列表：排序/分页）、`lib/sanitize.ts`（远端 HTML 白名单净化防 XSS）、stores（`auth`/`docs`/`editor`/`reader`/`ui`）。
+- `src/renderer/` — React UI：`LoginView`（账号密码/手机验证码）、`Sidebar`（用户卡 + 写作树：本地存档/草稿/待审核/已发布/已拒绝 + 同步按钮 + 栏目树）、`EditorPane`（Vditor 三模式编辑器 + 工具栏：新建/保存/同步到草稿/发布 + 状态角标）、`ReaderView`（M2 阅读视图：净化 HTML 正文 + 元信息 + 评审面板 `ReviewPanel` 五维表单）、`ArticleListView`（文章列表：排序/分页）、`lib/sanitize.ts`（远端 HTML 白名单净化防 XSS）、stores（`auth`/`docs`/`editor`/`reader`/`ui`）。
 - `electron-builder.yml` — 打包配置（linux deb+AppImage、win NSIS；`asarUnpack` better-sqlite3）。
 
 ## Conventions

@@ -5,9 +5,7 @@ import { useDocsStore } from '../stores/docs'
 import { ErrorBanner } from './ErrorBanner'
 import { formatSize, formatTs } from '../lib/sanitize'
 import type { ArticleRow, LocalNode } from '../../../shared/types'
-import { MilkdownEditor } from './MilkdownEditor'
-import { InstantRenderEditor } from './InstantRenderEditor'
-import { SplitEditor } from './SplitEditor'
+import { VditorEditor } from './VditorEditor'
 
 /** 远端非草稿类型的展示名（同步/推送后角标显示当前远端状态） */
 const REMOTE_TYPE_LABEL: Partial<Record<ArticleRow['type'], string>> = {
@@ -24,7 +22,7 @@ function countAllDocs(nodes: LocalNode[]): number {
   )
 }
 
-/** 编辑器视图：三模式编辑（milkdown 所见即所得 / IR 即时预览 / SV 分屏）+ 属性栏（类型/标签/活动/公开/违禁检测）+ 工具栏 */
+/** 编辑器视图：Vditor 三模式编辑（所见即所得 / IR 即时预览 / SV 分屏）+ 属性栏（类型/标签/活动/公开/违禁检测）+ 工具栏 */
 export function EditorPane(): React.JSX.Element {
   const currentPath = useEditorStore((s) => s.currentPath)
   const currentDir = useEditorStore((s) => s.currentDir)
@@ -53,8 +51,8 @@ export function EditorPane(): React.JSX.Element {
 
   const [showNew, setShowNew] = useState(false)
   const [newTitle, setNewTitle] = useState('')
-  // v0.0.7：编辑模式——所见即所得（milkdown+工具栏）/ 即时预览 IR（源码+光标块渲染）/ 分屏预览 SV（源码+整篇渲染）
-  const [mode, setMode] = useState<'wysiwyg' | 'ir' | 'split'>('wysiwyg')
+  // v0.0.7：编辑模式——所见即所得 / 即时预览 IR（源码+光标块渲染）/ 分屏预览 SV（源码+整篇渲染），由 Vditor 三模式一体实现
+  const [mode, setMode] = useState<'wysiwyg' | 'ir' | 'sv'>('wysiwyg')
   // v0.0.6：新建文件夹输入框状态
   const [showNewDir, setShowNewDir] = useState(false)
   const [newDirName, setNewDirName] = useState('')
@@ -124,7 +122,7 @@ export function EditorPane(): React.JSX.Element {
     return [...dirs, ...sorted]
   }, [items, sortBy, sortAsc])
 
-  // v0.0.7：全局 Ctrl/Cmd-S 保存（milkdown 内部无 keymap，两种模式统一由这里处理）
+  // v0.0.7：全局 Ctrl/Cmd-S 保存（Vditor 不占用该快捷键，统一由这里处理）
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
@@ -268,8 +266,8 @@ export function EditorPane(): React.JSX.Element {
               <Zap size={13} /> 即时预览
             </button>
             <button
-              className={`mode-btn${mode === 'split' ? ' active' : ''}`}
-              onClick={() => setMode('split')}
+              className={`mode-btn${mode === 'sv' ? ' active' : ''}`}
+              onClick={() => setMode('sv')}
               title="分屏预览（SV）：左侧源码编辑，右侧整篇实时渲染"
             >
               <Columns2 size={13} /> 分屏预览
@@ -399,13 +397,7 @@ export function EditorPane(): React.JSX.Element {
 
       <div className={`editor-body${currentPath ? ' editing' : ' home'}`}>
         {currentPath ? (
-          mode === 'wysiwyg' ? (
-            <MilkdownEditor docKey={currentPath} content={content} onChange={update} />
-          ) : mode === 'ir' ? (
-            <InstantRenderEditor docKey={currentPath} content={content} onChange={update} />
-          ) : (
-            <SplitEditor docKey={currentPath} content={content} onChange={update} />
-          )
+          <VditorEditor docKey={currentPath} mode={mode} content={content} onChange={update} />
         ) : (
           /* v0.0.6：写作首页——本地存档目录导航 + 文章卡片 */
           <div className="editor-empty editor-local-home">

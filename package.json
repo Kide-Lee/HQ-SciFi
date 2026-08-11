@@ -43,17 +43,13 @@
     "turndown@7.2.4": true
   },
   "dependencies": {
-    "@codemirror/lang-markdown": "^6.5.2",
-    "@milkdown/kit": "^7.22.0",
-    "@milkdown/react": "^7.22.0",
-    "@milkdown/theme-nord": "^7.22.0",
     "better-sqlite3": "^12.11.1",
-    "codemirror": "^6.0.2",
     "lucide-react": "^1.30.0",
     "markdown-it": "^15.0.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "turndown": "^7.2.4",
+    "vditor": "^3.11.3",
     "zustand": "^5.0.14"
   }
 }
