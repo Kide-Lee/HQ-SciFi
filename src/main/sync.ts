@@ -520,6 +520,8 @@ async function upload(
       cid: cid ?? row.cid,
       title,
       type,
+      // status 跟随推送结果：草稿清空、发布置 waiting（existing 分支也覆盖，防残留旧状态）
+      status: isDraft ? '' : 'waiting',
       contentHash: contentHash(content),
       syncedAt: Date.now(),
       updatedAt: Date.now()
