@@ -19,6 +19,7 @@ import {
   upsertArticle
 } from './db'
 import type { ArticleRow, ArticleType, PullResult, PushResult } from '../shared/types'
+import { parseFrontmatter, type ArticleMeta } from '../shared/frontmatter'
 
 /**
  * 同步引擎（design.md 数据同步章节）。
@@ -382,6 +383,61 @@ async function findCidByTitle(token: string, title: string, isDraft: boolean): P
 }
 
 /**
+ * 把 frontmatter 里的元数据名称解析为服务端 mid（类型/标签/活动），组装提交 params。
+ * 元数据缺失时返回缺省（type 必填，缺失抛错提示）。
+ */
+async function resolveMetaParams(
+  token: string | null,
+  meta: ArticleMeta
+): Promise<Record<string, unknown>> {
+  const params: Record<string, unknown> = {}
+  // 类型必选：找不到对应 mid 时报错（渲染层按钮已按此禁用）
+  if (!meta.category) {
+    throw new Error('请先在编辑器属性栏选择文章类型，再同步到草稿或发布')
+  }
+  const categoryMid = await metaNameToId(token, 'category', meta.category)
+  if (!categoryMid) throw new Error(`未找到文章类型「${meta.category}」，请重新选择`)
+  params.category = categoryMid
+
+  if (meta.tags && meta.tags.length > 0) {
+    const ids: string[] = []
+    for (const t of meta.tags) {
+      const id = await metaNameToId(token, 'tag', t)
+      if (id) ids.push(id)
+    }
+    if (ids.length > 0) params.tag = ids.join(',') // 逗号分隔 mid 串（服务端约定）
+  }
+  if (meta.active) {
+    const id = await metaNameToId(token, 'active', meta.active)
+    if (id) params.active = id
+  }
+  if (meta.isopen !== undefined) params.isopen = meta.isopen ? 1 : 0
+  return params
+}
+
+/** 名称 → mid（metasList 按 type+name 精确匹配） */
+async function metaNameToId(token: string | null, type: string, name: string): Promise<string | undefined> {
+  const query: Record<string, unknown> = {
+    searchParams: JSON.stringify({ type }),
+    limit: 200,
+    page: 1,
+    order: 'order'
+  }
+  if (token) query.token = token
+  try {
+    const resp = await apiRequest<Array<Record<string, unknown>>>(endpoint('metasList').path, {
+      method: 'GET',
+      query
+    })
+    const hit = (resp.data ?? []).find((m) => String(m.name ?? '') === name)
+    const mid = hit?.mid ?? hit?.id
+    return mid != null ? String(mid) : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/**
  * 上传本地 md 到荒启：无 cid → contentsAdd（新建），有 cid → contentsUpdate（覆盖）。
  * 服务端流转语义（用户确认）：草稿/待审核/已发布文章均可编辑后再推送，
  * isDraft=1 → 存回草稿，isDraft=0 → 发布进入待审核（waiting），由服务器裁决为 已发布/已拒绝。
@@ -400,12 +456,15 @@ async function upload(
   const type: ArticleType = isDraft ? 'post_draft' : 'waiting'
 
   try {
+    // frontmatter 元数据（类型/标签/活动/公开）→ mid params
+    const meta = parseFrontmatter(content).meta
+    const metaParams = await resolveMetaParams(token, meta)
     // v0.0.6：本地配图（.image 引用）先上传，替换为远端 URL 后再转 HTML 提交；
     // 图片上传失败（抛错）→ 整体推送失败，不提交半成品正文
     const contentRemote = await uploadLocalImages(content, root, token)
     const html = mdToHtml(contentRemote)
     let cid: string | undefined = existing?.cid || undefined
-    const params = { title, ...(cid ? { cid } : {}) }
+    const params = { title, ...(cid ? { cid } : {}), ...metaParams }
     const body: Record<string, unknown> = {
       params: JSON.stringify(params),
       token,

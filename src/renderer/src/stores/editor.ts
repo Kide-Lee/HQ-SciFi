@@ -1,11 +1,15 @@
 import { create } from 'zustand'
+import { parseFrontmatter, withFrontmatter, type ArticleMeta } from '../../../shared/frontmatter'
 
 interface EditorState {
   /** 当前打开的本地文件绝对路径 */
   currentPath: string | null
   /** v0.0.6：写作首页当前浏览目录（绝对路径；'' = 存档根） */
   currentDir: string
+  /** 正文（不含 frontmatter；落盘时与 meta 拼合） */
   content: string
+  /** 文章元数据（frontmatter：类型/标签/活动/公开） */
+  meta: ArticleMeta
   /** 与磁盘内容不一致（待保存） */
   dirty: boolean
   /** 是否已关联远端（有 cid） */
@@ -15,6 +19,8 @@ interface EditorState {
   error: string | null
   open: (path: string) => Promise<void>
   update: (content: string) => void
+  /** 更新元数据（类型/标签/活动/公开），标记未保存 */
+  setMeta: (patch: Partial<ArticleMeta>) => void
   save: () => Promise<void>
   /** 新建本地草稿并打开，返回文件路径 */
   createDraft: (title: string, dirRel?: string) => Promise<string | null>
@@ -40,6 +46,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     currentPath: null,
     currentDir: '',
     content: '',
+    meta: {},
     dirty: false,
     synced: false,
     busy: false,
@@ -58,7 +65,8 @@ export const useEditorStore = create<EditorState>((set, get) => {
       set({ busy: true, error: null })
       const res = await window.hqsf.readLocalFile(path)
       if (res.ok) {
-        set({ currentPath: path, content: res.data, dirty: false, busy: false })
+        const { meta, body } = parseFrontmatter(res.data)
+        set({ currentPath: path, content: body, meta, dirty: false, busy: false })
         // 关联状态由索引刷新确定：读取文章索引中的该文件记录
         const arts = await window.hqsf.listArticles()
         if (arts.ok) {
@@ -75,11 +83,17 @@ export const useEditorStore = create<EditorState>((set, get) => {
       scheduleSave()
     },
 
+    setMeta: (patch) => {
+      set((s) => ({ meta: { ...s.meta, ...patch }, dirty: true }))
+      scheduleSave()
+    },
+
     save: async () => {
-      const { currentPath, content, dirty } = get()
+      const { currentPath, content, meta, dirty } = get()
       if (!currentPath || !dirty) return
       set({ busy: true, error: null })
-      const res = await window.hqsf.writeLocalFile(currentPath, content)
+      // 落盘 = frontmatter 元数据 + 正文拼合
+      const res = await window.hqsf.writeLocalFile(currentPath, withFrontmatter(meta, content))
       if (res.ok) set({ dirty: false, busy: false })
       else set({ busy: false, error: res.error })
     },
@@ -91,6 +105,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
         set({
           currentPath: res.data,
           content: `# ${title}\n\n`,
+          meta: {},
           dirty: false,
           synced: false,
           busy: false
@@ -105,7 +120,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
       // 关闭前落盘未保存修改
       if (get().dirty) await get().save()
       if (timer) clearTimeout(timer)
-      set({ currentPath: null, content: '', dirty: false, synced: false, error: null })
+      set({ currentPath: null, content: '', meta: {}, dirty: false, synced: false, error: null })
     },
 
     setCurrentDir: (currentDir) => set({ currentDir })

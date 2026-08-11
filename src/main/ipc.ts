@@ -24,7 +24,7 @@ import {
   setReviewAttitude,
   submitReview
 } from './read'
-import { clearArticles, listArticles } from './db'
+import { clearArticles, getMeta, listArticles } from './db'
 import type { ArticleListOptions, ReviewPayload } from '../shared/types'
 
 /** IPC 返回约定：成功 { ok: true, data }，失败 { ok: false, error }（避免 Error 序列化丢 message） */
@@ -309,6 +309,28 @@ export function registerIpcHandlers(): void {
     const token = getStoredToken()
     try {
       return ok(await listMetas(token, String(type ?? '')))
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  /**
+   * 违禁词检测（本地）：按 meta 中配置的禁词列表（逗号分隔）做包含匹配，
+   * 与服务端 getForbidden 规则一致。荒启无公开检测接口，提交时服务端仍会
+   * 独立检测（第三方安全服务）；此按钮用于发布前自查。
+   */
+  ipcMain.handle('hqsf:check-forbidden', (_e, title: string, text: string) => {
+    try {
+      const forbidden = getMeta('forbidden_words') || ''
+      const hits: string[] = []
+      if (forbidden) {
+        for (const word of forbidden.split(',')) {
+          const w = word.trim()
+          if (!w) continue
+          if ((title || '').includes(w) || (text || '').includes(w)) hits.push(w)
+        }
+      }
+      return ok({ hits, configured: forbidden.trim().length > 0 })
     } catch (err) {
       return fail(err)
     }

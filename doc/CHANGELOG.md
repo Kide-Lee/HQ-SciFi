@@ -3,6 +3,8 @@
 ## v0.0.7（开发中，未发布）
 
 ### 变更
+- **编辑器属性栏与文章元数据（frontmatter）**：编辑区工具栏下方新增属性栏——**文章类型**（必选，下拉自 `metasList type=category`）、**标签**（多选 chips，`type=tag`）、**活动**（下拉，`type=active`，可"不参加"）、**是否公开阅读**（开关，缺省公开）、**违禁词检测**按钮；元数据存于 md 文件头部 YAML frontmatter（`category/tags/active/isopen`，`src/shared/frontmatter.ts` 三端共用解析/生成），编辑器仅编辑正文、落盘时拼合 frontmatter；**未选择文章类型时「同步到草稿」「发布」按钮禁用**（主进程提交时同样校验）；提交时主进程把 frontmatter 中的名称解析为服务端 mid（`contentsAdd/Update` 的 `category/tag/active/isopen` 参数）
+- **违禁词检测（本地）**：荒启无公开检测接口（提交时由服务端第三方安全服务检测，本地 RuleApi 的 forbidden 表亦需管理权限），按钮按 meta 中配置的禁词列表（逗号分隔，可在设置添加）做包含匹配（与服务端 `getForbidden` 同规则），未配置时明确提示由服务端检测
 - **编辑器三模式（milkdown v7）**：引入 milkdown（ProseMirror 内核，`@milkdown/kit`/`@milkdown/react`/`@milkdown/theme-nord` 7.22.0），编辑区支持三种模式切换（工具栏按钮）：① **所见即所得**：milkdown 全宽编辑 + **编辑工具栏**（粗体/斜体/行内代码/链接/图片/标题 1-3/引用/无序·有序列表/代码块/分割线/清除格式/撤销/重做，milkdown 命令驱动），输入 Markdown 语法即时渲染为富文本，内容经 listener 同步回流；② **即时预览（IR，Typora 式）**：全宽源码编辑（CodeMirror，语法高亮），**光标所在块**（段落/标题/列表组）下方实时渲染其效果，输入即更新；③ **分屏预览（SV）**：左栏源码编辑 + 右栏 markdown-it 整篇实时渲染（复用阅读排版样式，图片走 `hqsf-img://` 本地缓存协议）；三模式共用 store 单一内容源，切换不丢内容；`Ctrl/Cmd-S` 全局保存快捷键；本地 md 落盘与同步/发布链路不变；编辑区排版优化（标题层级/引用/代码块/表格/任务列表等）
 - **登录前须阅读并勾选两份协议**：登录卡片内新增两个复选框（`login-agreement-item`）——点协议名打开查看层（`AgreementModal`，主进程渲染的协议全文），「我已阅读，返回」后该复选框解锁、方可勾选；**两份都勾上才允许点击登录按钮**（`primary-btn` disabled 含勾选条件）；已签署过（本应用协议版本匹配 / 荒启协议标记存在）自动勾选，协议版本更新后需重新查看勾选；本应用协议勾选时写入 `hqsf-agreement-version`、荒启协议写入 `hqsf-hq-agreement-accepted`。荒启协议经 `hqsf:get-huangqi-agreement` 网络抓取（页面 → index.js → 协议 chunk → 解析 13 章节/52 段落，平台名填充「荒启科幻」，走 Node 原生 fetch 规避部分环境 Electron NSS 证书库异常）；**获取失败时「我已阅读」禁用、复选框无法勾选**，不承诺做不到的事。移除独立协议页 `AgreementView`
 - **登录页简化**：移除手机验证码登录方式（`login-tabs`/手机表单/发送验证码），仅保留账号密码登录；删除 `#login-foot` 元素及其样式

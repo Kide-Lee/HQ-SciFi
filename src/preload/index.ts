@@ -105,6 +105,9 @@ const api = {
   // ---- 内容浏览（M3） ----
   /** metas 栏目条目（type=serial/collection/active/tag 等，连载/活动树） */
   listMetas: (type: string): Promise<ApiResult<MetaInfo[]>> => ipcRenderer.invoke('hqsf:list-metas', type),
+  /** 违禁词检测（本地禁词表，meta 配置）：返回命中词列表与是否配置了词表 */
+  checkForbidden: (title: string, text: string): Promise<ApiResult<{ hits: string[]; configured: boolean }>> =>
+    ipcRenderer.invoke('hqsf:check-forbidden', title, text),
   /** AI 模型列表（推荐栏目「AI模型」） */
   listGptModels: (): Promise<ApiResult<GptModel[]>> => ipcRenderer.invoke('hqsf:list-gpt-models'),
   /** 当前账号的评审任务（待评审/已完成文章列表） */

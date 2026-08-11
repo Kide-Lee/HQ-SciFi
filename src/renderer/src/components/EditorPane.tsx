@@ -24,12 +24,14 @@ function countAllDocs(nodes: LocalNode[]): number {
   )
 }
 
-/** 编辑器视图：CodeMirror 6 编辑本地 md + 工具栏（同步到草稿/发布/保存） */
+/** 编辑器视图：三模式编辑（milkdown 所见即所得 / IR 即时预览 / SV 分屏）+ 属性栏（类型/标签/活动/公开/违禁检测）+ 工具栏 */
 export function EditorPane(): React.JSX.Element {
   const currentPath = useEditorStore((s) => s.currentPath)
   const currentDir = useEditorStore((s) => s.currentDir)
   const setCurrentDir = useEditorStore((s) => s.setCurrentDir)
   const content = useEditorStore((s) => s.content)
+  const meta = useEditorStore((s) => s.meta)
+  const setMeta = useEditorStore((s) => s.setMeta)
   const dirty = useEditorStore((s) => s.dirty)
   const synced = useEditorStore((s) => s.synced)
   const busy = useEditorStore((s) => s.busy)
@@ -63,6 +65,50 @@ export function EditorPane(): React.JSX.Element {
   // v0.0.6：待二次确认删除的本地文件 path（再点一次执行删除；点击其他处恢复）
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const deleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // v0.0.7：文章元数据属性栏——类型/标签/活动/公开 + 违禁词检测
+  const [cats, setCats] = useState<Array<{ mid: string; name: string }>>([])
+  const [tags, setTags] = useState<Array<{ mid: string; name: string }>>([])
+  const [acts, setActs] = useState<Array<{ mid: string; name: string }>>([])
+  const [forbidMsg, setForbidMsg] = useState<{ ok: boolean; text: string } | null>(null)
+
+  // 编辑态加载 metas（类型/标签/活动）；失败静默（属性栏置空，同步/发布仍可用类型必选校验拦截）
+  useEffect(() => {
+    if (!currentPath) return
+    void window.hqsf.listMetas('category').then((r) => {
+      if (r.ok) setCats(r.data.map((m) => ({ mid: String(m.mid), name: m.name })))
+    })
+    void window.hqsf.listMetas('tag').then((r) => {
+      if (r.ok) setTags(r.data.map((m) => ({ mid: String(m.mid), name: m.name })))
+    })
+    void window.hqsf.listMetas('active').then((r) => {
+      if (r.ok) setActs(r.data.map((m) => ({ mid: String(m.mid), name: m.name })))
+    })
+    setForbidMsg(null)
+  }, [currentPath])
+
+  /** 违禁词检测：本地禁词表（meta 配置）包含匹配；无配置时提示由服务端检测 */
+  async function handleCheckForbidden(): Promise<void> {
+    const fileName = (currentPath ?? '').split('/').pop()?.replace(/\.md$/i, '') ?? ''
+    const res = await window.hqsf.checkForbidden(fileName, content)
+    if (!res.ok) {
+      setForbidMsg({ ok: false, text: res.error || '检测失败' })
+      return
+    }
+    if (!res.data.configured) {
+      setForbidMsg({ ok: true, text: '未配置禁词列表（可在设置中添加），发布时由荒启服务端检测' })
+    } else if (res.data.hits.length > 0) {
+      setForbidMsg({ ok: false, text: `发现疑似违禁词：${res.data.hits.join('、')}` })
+    } else {
+      setForbidMsg({ ok: true, text: '未发现违禁词' })
+    }
+  }
+
+  /** 标签 toggle（meta.tags 数组） */
+  function toggleTag(name: string): void {
+    const cur = meta.tags ?? []
+    setMeta({ tags: cur.includes(name) ? cur.filter((t) => t !== name) : [...cur, name] })
+  }
 
   const pullErrors = lastPull?.errors ?? []
 
@@ -237,10 +283,10 @@ export function EditorPane(): React.JSX.Element {
               <button className="toolbar-btn" onClick={() => void save()} disabled={!dirty || busy}>
                 保存
               </button>
-              <button className="toolbar-btn accent" onClick={() => void handlePush(true)} disabled={!currentPath || pushingNow || busy} title="将当前内容保存为远端草稿">
+              <button className="toolbar-btn accent" onClick={() => void handlePush(true)} disabled={!currentPath || !meta.category || pushingNow || busy} title={meta.category ? '将当前内容保存为远端草稿' : '请先选择文章类型'}>
                 {pushingNow ? '同步中 …' : '同步到草稿'}
               </button>
-              <button className="toolbar-btn primary" onClick={() => void handlePush(false)} disabled={!currentPath || pushingNow || busy} title="发布后进入待审核，由服务器裁决为已发布或已拒绝">
+              <button className="toolbar-btn primary" onClick={() => void handlePush(false)} disabled={!currentPath || !meta.category || pushingNow || busy} title={meta.category ? '发布后进入待审核，由服务器裁决为已发布或已拒绝' : '请先选择文章类型'}>
                 发布
               </button>
             </>
@@ -287,6 +333,71 @@ export function EditorPane(): React.JSX.Element {
             clearDocError()
           }}
         />
+      )}
+
+      {/* v0.0.7：文章属性栏（类型/标签/活动/公开 + 违禁词检测），仅编辑态显示 */}
+      {currentPath && (
+        <div className="editor-meta-bar">
+          <label className="meta-field">
+            <span className="meta-label">类型</span>
+            <select
+              value={meta.category ?? ''}
+              onChange={(e) => setMeta({ category: e.target.value || undefined })}
+              className={!meta.category ? 'unset' : ''}
+            >
+              <option value="">选择类型…</option>
+              {cats.map((c) => (
+                <option key={c.mid} value={c.name}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="meta-field meta-tags-field">
+            <span className="meta-label">标签</span>
+            <div className="meta-tags">
+              {tags.length === 0 && <span className="muted">（加载中/无标签）</span>}
+              {tags.map((t) => (
+                <button
+                  key={t.mid}
+                  className={`meta-tag${(meta.tags ?? []).includes(t.name) ? ' on' : ''}`}
+                  onClick={() => toggleTag(t.name)}
+                  title={t.name}
+                >
+                  {t.name}
+                </button>
+              ))}
+            </div>
+          </div>
+          <label className="meta-field">
+            <span className="meta-label">活动</span>
+            <select
+              value={meta.active ?? ''}
+              onChange={(e) => setMeta({ active: e.target.value || undefined })}
+            >
+              <option value="">不参加</option>
+              {acts.map((a) => (
+                <option key={a.mid} value={a.name}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="meta-field meta-check">
+            <input
+              type="checkbox"
+              checked={meta.isopen !== false}
+              onChange={(e) => setMeta({ isopen: e.target.checked })}
+            />
+            <span>公开阅读</span>
+          </label>
+          <button className="toolbar-btn" onClick={() => void handleCheckForbidden()} title="按本地禁词表检查标题与正文（发布时服务端仍会独立检测）">
+            违禁词检测
+          </button>
+          {forbidMsg && (
+            <span className={`forbid-result ${forbidMsg.ok ? 'ok' : 'bad'}`}>{forbidMsg.text}</span>
+          )}
+        </div>
       )}
 
       <div className={`editor-body${currentPath ? ' editing' : ' home'}`}>

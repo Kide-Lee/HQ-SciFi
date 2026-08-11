@@ -3950,3 +3950,86 @@ body {
 .split-editor-preview img {
   max-width: 100%;
 }
+
+/* ============ v0.0.7：文章属性栏（类型/标签/活动/公开 + 违禁词检测） ============ */
+
+.editor-meta-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  font-size: 13px;
+}
+.meta-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+}
+.meta-label {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.meta-field select {
+  max-width: 200px;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg-card);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+.meta-field select.unset {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.meta-tags-field {
+  flex: 1;
+  min-width: 160px;
+}
+.meta-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.meta-tag {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.meta-tag:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.meta-tag.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.meta-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+.meta-check input {
+  accent-color: var(--accent);
+}
+.forbid-result {
+  font-size: 12px;
+}
+.forbid-result.ok {
+  color: var(--ok, #2e9e5b);
+}
+.forbid-result.bad {
+  color: var(--danger, #d64545);
+}
