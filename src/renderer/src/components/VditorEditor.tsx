@@ -104,6 +104,9 @@ export function VditorEditor({ docKey, mode, content, onChange }: VditorEditorPr
         delay: 200,
         // 媒体渲染器（YouTube/B站等视频 iframe）会产生远程 iframe 请求，桌面阅读不引入，禁用
         render: { media: { enable: false } },
+        // 分屏预览固定桌面宽度即可，无需平板/手机/公众号/知乎切换，移除整个 vditor-preview__action 组件
+        // （actions 为空数组时 Vditor 不渲染该组件，源码 previewRender 开头 return）
+        actions: [],
         // 预览区图片 src 改写为 hqsf-img:// 本地缓存协议（与阅读视图一致，离线可看）
         transform: (html: string) =>
           html.replace(
