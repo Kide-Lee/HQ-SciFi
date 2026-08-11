@@ -18,6 +18,7 @@ reasonix.toml
 
 # 荒启 API 相关调研文档（本地参考，不入库）
 /doc/api-research.md
+/doc/API*.md
 /doc/ruleapi-integration.md
 /doc/site-overview.md
 
