@@ -24,3 +24,5 @@ reasonix.toml
 
 # 荒启 API 接口配置（本地持有，不入库；模板见 api.config.example.json）
 api.config.json
+# 本地测试模式 API 配置（baseUrl 指向本地 RuleApi，见 src/main/testmode.ts）
+api.config.test.json

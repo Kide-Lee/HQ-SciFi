@@ -24,6 +24,7 @@
 - **接口定义外置**：荒启 API 基址与全部接口 path/method 从代码提取到 `api.config.json`（本地持有，不入库；模板 `api.config.example.json`），程序经 `net/apiconfig.ts` 的 `endpoint(name)` 读取；配置缺失/损坏/缺接口时抛 `ApiConfigError` 并在启动时弹错退出（提示复制 example），打包时经 `extraResources` 随包分发
 
 ### 修复与工程
+- **本地测试模式与正式使用隔离**：新增 `src/main/testmode.ts`——`HQSF_TEST=1` 或 `--test` 启动进入测试模式：独立 userData（`~/.config/hqsf-test`，数据库/session/设置与正式库完全隔离，修复此前测试数据混入正式索引的问题）、API 配置优先读本地持有的 `api.config.test.json`（baseUrl 指向本地 RuleApi，不入库）、默认存档根 `~/文档/荒启科幻/草稿-test`；`npm run dev:test` / `start:test` 脚本；正式模式不受影响，两者可同时运行（单实例锁按 userData 隔离）
 - **登录切换账号时清空本地索引（防串号）**：`articles` 本地索引不按账号隔离，旧账号同步留下的文章会串到新注册同名账号的侧栏四态（曾出现新号「已发布」显示旧号文章）；现登录成功即 `clearArticles()` 清空索引（db.ts 新增），渲染层登录后 `refreshArticles()` 同步刷新侧栏；新账号数据经同步重建，不再残留上一账号文章
 - **修复 contentsAdd 假 cid 入库（extractCid）**：`contentsAdd` 实测成功返回 `data:1`（非 cid），旧 `extractCid` 把它直接当 cid 存进索引，导致新建文章带假 cid——下次推送会误 `contentsUpdate` 线上 id=1 的文章（曾造成「CDP新草稿测试」被记成 cid=1 的待审核残留）；现改为仅 `data` 为对象且含 `cid/id` 字段时可信，未取到时**回查列表**（`contentsList` 按 type+标题精确匹配、取 modified 最新）拿真实 cid，仍失败才报错；已清理存量假 cid（`articles` 表 cid='1' 置空，下次推送走新建）
 - **API 调用方法与官方文档对齐（signOut/contentsList/attitude）**：对照官方《API 返回类型源码调研》逐接口方法修正 3 处——① `signOut` 由 POST 改为 GET（token 走 query，`api.config.json`/example 同步 `method:"GET"`）；② 同步引擎 `contentsList` 由 POST 改为 GET（searchParams/limit/page/token 走 query），与阅读层同一接口的 GET 形态统一；③ `attitude` 由 GET 改为 POST（token/id/type 走 form body），与官方 POST 一致；三处调用点 + 两份配置全部同步

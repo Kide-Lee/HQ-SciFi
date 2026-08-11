@@ -10,7 +10,9 @@
   "private": true,
   "scripts": {
     "dev": "electron-vite dev",
+    "dev:test": "HQSF_TEST=1 electron-vite dev",
     "start": "electron-vite preview",
+    "start:test": "HQSF_TEST=1 electron-vite preview",
     "build": "electron-vite build",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "build:linux": "electron-vite build && electron-builder --linux; rc=$?; node scripts/archive-release.mjs || rc=1; exit $rc",

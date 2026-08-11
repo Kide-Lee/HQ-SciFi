@@ -2,6 +2,7 @@ import { app, dialog, shell, type BrowserWindow } from 'electron'
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join, relative, resolve, sep } from 'node:path'
 import { getMeta, setMeta } from './db'
+import { isTestMode } from './testmode'
 import type { LocalNode } from '../shared/types'
 
 /**
@@ -13,7 +14,9 @@ import type { LocalNode } from '../shared/types'
 const DOCS_ROOT_KEY = 'docs_root'
 
 export function defaultDocsRoot(): string {
-  return join(app.getPath('documents'), '荒启科幻', '草稿')
+  const base = join(app.getPath('documents'), '荒启科幻', '草稿')
+  // 测试模式用独立存档根，本地测试文件不混入正式存档
+  return isTestMode() ? `${base}-test` : base
 }
 
 export function getDocsRoot(): string {

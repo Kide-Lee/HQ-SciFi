@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { isTestMode } from '../testmode'
 
 /**
  * 荒启 API 配置加载层。
@@ -94,6 +95,8 @@ const ENDPOINT_DESC: Record<EndpointName, string> = {
 function candidatePaths(): string[] {
   const paths: string[] = []
   if (process.env.HQSF_API_CONFIG) paths.push(process.env.HQSF_API_CONFIG)
+  // 测试模式（本地 RuleApi 联调）：优先用独立的测试配置，与线上配置隔离
+  if (isTestMode()) paths.push(join(process.cwd(), 'api.config.test.json'))
   // 开发模式（npm run dev）cwd 为项目根
   paths.push(join(process.cwd(), 'api.config.json'))
   // 打包后：asar 内 / resources 下（electron-builder extraResources 拷入）
