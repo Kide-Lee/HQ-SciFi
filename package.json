@@ -41,6 +41,9 @@
   },
   "dependencies": {
     "@codemirror/lang-markdown": "^6.5.2",
+    "@milkdown/kit": "^7.22.0",
+    "@milkdown/react": "^7.22.0",
+    "@milkdown/theme-nord": "^7.22.0",
     "better-sqlite3": "^12.11.1",
     "codemirror": "^6.0.2",
     "lucide-react": "^1.30.0",

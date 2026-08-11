@@ -1,14 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDown, ArrowUp, ChevronRight, FilePlus, Folder, FolderPlus, Trash2, X } from 'lucide-react'
-import { EditorView, keymap } from '@codemirror/view'
-import { EditorState } from '@codemirror/state'
-import { basicSetup } from 'codemirror'
-import { markdown } from '@codemirror/lang-markdown'
+import { ArrowDown, ArrowUp, ChevronRight, Columns2, FilePlus, Folder, FolderPlus, PenLine, Trash2, X } from 'lucide-react'
 import { useEditorStore } from '../stores/editor'
 import { useDocsStore } from '../stores/docs'
 import { ErrorBanner } from './ErrorBanner'
 import { formatSize, formatTs } from '../lib/sanitize'
 import type { ArticleRow, LocalNode } from '../../../shared/types'
+import { MilkdownEditor } from './MilkdownEditor'
+import { SplitEditor } from './SplitEditor'
 
 /** 远端非草稿类型的展示名（同步/推送后角标显示当前远端状态） */
 const REMOTE_TYPE_LABEL: Partial<Record<ArticleRow['type'], string>> = {
@@ -50,13 +48,10 @@ export function EditorPane(): React.JSX.Element {
   const lastPull = useDocsStore((s) => s.lastPull)
   const articles = useDocsStore((s) => s.articles)
 
-  const containerRef = useRef<HTMLDivElement>(null)
-  const viewRef = useRef<EditorView | null>(null)
-  const contentRef = useRef(content)
-  contentRef.current = content
-
   const [showNew, setShowNew] = useState(false)
   const [newTitle, setNewTitle] = useState('')
+  // v0.0.7：编辑模式——所见即所得（milkdown）/ 即时预览（源码 + 渲染分栏）
+  const [mode, setMode] = useState<'wysiwyg' | 'split'>('wysiwyg')
   // v0.0.6：新建文件夹输入框状态
   const [showNewDir, setShowNewDir] = useState(false)
   const [newDirName, setNewDirName] = useState('')
@@ -85,42 +80,17 @@ export function EditorPane(): React.JSX.Element {
     return [...dirs, ...sorted]
   }, [items, sortBy, sortAsc])
 
-  // 切换文档时重建编辑器实例
+  // v0.0.7：全局 Ctrl/Cmd-S 保存（milkdown 内部无 keymap，两种模式统一由这里处理）
   useEffect(() => {
-    if (!containerRef.current || !currentPath) return
-    const view = new EditorView({
-      state: EditorState.create({
-        doc: contentRef.current,
-        extensions: [
-          basicSetup,
-          markdown(),
-          keymap.of([
-            {
-              key: 'Mod-s',
-              run: () => {
-                void save()
-                return true
-              }
-            }
-          ]),
-          EditorView.updateListener.of((u) => {
-            if (u.docChanged) update(u.state.doc.toString())
-          }),
-          EditorView.theme({
-            '&': { height: '100%', fontSize: '14px' },
-            '.cm-scroller': { fontFamily: 'ui-monospace, "Cascadia Code", Consolas, monospace', lineHeight: '1.7' }
-          })
-        ]
-      }),
-      parent: containerRef.current
-    })
-    viewRef.current = view
-    return () => {
-      view.destroy()
-      viewRef.current = null
+    const onKey = (e: KeyboardEvent): void => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault()
+        if (currentPath && dirty) void save()
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPath])
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [currentPath, dirty, save])
 
   function showToast(msg: string): void {
     setToast(msg)
@@ -237,6 +207,23 @@ export function EditorPane(): React.JSX.Element {
           <button className="toolbar-btn" onClick={() => setShowNew((v) => !v)}>
             + 新建草稿
           </button>
+          {/* v0.0.7：编辑模式切换——所见即所得 / 即时预览 */}
+          <div className="editor-mode-switch">
+            <button
+              className={`mode-btn${mode === 'wysiwyg' ? ' active' : ''}`}
+              onClick={() => setMode('wysiwyg')}
+              title="所见即所得：输入 Markdown 语法即时渲染为富文本"
+            >
+              <PenLine size={13} /> 所见即所得
+            </button>
+            <button
+              className={`mode-btn${mode === 'split' ? ' active' : ''}`}
+              onClick={() => setMode('split')}
+              title="即时预览：左侧源码编辑，右侧实时渲染"
+            >
+              <Columns2 size={13} /> 即时预览
+            </button>
+          </div>
           {currentPath && (
             <>
               <button className="toolbar-btn" onClick={() => void save()} disabled={!dirty || busy}>
@@ -296,7 +283,11 @@ export function EditorPane(): React.JSX.Element {
 
       <div className={`editor-body${currentPath ? ' editing' : ' home'}`}>
         {currentPath ? (
-          <div className="cm-host" ref={containerRef} />
+          mode === 'wysiwyg' ? (
+            <MilkdownEditor docKey={currentPath} content={content} onChange={update} />
+          ) : (
+            <SplitEditor docKey={currentPath} content={content} onChange={update} />
+          )
         ) : (
           /* v0.0.6：写作首页——本地存档目录导航 + 文章卡片 */
           <div className="editor-empty editor-local-home">
