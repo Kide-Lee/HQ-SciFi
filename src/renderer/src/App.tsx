@@ -1,9 +1,58 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { Copy, Minus, Square, X } from 'lucide-react'
 import { Sidebar } from './components/Sidebar'
 import { MainArea } from './components/MainArea'
 import { TopBar } from './components/TopBar'
 import { LoginView } from './components/LoginView'
 import { useAuthStore } from './stores/auth'
+
+/**
+ * 会话恢复中页面：无边框窗口须可拖动 + 窗口控件（与登录页一致）——
+ * macOS 由系统红绿灯接管（hiddenInset），非 mac 自绘最小化/全屏/关闭。
+ */
+function RestoringScreen(): React.JSX.Element {
+  const [isMac, setIsMac] = useState(false)
+  const [maximized, setMaximized] = useState(false)
+
+  useEffect(() => {
+    let alive = true
+    void window.hqsf.getAppInfo().then((info) => {
+      if (alive) setIsMac(info.platform === 'darwin')
+    })
+    void window.hqsf.windowControls.isMaximized().then((v) => {
+      if (alive) setMaximized(v)
+    })
+    const off = window.hqsf.windowControls.onMaximizedChanged((v) => setMaximized(v))
+    return () => {
+      alive = false
+      off()
+    }
+  }, [])
+
+  return (
+    <div className="app-loading">
+      <div className="window-drag-bar" />
+      {!isMac && (
+        <div className="login-window-controls">
+          <button className="topbar-btn" onClick={() => void window.hqsf.windowControls.minimize()} title="最小化">
+            <Minus size={14} />
+          </button>
+          <button
+            className="topbar-btn"
+            onClick={() => void window.hqsf.windowControls.toggleMaximize()}
+            title={maximized ? '还原窗口' : '全屏'}
+          >
+            {maximized ? <Copy size={13} /> : <Square size={12} />}
+          </button>
+          <button className="topbar-btn topbar-close" onClick={() => void window.hqsf.windowControls.close()} title="关闭">
+            <X size={15} />
+          </button>
+        </div>
+      )}
+      <span>正在恢复会话 …</span>
+    </div>
+  )
+}
 
 export default function App(): React.JSX.Element {
   const session = useAuthStore((s) => s.session)
@@ -30,7 +79,7 @@ export default function App(): React.JSX.Element {
   }, [])
 
   if (restoring) {
-    return <div className="app-loading">正在恢复会话 …</div>
+    return <RestoringScreen />
   }
 
   // 未登录只能看到登录页（登录前须勾选协议，见 LoginView）

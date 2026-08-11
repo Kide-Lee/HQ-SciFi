@@ -13,7 +13,8 @@ import 'vditor/dist/js/i18n/zh_CN.js'
 
 /**
  * 占位已本地加载的脚本 id：Vditor 动态加载脚本前会先查 document.getElementById(id)，
- * 已存在则跳过（addScript resolve 不再发起请求）。配合 cdn:'' 保证零远程请求。
+ * 已存在则跳过（addScript/addScriptSync resolve 不再发起请求）。配合 cdn:'' 保证零远程请求。
+ * 注意：Vditor destroy() 会移除 vditorIconScript 占位，故每次创建实例前需重新占位（见组件 effect）。
  */
 function markScriptLoaded(id: string): void {
   if (!document.getElementById(id)) {
@@ -22,9 +23,6 @@ function markScriptLoaded(id: string): void {
     document.head.appendChild(s)
   }
 }
-markScriptLoaded('vditorLuteScript')
-markScriptLoaded('vditorIconScript')
-markScriptLoaded('vditorI18nScriptzh_CN')
 
 interface VditorEditorProps {
   /** 文档标识：变化时用最新 content 重建编辑器（切换文档） */
@@ -54,6 +52,14 @@ export function VditorEditor({ docKey, mode, content, onChange }: VditorEditorPr
   useEffect(() => {
     if (!containerRef.current) return
     lastValueRef.current = contentRef.current
+    // 组件卸载标记 + 实例引用（after 回调里兜底销毁「已卸载但未及销毁」的实例）
+    let disposed = false
+    let vditor: Vditor | null = null
+    // Vditor destroy() 会移除 vditorIconScript 占位，模式/文档切换重建前重新占位，
+    // 防止 addScriptSync 同步请求 icons 脚本（cdn='' 相对路径在 dev server 返回 HTML 报错）
+    markScriptLoaded('vditorLuteScript')
+    markScriptLoaded('vditorIconScript')
+    markScriptLoaded('vditorI18nScriptzh_CN')
 
     const options = {
       mode,
@@ -111,13 +117,33 @@ export function VditorEditor({ docKey, mode, content, onChange }: VditorEditorPr
         if (value === lastValueRef.current) return
         lastValueRef.current = value
         onChangeRef.current(value)
+      },
+      // 异步初始化完成回调：若组件已卸载（极端时序下未及销毁的实例），立即销毁清理
+      after: () => {
+        if (disposed && vditor) {
+          try {
+            vditor.destroy()
+          } catch {
+            // 实例未就绪的 destroy 可能抛错，忽略
+          }
+        }
       }
     } as unknown as IOptions
 
-    const vditor = new Vditor(containerRef.current, options)
+    vditor = new Vditor(containerRef.current, options)
 
     return () => {
-      vditor.destroy()
+      disposed = true
+      // Vditor 构造器为异步初始化（addScript(...).then(init)，返回时 this.vditor 尚未就绪），
+      // 未就绪时 destroy() 访问 this.vditor.element 会抛 TypeError——已就绪才同步销毁，
+      // 未就绪的由上方 after 回调（disposed 标记）兜底销毁
+      if (vditor && vditor.vditor) {
+        try {
+          vditor.destroy()
+        } catch {
+          // noop
+        }
+      }
     }
   }, [docKey, mode])
 

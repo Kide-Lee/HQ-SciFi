@@ -532,6 +532,7 @@ body {
 
 /* ===== M1 追加：登录页 ===== */
 .app-loading {
+  position: relative; /* 拖动条与窗口控件为 absolute 定位，需相对容器 */
   height: 100%;
   display: flex;
   align-items: center;
