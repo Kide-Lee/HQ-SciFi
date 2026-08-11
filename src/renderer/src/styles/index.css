@@ -1268,6 +1268,59 @@ body {
   padding-top: 12px;
 }
 
+/* ---------- 插入数学公式弹窗（Electron 渲染层不支持 window.prompt，自绘输入框） ---------- */
+.math-dialog-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(31, 35, 41, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.math-dialog {
+  width: 420px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px 22px;
+  box-shadow: 0 8px 32px rgba(31, 35, 41, 0.18);
+}
+.math-dialog h3 {
+  font-size: 15px;
+  margin-bottom: 6px;
+}
+.math-dialog .muted {
+  margin: 0 0 12px;
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+.math-dialog code {
+  padding: 0.1em 0.4em;
+  border-radius: 4px;
+  background: var(--bg-quote, rgba(128, 128, 128, 0.14));
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+.math-dialog input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  outline: none;
+  box-sizing: border-box;
+}
+.math-dialog input:focus {
+  border-color: var(--accent);
+}
+.math-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
 .editor-empty {
   flex: 1;
   display: flex;

@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Vditor from 'vditor'
 import { cachedImageUrl } from '../lib/sanitize'
 
@@ -10,6 +11,27 @@ import 'vditor/dist/css/content-theme/light.css'
 import 'vditor/dist/js/lute/lute.min.js'
 import 'vditor/dist/js/icons/ant.js'
 import 'vditor/dist/js/i18n/zh_CN.js'
+// 数学公式渲染 KaTeX（window.katex + 样式/字体）：Vditor 的 mathRender 直接使用 window.katex
+// 注：mhchem（化学 \ce{} 扩展）未引入——其 UMD 内部 require("katex") 在 Vite 打包下无法解析；
+// 其 script id 已占位（见 effect），Vditor 动态加载跳过，化学公式语法暂不支持
+// KaTeX 用 ?raw 内联源码 + 同步 script 注入：若作为模块 import，Vite 会转换 UMD 的
+// module.exports 分支导致 window.katex 全局挂载丢失（实测 katex is not defined）
+import katexSource from 'vditor/dist/js/katex/katex.min.js?raw'
+import 'vditor/dist/js/katex/katex.min.css'
+
+// 模块顶层同步执行：window.katex 立即可用（Vditor mathRender 直接使用，无异步时序问题）
+;(() => {
+  if (!document.getElementById('vditorKatexScript')) {
+    const s = document.createElement('script')
+    s.id = 'vditorKatexScript'
+    s.textContent = katexSource
+    document.head.appendChild(s)
+  }
+  // 兜底校验：若渲染进程将来启用 CSP script-src 'self' 会拦截 textContent 注入，公式将无法渲染
+  if (typeof (window as unknown as { katex?: unknown }).katex === 'undefined') {
+    console.warn('[vditor] KaTeX 注入失败，数学公式将无法渲染（检查 CSP 或 katex 资源）')
+  }
+})()
 
 /**
  * 占位已本地加载的脚本 id：Vditor 动态加载脚本前会先查 document.getElementById(id)，
@@ -21,6 +43,17 @@ function markScriptLoaded(id: string): void {
     const s = document.createElement('script')
     s.id = id
     document.head.appendChild(s)
+  }
+}
+
+/** 占位已本地引入的样式表 link id（addStyle 检查 document.getElementById(id) 已存在则跳过） */
+function markStyleLoaded(id: string): void {
+  if (!document.getElementById(id)) {
+    const l = document.createElement('link')
+    l.id = id
+    l.rel = 'stylesheet'
+    l.type = 'text/css'
+    document.head.appendChild(l)
   }
 }
 
@@ -48,6 +81,29 @@ export function VditorEditor({ docKey, mode, content, onChange }: VditorEditorPr
   onChangeRef.current = onChange
   // 上一次已回流的值：Vditor 初始化/内部 setValue 触发 input 时与初值相同则跳过，避免误标 dirty
   const lastValueRef = useRef(content)
+  // 当前 Vditor 实例（公式弹窗确认时调用 insertValue；Electron 渲染层不支持 window.prompt）
+  const vditorRef = useRef<Vditor | null>(null)
+  const [mathOpen, setMathOpen] = useState(false)
+  const [mathLatex, setMathLatex] = useState('')
+
+  /** 公式弹窗确认：插入块级公式 $$…$$（经 Vditor 渲染为 KaTeX 公式块） */
+  function handleInsertMath(): void {
+    const latex = mathLatex.trim()
+    const vditor = vditorRef.current
+    if (!latex || !vditor) return
+    // 弹窗 input 抢走焦点：插入前回到编辑器，避免选区漂移导致插入位置错乱
+    try {
+      vditor.focus()
+    } catch {
+      // 忽略：实例未就绪等场景
+    }
+    // 异步初始化未就绪（this.vditor 为空）时 insertValue 会抛错，就绪才插入
+    if (vditor.vditor) {
+      vditor.insertValue(`$$${latex}$$`, true)
+    }
+    setMathOpen(false)
+    setMathLatex('')
+  }
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -60,6 +116,10 @@ export function VditorEditor({ docKey, mode, content, onChange }: VditorEditorPr
     markScriptLoaded('vditorLuteScript')
     markScriptLoaded('vditorIconScript')
     markScriptLoaded('vditorI18nScriptzh_CN')
+    // KaTeX 公式渲染脚本/样式已本地引入：占位阻止 Vditor 动态加载（mathRender 直接用 window.katex）
+    markScriptLoaded('vditorKatexScript')
+    markScriptLoaded('vditorKatexChemScript')
+    markStyleLoaded('vditorKatexStyle')
 
     const options = {
       mode,
@@ -91,6 +151,17 @@ export function VditorEditor({ docKey, mode, content, onChange }: VditorEditorPr
         'line',
         'code',
         'inline-code',
+        // 插入数学公式（KaTeX/LaTeX，块级 $$…$$；行内公式直接用 $…$ 写在正文）
+        {
+          name: 'math',
+          icon: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 7V4H6l6 8-6 8h12v-3"/></svg>',
+          tip: '插入数学公式（KaTeX）',
+          click: () => {
+            // Electron 渲染层不支持 window.prompt，用 React 弹窗输入 LaTeX；
+            // 插入走 vditorRef（effect 里的 Vditor 实例，含 insertValue；click 回调参数是 IVditor 无此方法）
+            setMathOpen(true)
+          }
+        },
         'table',
         '|',
         'undo',
@@ -134,9 +205,11 @@ export function VditorEditor({ docKey, mode, content, onChange }: VditorEditorPr
     } as unknown as IOptions
 
     vditor = new Vditor(containerRef.current, options)
+    vditorRef.current = vditor
 
     return () => {
       disposed = true
+      vditorRef.current = null
       // Vditor 构造器为异步初始化（addScript(...).then(init)，返回时 this.vditor 尚未就绪），
       // 未就绪时 destroy() 访问 this.vditor.element 会抛 TypeError——已就绪才同步销毁，
       // 未就绪的由上方 after 回调（disposed 标记）兜底销毁
@@ -153,6 +226,38 @@ export function VditorEditor({ docKey, mode, content, onChange }: VditorEditorPr
   return (
     <div className="vditor-editor-wrap" ref={containerRef}>
       {/* Vditor 挂载点（组件自身渲染 toolbar + 编辑区 + 预览区） */}
+      {/* 插入数学公式弹窗（Electron 渲染层不支持 window.prompt，自绘输入框；portal 到 body 避免被 Vditor 容器清理） */}
+      {mathOpen &&
+        createPortal(
+          <div className="math-dialog-mask" onClick={() => setMathOpen(false)}>
+            <div className="math-dialog" onClick={(e) => e.stopPropagation()}>
+              <h3>插入数学公式</h3>
+              <p className="muted">
+                LaTeX 语法，例如 <code>{'\\frac{a}{b}'}</code>；插入为块级公式。行内公式请用
+                {' $…$ '}直接写在正文。
+              </p>
+              <input
+                autoFocus
+                value={mathLatex}
+                onChange={(e) => setMathLatex(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleInsertMath()
+                  if (e.key === 'Escape') setMathOpen(false)
+                }}
+                placeholder={'\\frac{a}{b}'}
+              />
+              <div className="math-dialog-actions">
+                <button className="toolbar-btn" onClick={() => setMathOpen(false)}>
+                  取消
+                </button>
+                <button className="toolbar-btn primary" onClick={handleInsertMath} disabled={!mathLatex.trim()}>
+                  插入
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   )
 }
