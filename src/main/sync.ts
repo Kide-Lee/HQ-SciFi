@@ -395,21 +395,18 @@ async function findCidByTitle(token: string, title: string, isDraft: boolean): P
 }
 
 /**
- * 把 frontmatter 里的元数据名称解析为服务端 mid（类型/标签/活动），组装提交 params。
- * 元数据缺失时返回缺省（type 必填，缺失抛错提示）。
+ * 把元数据名称解析为服务端 mid（类型/标签/活动），组装提交 params。
+ * v0.0.6：元信息改由发布表单提供，不再强制必选——缺失的字段不传（由服务端决定）。
  */
 async function resolveMetaParams(
   token: string | null,
   meta: ArticleMeta
 ): Promise<Record<string, unknown>> {
   const params: Record<string, unknown> = {}
-  // 类型必选：找不到对应 mid 时报错（渲染层按钮已按此禁用）
-  if (!meta.category) {
-    throw new Error('请先在编辑器属性栏选择文章类型，再同步到草稿或发布')
+  if (meta.category) {
+    const categoryMid = await metaNameToId(token, 'category', meta.category)
+    if (categoryMid) params.category = categoryMid
   }
-  const categoryMid = await metaNameToId(token, 'category', meta.category)
-  if (!categoryMid) throw new Error(`未找到文章类型「${meta.category}」，请重新选择`)
-  params.category = categoryMid
 
   if (meta.tags && meta.tags.length > 0) {
     const ids: string[] = []
@@ -458,7 +455,8 @@ async function metaNameToId(token: string | null, type: string, name: string): P
 async function upload(
   token: string,
   filePath: string,
-  isDraft: boolean
+  isDraft: boolean,
+  metaOverride?: ArticleMeta
 ): Promise<PushResult> {
   const root = getDocsRoot()
   const abs = assertInside(root, filePath)
@@ -468,8 +466,9 @@ async function upload(
   const type: ArticleType = isDraft ? 'post_draft' : 'waiting'
 
   try {
-    // frontmatter 元数据（类型/标签/活动/公开）→ mid params
-    const meta = parseFrontmatter(content).meta
+    // v0.0.6：元数据改由发布表单提供（metaOverride）；frontmatter 不再记录元数据，
+    // 同步到草稿（isDraft）不携带元数据。名称 → mid 映射缺失的字段不传。
+    const meta = isDraft ? {} : (metaOverride ?? {})
     const metaParams = await resolveMetaParams(token, meta)
     // v0.0.6：本地配图（.image 引用）先上传，替换为远端 URL 后再转 HTML 提交；
     // 图片上传失败（抛错）→ 整体推送失败，不提交半成品正文
@@ -532,14 +531,14 @@ async function upload(
   }
 }
 
-/** 同步到草稿 */
+/** 同步到草稿（无元数据；frontmatter 不再记录） */
 export function pushToDraft(token: string, filePath: string): Promise<PushResult> {
   return upload(token, filePath, true)
 }
 
-/** 发布 */
-export function publish(token: string, filePath: string): Promise<PushResult> {
-  return upload(token, filePath, false)
+/** 发布（元数据来自发布表单 metaOverride） */
+export function publish(token: string, filePath: string, meta?: ArticleMeta): Promise<PushResult> {
+  return upload(token, filePath, false, meta)
 }
 
 /** 供同步失败提示使用：取文件目录展示名 */

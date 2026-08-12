@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import {
   Bold, Code, Code2, Heading1, Heading2, Heading3, Image, Link,
-  List, ListOrdered, Minus, Music, Quote, Redo2, RemoveFormatting, Type, Undo2, Video
+  List, ListOrdered, Minus, Music, Quote, Redo2, RemoveFormatting, Sigma, Undo2, Video
 } from 'lucide-react'
 import { useInstance } from '@milkdown/react'
 import {
@@ -16,7 +16,7 @@ import { toggleKaitiCommand } from '../lib/kaitiMark'
 import { insertMediaCommand, normalizeMediaInput } from '../lib/mediaNode'
 
 /**
- * 所见即所得模式的编辑工具栏（milkdown 命令驱动）。
+ * 可视化模式的编辑工具栏（milkdown 命令驱动）。
  * 必须位于 MilkdownProvider 内（经 useInstance 获取编辑器实例）。
  * v0.0.6：取消斜体按钮 → 楷体按钮；新增插入媒体（图片上传 / 音乐 / 视频）。
  */
@@ -63,6 +63,22 @@ export function MilkdownToolbar(): React.JSX.Element {
     if (id) run(() => insertMediaCommand.run({ tag: 'video bilibili', id }))
   }
 
+  /** v0.0.6：插入公式（LaTeX）——milkdown 官方 math 插件的 math_block 节点（KaTeX 渲染） */
+  const askMath = (): void => {
+    if (loading) return
+    const latex = window.prompt('插入公式（LaTeX，如 E=mc^2）')
+    if (!latex?.trim()) return
+    const editor = get()
+    if (!editor) return
+    editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx)
+      const nodeType = view.state.schema.nodes.math_block
+      if (!nodeType) return
+      view.dispatch(view.state.tr.replaceSelectionWith(nodeType.create({ value: latex.trim() })))
+      view.focus()
+    })
+  }
+
   interface Btn {
     title: string
     icon: ReactNode
@@ -72,16 +88,15 @@ export function MilkdownToolbar(): React.JSX.Element {
   const groups: Btn[][] = [
     [
       { title: '粗体', icon: <Bold size={14} />, action: () => run(() => toggleStrongCommand.run()) },
-      // v0.0.6：取消斜体按钮，以楷体替代
-      { title: '楷体', icon: <Type size={14} />, action: () => run(() => toggleKaitiCommand.run()) },
+      // v0.0.6：取消斜体按钮，以楷体替代；按钮为「文」字（黑体字库渲染，双关文本/文章语义）
+      { title: '楷体', icon: <span className="btn-glyph">文</span>, action: () => run(() => toggleKaitiCommand.run()) },
       { title: '行内代码', icon: <Code size={14} />, action: () => run(() => toggleInlineCodeCommand.run()) },
-      { title: '链接', icon: <Link size={14} />, action: askLink },
-      { title: '图片（上传）', icon: <Image size={14} />, action: () => void askImage() }
+      { title: '链接', icon: <Link size={14} />, action: askLink }
     ],
     [
-      { title: '标题 1', icon: <Heading1 size={15} />, action: () => run(() => wrapInHeadingCommand.run(1)) },
-      { title: '标题 2', icon: <Heading2 size={15} />, action: () => run(() => wrapInHeadingCommand.run(2)) },
-      { title: '标题 3', icon: <Heading3 size={15} />, action: () => run(() => wrapInHeadingCommand.run(3)) }
+      { title: '标题 1', icon: <Heading1 size={14} />, action: () => run(() => wrapInHeadingCommand.run(1)) },
+      { title: '标题 2', icon: <Heading2 size={14} />, action: () => run(() => wrapInHeadingCommand.run(2)) },
+      { title: '标题 3', icon: <Heading3 size={14} />, action: () => run(() => wrapInHeadingCommand.run(3)) }
     ],
     [
       { title: '引用', icon: <Quote size={14} />, action: () => run(() => wrapInBlockquoteCommand.run()) },
@@ -89,12 +104,17 @@ export function MilkdownToolbar(): React.JSX.Element {
       { title: '有序列表', icon: <ListOrdered size={14} />, action: () => run(() => wrapInOrderedListCommand.run()) },
       { title: '代码块', icon: <Code2 size={14} />, action: () => run(() => createCodeBlockCommand.run()) },
       { title: '分割线', icon: <Minus size={14} />, action: () => run(() => insertHrCommand.run()) },
-      { title: '清除格式', icon: <RemoveFormatting size={14} />, action: () => run(() => turnIntoTextCommand.run()) }
+      { title: '清除格式', icon: <RemoveFormatting size={14} />, action: () => run(() => turnIntoTextCommand.run()) },
+      // v0.0.6：插入公式（LaTeX，KaTeX 渲染）
+      { title: '公式', icon: <Sigma size={14} />, action: askMath }
     ],
     [
-      // v0.0.6：插入媒体（音乐/视频，荒启标签语法）
-      { title: '插入音乐（网易云）', icon: <Music size={14} />, action: askMusic },
-      { title: '插入视频（B 站）', icon: <Video size={14} />, action: askVideo },
+      // v0.0.6：插入媒体——图片/音乐/视频归为一组（荒启标签语法）
+      { title: '插入图片', icon: <Image size={14} />, action: () => void askImage() },
+      { title: '插入音乐', icon: <Music size={14} />, action: askMusic },
+      { title: '插入视频', icon: <Video size={14} />, action: askVideo }
+    ],
+    [
       {
         title: '撤销',
         icon: <Undo2 size={14} />,
@@ -109,7 +129,7 @@ export function MilkdownToolbar(): React.JSX.Element {
   ]
 
   return (
-    <div className="md-toolbar">
+    <>
       {groups.map((group, gi) => (
         <div className="md-toolbar-group" key={gi}>
           {group.map((b) => (
@@ -119,6 +139,6 @@ export function MilkdownToolbar(): React.JSX.Element {
           ))}
         </div>
       ))}
-    </div>
+    </>
   )
 }

@@ -21,6 +21,7 @@ import type {
   ReviewTaskItem,
   UserSession
 } from '../shared/types'
+import type { ArticleMeta } from '../shared/frontmatter'
 
 export type {
   ApiResult,
@@ -76,7 +77,7 @@ export interface HqsfApi {
   verifySession: () => Promise<ApiResult<{ valid: boolean; reachable: boolean }>>
   logout: () => Promise<ApiResult<null>>
   syncPull: () => Promise<ApiResult<PullResult>>
-  syncPush: (filePath: string, isDraft: boolean) => Promise<ApiResult<PushResult>>
+  syncPush: (filePath: string, isDraft: boolean, meta?: ArticleMeta) => Promise<ApiResult<PushResult>>
   getDocsRoot: () => Promise<ApiResult<string>>
   openDocsDir: () => Promise<ApiResult<null>>
   listLocalDocs: () => Promise<ApiResult<LocalNode[]>>

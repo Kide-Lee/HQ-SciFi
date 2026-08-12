@@ -45,6 +45,7 @@
   "dependencies": {
     "@codemirror/lang-markdown": "^6.5.2",
     "@milkdown/kit": "^7.22.0",
+    "@milkdown/plugin-math": "^7.5.9",
     "@milkdown/react": "^7.22.0",
     "@milkdown/theme-nord": "^7.22.0",
     "better-sqlite3": "^12.11.1",

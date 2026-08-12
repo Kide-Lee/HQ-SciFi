@@ -1,5 +1,6 @@
 import MarkdownIt from 'markdown-it'
 import { KAITI_OPEN, KAITI_CLOSE } from '../shared/kaiti'
+import { mathPlugin } from '../shared/markdownItMath'
 
 /**
  * md → HTML 转换（design.md 风险 1：荒启正文为 Quill HTML，isMd:0，本地 md 需在同步/发布时转换）。
@@ -22,6 +23,9 @@ md.renderer.rules.html_inline = (tokens, idx) => {
 }
 // 行首 HTML（script/div 等块级）一律转义，防止注入
 md.renderer.rules.html_block = (tokens, idx) => md.utils.escapeHtml(tokens[idx].content)
+
+// v0.0.6：数学公式（KaTeX 渲染，$...$ / $$...$$）
+mathPlugin(md)
 
 export function mdToHtml(markdown: string): string {
   return md.render(markdown)

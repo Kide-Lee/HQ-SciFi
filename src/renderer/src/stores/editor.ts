@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { parseFrontmatter, withFrontmatter, type ArticleMeta } from '../../../shared/frontmatter'
+import { parseFrontmatter, type ArticleMeta } from '../../../shared/frontmatter'
 
 /** v0.0.6：从 md 正文提取标题目录（h1-h6） */
 export function extractToc(md: string): Array<{ idx: number; level: number; text: string }> {
@@ -22,8 +22,9 @@ interface EditorState {
   /** 正文（不含 frontmatter；落盘时与 meta 拼合） */
   content: string
   /** 文章元数据（frontmatter：类型/标签/活动/公开） */
+  /** v0.0.6：frontmatter 元数据仅兼容旧文档读取（不再写入/编辑） */
   meta: ArticleMeta
-  /** v0.0.6：编辑模式——所见即所得 / 分屏预览 SV（提升到 store 供顶栏感知右栏 tab） */
+  /** v0.0.6：编辑模式——可视化 / 源码模式 SV（提升到 store 供顶栏感知右栏 tab） */
   mode: 'wysiwyg' | 'split'
   /** v0.0.6：正文标题目录（右栏「目录」tab 与顶栏按钮显示判断用） */
   toc: Array<{ idx: number; level: number; text: string }>
@@ -37,7 +38,7 @@ interface EditorState {
   open: (path: string) => Promise<void>
   update: (content: string) => void
   /** 更新元数据（类型/标签/活动/公开），标记未保存 */
-  setMeta: (patch: Partial<ArticleMeta>) => void
+  /** v0.0.6：元数据改由发布表单提供，移除 setMeta（本地 frontmatter 不再记录） */
   setMode: (mode: 'wysiwyg' | 'split') => void
   save: () => Promise<void>
   /** 新建本地草稿并打开，返回文件路径 */
@@ -109,19 +110,14 @@ export const useEditorStore = create<EditorState>((set, get) => {
       scheduleSave()
     },
 
-    setMeta: (patch) => {
-      set((s) => ({ meta: { ...s.meta, ...patch }, dirty: true }))
-      scheduleSave()
-    },
-
     setMode: (mode) => set({ mode }),
 
     save: async () => {
-      const { currentPath, content, meta, dirty } = get()
+      const { currentPath, content, dirty } = get()
       if (!currentPath || !dirty) return
       set({ busy: true, error: null })
-      // 落盘 = frontmatter 元数据 + 正文拼合
-      const res = await window.hqsf.writeLocalFile(currentPath, withFrontmatter(meta, content))
+      // v0.0.6：落盘仅正文（frontmatter 不再记录元数据；旧文档的 frontmatter 首次保存后被移除）
+      const res = await window.hqsf.writeLocalFile(currentPath, content)
       if (res.ok) set({ dirty: false, busy: false })
       else set({ busy: false, error: res.error })
     },

@@ -14,7 +14,7 @@ interface SplitEditorProps {
 }
 
 /**
- * 分屏预览（SV）编辑模式：左栏 CodeMirror 6 源码编辑。
+ * 源码（SV）编辑模式：左栏 CodeMirror 6 源码编辑。
  * v0.0.6：整篇预览移至编辑器右栏「预览」tab（右栏与文章页共用，见 EditorPane）。
  */
 export function SplitEditor({ docKey, content, onChange }: SplitEditorProps): React.JSX.Element {
@@ -58,6 +58,7 @@ export function SplitEditor({ docKey, content, onChange }: SplitEditorProps): Re
 
   return (
     <div className="split-editor">
+      {/* v0.0.6：源码模式无编辑栏（保存用 Ctrl/Cmd-S，同步/发布需切回可视化模式） */}
       <div className="cm-host" ref={containerRef} />
     </div>
   )

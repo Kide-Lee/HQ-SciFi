@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDown, ArrowUp, ChevronRight, Eye, FilePlus, Folder, FolderPlus, PenLine, Trash2, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronRight, FilePlus, Folder, FolderPlus, Trash2 } from 'lucide-react'
 import { useEditorStore } from '../stores/editor'
 import { useDocsStore } from '../stores/docs'
 import { useUiStore } from '../stores/ui'
@@ -10,16 +10,9 @@ import { RightPanel, type RightTab } from './RightPanel'
 import { SearchPanel } from './SearchPanel'
 import { buildRegex } from '../lib/searchText'
 import { jumpToMatchIn } from '../lib/searchJump'
-import type { ArticleRow, LocalNode } from '../../../shared/types'
+import type { LocalNode } from '../../../shared/types'
 import { MilkdownEditor } from './MilkdownEditor'
 import { SplitEditor } from './SplitEditor'
-
-/** 远端非草稿类型的展示名（同步/推送后角标显示当前远端状态） */
-const REMOTE_TYPE_LABEL: Partial<Record<ArticleRow['type'], string>> = {
-  waiting: '待审核',
-  post: '已发布',
-  reject: '已拒绝'
-}
 
 /** v0.0.6：统计树中 md 文档总数（递归） */
 function countAllDocs(nodes: LocalNode[]): number {
@@ -29,41 +22,28 @@ function countAllDocs(nodes: LocalNode[]): number {
   )
 }
 
-/** v0.0.6：字数统计——不计空格与标点符号（按 Unicode 码点） */
-function countWords(text: string): number {
-  return [...text.replace(/[\s\p{P}\p{S}]/gu, '')].length
-}
-
-/** 编辑器视图：双模式编辑（milkdown 所见即所得 / SV 分屏预览）+ 属性栏（类型/标签/活动/公开/违禁检测）+ 工具栏 */
+/** 编辑器视图：双模式编辑（milkdown 可视化 / SV 源码模式）+ 工具栏 */
 export function EditorPane(): React.JSX.Element {
   const currentPath = useEditorStore((s) => s.currentPath)
   const currentDir = useEditorStore((s) => s.currentDir)
   const setCurrentDir = useEditorStore((s) => s.setCurrentDir)
   const content = useEditorStore((s) => s.content)
-  const meta = useEditorStore((s) => s.meta)
-  const setMeta = useEditorStore((s) => s.setMeta)
   const dirty = useEditorStore((s) => s.dirty)
-  const synced = useEditorStore((s) => s.synced)
-  const busy = useEditorStore((s) => s.busy)
   const error = useEditorStore((s) => s.error)
   const update = useEditorStore((s) => s.update)
   const save = useEditorStore((s) => s.save)
   const createDraft = useEditorStore((s) => s.createDraft)
   const openDoc = useEditorStore((s) => s.open)
-  const close = useEditorStore((s) => s.close)
-  const push = useDocsStore((s) => s.push)
-  const pushing = useDocsStore((s) => s.pushing)
   const refreshLocal = useDocsStore((s) => s.refreshLocal)
   const localTree = useDocsStore((s) => s.localTree)
   const deleteLocal = useDocsStore((s) => s.deleteLocal)
   const docError = useDocsStore((s) => s.error)
   const clearDocError = useDocsStore((s) => s.clearError)
   const lastPull = useDocsStore((s) => s.lastPull)
-  const articles = useDocsStore((s) => s.articles)
 
   const [showNew, setShowNew] = useState(false)
   const [newTitle, setNewTitle] = useState('')
-  // v0.0.7：编辑模式——所见即所得（milkdown+工具栏）/ 分屏预览 SV（源码+右栏整篇渲染）
+  // v0.0.7：编辑模式——可视化（milkdown+工具栏）/ 源码模式 SV（源码+右栏整篇渲染）
   // v0.0.6：mode 提升到 editor store（顶栏「展开右栏」按钮需感知模式以判断预览 tab）
   const mode = useEditorStore((s) => s.mode)
   const setMode = useEditorStore((s) => s.setMode)
@@ -83,48 +63,6 @@ export function EditorPane(): React.JSX.Element {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const deleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // v0.0.7：文章元数据属性栏——类型/标签/活动/公开 + 违禁词检测
-  const [cats, setCats] = useState<Array<{ mid: string; name: string }>>([])
-  const [tags, setTags] = useState<Array<{ mid: string; name: string }>>([])
-  const [acts, setActs] = useState<Array<{ mid: string; name: string }>>([])
-  const [forbidMsg, setForbidMsg] = useState<{ ok: boolean; text: string } | null>(null)
-  // v0.0.6：标签多选下拉面板展开态
-  const [tagOpen, setTagOpen] = useState(false)
-
-  // 编辑态加载 metas（类型/标签/活动）；失败静默（属性栏置空，同步/发布仍可用类型必选校验拦截）
-  useEffect(() => {
-    if (!currentPath) return
-    void window.hqsf.listMetas('category').then((r) => {
-      if (r.ok) setCats(r.data.map((m) => ({ mid: String(m.mid), name: m.name })))
-    })
-    void window.hqsf.listMetas('tag').then((r) => {
-      if (r.ok) setTags(r.data.map((m) => ({ mid: String(m.mid), name: m.name })))
-    })
-    void window.hqsf.listMetas('active').then((r) => {
-      if (r.ok) setActs(r.data.map((m) => ({ mid: String(m.mid), name: m.name })))
-    })
-    setForbidMsg(null)
-  }, [currentPath])
-
-  /** 违禁词检测：官方接口（hqContents/userTextBlockStatus，付费 5 能量币/次），先确认再检测 */
-  async function handleCheckForbidden(): Promise<void> {
-    if (!window.confirm('违禁词检测将消耗 5 能量币，是否继续？')) return
-    const fileName = (currentPath ?? '').split('/').pop()?.replace(/\.md$/i, '') ?? ''
-    setForbidMsg(null)
-    const res = await window.hqsf.checkForbidden(fileName, content)
-    if (!res.ok) {
-      setForbidMsg({ ok: false, text: res.error || '检测失败' })
-      return
-    }
-    const msg = res.data.msg || '检测完成'
-    setForbidMsg({ ok: msg.includes('无违规'), text: msg })
-  }
-
-  /** 标签 toggle（meta.tags 数组） */
-  function toggleTag(name: string): void {
-    const cur = meta.tags ?? []
-    setMeta({ tags: cur.includes(name) ? cur.filter((t) => t !== name) : [...cur, name] })
-  }
 
   const pullErrors = lastPull?.errors ?? []
 
@@ -158,21 +96,6 @@ export function EditorPane(): React.JSX.Element {
   function showToast(msg: string): void {
     setToast(msg)
     setTimeout(() => setToast(null), 3000)
-  }
-
-  async function handlePush(isDraft: boolean): Promise<void> {
-    if (!currentPath) return
-    await save() // 先落盘，确保上传的是最新内容
-    const res = await push(currentPath, isDraft)
-    if (!res) {
-      showToast('操作失败')
-      return
-    }
-    if (res.ok) {
-      showToast(isDraft ? '已同步到草稿' : '已提交发布')
-    } else {
-      showToast(res.error ?? '操作失败')
-    }
   }
 
   async function handleDelete(node: LocalNode): Promise<void> {
@@ -246,26 +169,7 @@ export function EditorPane(): React.JSX.Element {
     return abs
   }
 
-  // 当前文件在索引中的记录：展示对应远端状态（草稿/待审核/已发布/已拒绝）
-  // 服务端允许这些状态的文章编辑后再存草稿或发布，故按钮不禁用
-  const currentRow = currentPath ? articles.find((a) => a.filePath === currentPath) : undefined
-  const remoteTypeLabel = currentRow?.cid ? REMOTE_TYPE_LABEL[currentRow.type] : undefined
-  const statusTip = remoteTypeLabel
-    ? `对应远端状态「${remoteTypeLabel}」；可编辑后存为草稿，或发布进入待审核`
-    : undefined
-  const statusLabel = dirty
-    ? remoteTypeLabel
-      ? `未保存（${remoteTypeLabel}）`
-      : '未保存'
-    : synced
-      ? (remoteTypeLabel ?? '已同步')
-      : '本地草稿'
-  const pushingNow = pushing === currentPath
-  // v0.0.6：编辑栏字数统计（不计空格标点），不足 3000 / 超过 33000 提醒
-  const wordCount = countWords(content)
-  const wordTip = wordCount < 3000 ? '字数不足' : wordCount > 33000 ? '字数太多' : null
-
-  // v0.0.6：分屏预览的整篇渲染 HTML（右栏「预览」tab；输入防抖后更新，代价可控）；
+  // v0.0.6：源码模式（SV）的整篇渲染 HTML（右栏「预览」tab；输入防抖后更新，代价可控）；
   // 音乐/视频标签（[music 163]/[video bilibili]…）展开为 iframe，与阅读视图一致
   const previewHtml = useMemo(() => expandMediaTags(renderMdPreview(content)), [content])
 
@@ -286,7 +190,7 @@ export function EditorPane(): React.JSX.Element {
     el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
-  // v0.0.6：编辑器右栏 tabs——预览（仅分屏预览模式）/ 目录（正文有标题时）/ 搜索（基础 tab）；
+  // v0.0.6：编辑器右栏 tabs——预览（仅源码模式）/ 目录（正文有标题时）/ 搜索（基础 tab）；
   // 单 tab 无 tab 栏、零 tab 不渲染（RightPanel 内置），顶栏按钮据此联动
   const applyExternalContent = useEditorStore((s) => s.applyExternalContent)
   /** v0.0.6+：编辑器搜索跳转——SV 模式切预览 tab 后在预览 DOM 定位；WYSIWYG 在 milkdown DOM 定位 */
@@ -386,160 +290,6 @@ export function EditorPane(): React.JSX.Element {
 
   return (
     <div className="editor-pane">
-      {/* v0.0.6：编辑栏（v0.0.6 样式改进：两行——功能按钮 + 模式切换 / 元数据 + 字数），仅编辑态显示 */}
-      {currentPath && (
-        <div className="editor-bar">
-          <div className="editor-bar-row">
-            <button className="toolbar-btn" onClick={() => setShowNew((v) => !v)}>
-              + 新建草稿
-            </button>
-            <button className="toolbar-btn" onClick={() => void save()} disabled={!dirty || busy}>
-              保存
-            </button>
-            <button
-              className="toolbar-btn accent"
-              onClick={() => void handlePush(true)}
-              disabled={!meta.category || pushingNow || busy}
-              title={meta.category ? '将当前内容保存为远端草稿' : '请先选择文章类型'}
-            >
-              {pushingNow ? '同步中 …' : '同步到草稿'}
-            </button>
-            <button
-              className="toolbar-btn primary"
-              onClick={() => void handlePush(false)}
-              disabled={!meta.category || pushingNow || busy}
-              title={meta.category ? '发布后进入待审核，由服务器裁决为已发布或已拒绝' : '请先选择文章类型'}
-            >
-              发布
-            </button>
-            <button
-              className="toolbar-btn"
-              onClick={() => void handleCheckForbidden()}
-              title="按本地禁词表检查标题与正文（发布时服务端仍会独立检测）"
-            >
-              违禁词检测
-            </button>
-            {forbidMsg && (
-              <span className={`forbid-result ${forbidMsg.ok ? 'ok' : 'bad'}`}>{forbidMsg.text}</span>
-            )}
-            <span className="toolbar-spacer" />
-            <span className={`status-badge ${dirty ? 'warn' : synced ? 'ok' : ''}`} title={statusTip}>
-              {statusLabel}
-            </span>
-            {/* v0.0.6：模式切换按钮去文字只留图标，放编辑栏右面（关闭按钮左边） */}
-            <div className="editor-mode-switch">
-              <button
-                className={`mode-btn${mode === 'wysiwyg' ? ' active' : ''}`}
-                onClick={() => setMode('wysiwyg')}
-                title="所见即所得：输入 Markdown 语法即时渲染为富文本（带编辑工具栏）"
-              >
-                <PenLine size={15} />
-              </button>
-              <button
-                className={`mode-btn${mode === 'split' ? ' active' : ''}`}
-                onClick={() => setMode('split')}
-                title="分屏预览（SV）：左侧源码编辑，右侧整篇实时渲染"
-              >
-                <Eye size={15} />
-              </button>
-            </div>
-            {/* v0.0.6：.editor-close 取消，沿用 .topbar-back-btn 样式 */}
-            <button className="topbar-back-btn editor-close-btn" onClick={() => void close()} title="关闭当前文档">
-              <X size={14} /> 关闭
-            </button>
-          </div>
-          {/* v0.0.6：第二行——类型/活动/公开/标签 + 字数统计 */}
-          <div className="editor-bar-row editor-bar-meta">
-            <label className="meta-field">
-              <span className="meta-label">类型</span>
-              <select
-                value={meta.category ?? ''}
-                onChange={(e) => setMeta({ category: e.target.value || undefined })}
-                className={!meta.category ? 'unset' : ''}
-              >
-                <option value="">选择类型…</option>
-                {cats.map((c) => (
-                  <option key={c.mid} value={c.name}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="meta-field meta-tags-field">
-              <span className="meta-label">标签</span>
-              <div className="meta-tags-select">
-                <div
-                  className={`meta-tags-trigger${tagOpen ? ' open' : ''}`}
-                  onClick={() => setTagOpen((v) => !v)}
-                  title="点击选择标签（多选）；已选标签可点击移除"
-                >
-                  {(meta.tags ?? []).length === 0 ? (
-                    <span className="muted">选择标签…</span>
-                  ) : (
-                    (meta.tags ?? []).map((n) => (
-                      <span
-                        key={n}
-                        className="meta-tag-chip"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          toggleTag(n)
-                        }}
-                        title={`移除「${n}」`}
-                      >
-                        {n} ×
-                      </span>
-                    ))
-                  )}
-                </div>
-                {tagOpen && (
-                  <div className="meta-tags-menu">
-                    {tags.length === 0 && <span className="muted">（加载中/无标签）</span>}
-                    {tags.map((t) => (
-                      <label key={t.mid} className="meta-tags-option">
-                        <input
-                          type="checkbox"
-                          checked={(meta.tags ?? []).includes(t.name)}
-                          onChange={() => toggleTag(t.name)}
-                        />
-                        {t.name}
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-            <label className="meta-field">
-              <span className="meta-label">活动</span>
-              <select
-                value={meta.active ?? ''}
-                onChange={(e) => setMeta({ active: e.target.value || undefined })}
-              >
-                <option value="">不参加</option>
-                {acts.map((a) => (
-                  <option key={a.mid} value={a.name}>
-                    {a.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="meta-field meta-check">
-              <input
-                type="checkbox"
-                checked={meta.isopen !== false}
-                onChange={(e) => setMeta({ isopen: e.target.checked })}
-              />
-              <span>公开阅读</span>
-            </label>
-            <span className="toolbar-spacer" />
-            {/* v0.0.6：字数（不计空格标点）；不足 3000 提醒「字数不足」，超过 33000 提醒「字数太多」 */}
-            <span className={`editor-words${wordTip ? ' warn' : ''}`} title={wordTip ?? '正文字数（不计空格与标点）'}>
-              {wordCount} 字
-              {wordTip && <span className="editor-words-tip">{wordTip}</span>}
-            </span>
-          </div>
-        </div>
-      )}
-
       {pullErrors.length > 0 && (
         <ErrorBanner title={`同步失败 ${pullErrors.length} 处`} details={pullErrors} />
       )}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, Copy, Minus, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Square, X } from 'lucide-react'
+import { Copy, Eye, Minus, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, PenLine, Square, Undo2, X } from 'lucide-react'
 import { SECTION_LABELS, useUiStore } from '../stores/ui'
 import { useReaderStore } from '../stores/reader'
 import { useEditorStore } from '../stores/editor'
@@ -29,8 +29,13 @@ function usePageTitle(): string {
  */
 export function TopBar(): React.JSX.Element {
   const title = usePageTitle()
+  const section = useUiStore((s) => s.section)
   const readingCid = useReaderStore((s) => s.readingCid)
   const closeArticle = useReaderStore((s) => s.closeArticle)
+  const currentPath = useEditorStore((s) => s.currentPath)
+  const closeEditor = useEditorStore((s) => s.close)
+  const editMode = useEditorStore((s) => s.mode)
+  const setEditMode = useEditorStore((s) => s.setMode)
   const panelOpen = useUiStore((s) => s.panelOpen)
   const togglePanel = useUiStore((s) => s.togglePanel)
   const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed)
@@ -88,9 +93,39 @@ export function TopBar(): React.JSX.Element {
         >
           {sidebarCollapsed ? <PanelLeftOpen size={14} /> : <PanelLeftClose size={14} />}
         </button>
+        {/* v0.0.6：编辑模式切换——单按钮放折叠按钮与返回按钮之间；显示当前模式图标，hover 显示另一模式图标，点击切换 */}
+        {section === 'writing' && currentPath && (
+          <button
+            className="topbar-btn editor-mode-toggle"
+            onClick={() => setEditMode(editMode === 'wysiwyg' ? 'split' : 'wysiwyg')}
+            title={
+              editMode === 'wysiwyg'
+                ? '当前：可视化模式。点击切换到源码模式'
+                : '当前：源码模式。点击切换到可视化模式'
+            }
+          >
+            {editMode === 'wysiwyg' ? (
+              <>
+                <Eye size={14} className="mode-ico current" />
+                <PenLine size={14} className="mode-ico alt" />
+              </>
+            ) : (
+              <>
+                <PenLine size={14} className="mode-ico current" />
+                <Eye size={14} className="mode-ico alt" />
+              </>
+            )}
+          </button>
+        )}
         {readingCid && (
-          <button className="topbar-back-btn" onClick={closeArticle} title="返回列表">
-            <ArrowLeft size={13} /> 返回列表
+          <button className="topbar-back-btn" onClick={closeArticle} title="返回">
+            <Undo2 size={14} />
+          </button>
+        )}
+        {/* v0.0.6：编辑页与文章页统一「返回」按钮（仅图标）——写作编辑态关闭当前文档 */}
+        {section === 'writing' && currentPath && (
+          <button className="topbar-back-btn" onClick={closeEditor} title="返回">
+            <Undo2 size={14} />
           </button>
         )}
       </div>

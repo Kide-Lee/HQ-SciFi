@@ -1,19 +1,8 @@
 /**
- * 文章头部元数据（YAML frontmatter）：类型/标签/活动/是否公开。
- * 存于 md 文件首部 `---` 块内（人类可读的名称，提交时由主进程映射为 mid）；
+ * 文章头部元数据解析（YAML frontmatter）：类型/标签/活动/是否公开。
+ * v0.0.6：元信息改由发布表单提供，本地 frontmatter 不再写入这些字段；
+ * 解析仅用于兼容旧文档（打开时剥离 frontmatter 块，正文进编辑器）。
  * 三端（主进程/preload/渲染层）共用。
- *
- * 示例：
- * ```
- * ---
- * category: 原创作品
- * tags:
- *   - 科幻
- *   - 悬疑
- * active: 荒启科幻练笔第二十四期
- * isopen: true
- * ---
- * ```
  */
 
 export interface ArticleMeta {
@@ -86,20 +75,6 @@ export function parseFrontmatter(md: string): { meta: ArticleMeta; body: string 
 
 function unquote(s: string): string {
   return s.replace(/^["']|["']$/g, '')
-}
-
-/** 依据 meta 生成 frontmatter 块 + 正文（不含末尾空行处理，调用方负责） */
-export function withFrontmatter(meta: ArticleMeta, body: string): string {
-  const lines = [FM_START]
-  if (meta.category) lines.push(`category: ${meta.category}`)
-  if (meta.tags && meta.tags.length > 0) {
-    lines.push('tags:')
-    for (const t of meta.tags) lines.push(`  - ${t}`)
-  }
-  if (meta.active) lines.push(`active: ${meta.active}`)
-  if (meta.isopen !== undefined) lines.push(`isopen: ${meta.isopen}`)
-  lines.push(FM_END, '')
-  return lines.join('\n') + (body || '')
 }
 
 /** 剥离 frontmatter，仅返回正文 */

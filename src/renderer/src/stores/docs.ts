@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { ArticleRow, LocalNode, PullResult, PushResult } from '../../../shared/types'
+import type { ArticleMeta } from '../../../shared/frontmatter'
 import { useEditorStore } from './editor'
 
 interface DocsState {
@@ -17,7 +18,8 @@ interface DocsState {
   refreshLocal: () => Promise<void>
   refreshArticles: () => Promise<void>
   pull: () => Promise<void>
-  push: (filePath: string, isDraft: boolean) => Promise<PushResult | null>
+  /** v0.0.6：push 携带可选元数据（发布表单提供；同步到草稿不传） */
+  push: (filePath: string, isDraft: boolean, meta?: ArticleMeta) => Promise<PushResult | null>
   /** v0.0.6：删除本地文章文件（成功后刷新目录树） */
   deleteLocal: (path: string) => Promise<boolean>
   clearError: () => void
@@ -58,10 +60,10 @@ export const useDocsStore = create<DocsState>((set, get) => ({
     }
   },
 
-  push: async (filePath, isDraft) => {
+  push: async (filePath, isDraft, meta?) => {
     if (get().pushing) return null
     set({ pushing: filePath, error: null })
-    const res = await window.hqsf.syncPush(filePath, isDraft)
+    const res = await window.hqsf.syncPush(filePath, isDraft, meta)
     set({ pushing: null })
     if (!res.ok) {
       set({ error: res.error })

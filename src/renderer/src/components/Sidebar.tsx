@@ -3,6 +3,8 @@ import {
   BookOpen,
   CalendarDays,
   ChevronRight,
+  FilePlus,
+  FolderOpen,
   Layers,
   PenLine,
   RefreshCw,
@@ -57,6 +59,19 @@ const REMOTE_GROUPS: Array<{ key: ArticleRow['type']; label: string }> = [
   { key: 'reject', label: '已拒绝' }
 ]
 
+/** v0.0.6：按绝对路径在树中查找目录节点（找不到返回 null） */
+function findDirNode(nodes: LocalNode[], dir: string): LocalNode | null {
+  for (const n of nodes) {
+    if (!n.isDir) continue
+    if (n.path === dir) return n
+    if (n.children) {
+      const found = findDirNode(n.children, dir)
+      if (found) return found
+    }
+  }
+  return null
+}
+
 export function Sidebar(): React.JSX.Element {
   const section = useUiStore((s) => s.section)
   const selectedId = useUiStore((s) => s.selectedId)
@@ -77,6 +92,8 @@ export function Sidebar(): React.JSX.Element {
   const lastPull = useDocsStore((s) => s.lastPull)
   const openDoc = useEditorStore((s) => s.open)
   const currentPath = useEditorStore((s) => s.currentPath)
+  const currentDir = useEditorStore((s) => s.currentDir)
+  const createDraft = useEditorStore((s) => s.createDraft)
   const openArticle = useReaderStore((s) => s.openArticle)
   const closeArticle = useReaderStore((s) => s.closeArticle)
   const readingCid = useReaderStore((s) => s.readingCid)
@@ -344,6 +361,16 @@ export function Sidebar(): React.JSX.Element {
     })
   }
 
+  /** v0.0.6：tree-toolbar「新建草稿」——当前浏览目录内创建并打开编辑器 */
+  async function handleNewDraft(): Promise<void> {
+    const title = window.prompt('新草稿标题')
+    if (!title?.trim()) return
+    const dirNode = currentDir ? findDirNode(localTree, currentDir) : null
+    const dirRel = currentDir ? (dirNode?.rel ?? '') : ''
+    const path = await createDraft(title.trim(), dirRel)
+    if (path) await refreshLocal() // 新文件已落盘：刷新本地目录树，让侧栏「本地存档」即时出现该草稿
+  }
+
   /** v0.0.6：本地存档递归文件树（文件夹可展开/收起） */
   function renderLocalTree(nodes: LocalNode[], depth = 0): React.JSX.Element[] {
     return nodes.map((node) => {
@@ -351,10 +378,14 @@ export function Sidebar(): React.JSX.Element {
         const k = `local:${node.path}`
         const open = expanded.has(k)
         return (
-          <div key={node.path} className="tree-dir-wrap" style={{ paddingLeft: 22 + depth * 12 }}>
-            <button className="tree-dir-entry" onClick={() => toggleExpand(k)} title={node.path}>
-              <ChevronRight size={12} className={`caret${open ? ' open' : ''}`} />
-              {/* v0.0.6：目录不再显示 Folder 图标（与文件名样式一致） */}
+          <div key={node.path} className="tree-dir-wrap">
+            <button
+              className={`tree-dir-entry${open ? ' open' : ''}`}
+              onClick={() => toggleExpand(k)}
+              title={node.path}
+              style={{ paddingLeft: 22 + depth * 12 }}
+            >
+              {/* v0.0.6：展开箭头由 CSS 伪元素 ::before 绘制（不占流内宽度，目录名与文件名左边缘自然对齐） */}
               <span className="tree-dir-name">{node.name}</span>
             </button>
             {open && node.children && (
@@ -444,11 +475,16 @@ export function Sidebar(): React.JSX.Element {
         {isWriting ? (
           <div className="writing-tree">
             <div className="tree-toolbar">
-              <button className="sync-btn" disabled={pulling} onClick={() => void pull()} title="从荒启拉取草稿与状态">
-                <RefreshCw size={13} className={`sync-icon${pulling ? ' spin' : ''}`} /> {pulling ? '同步中 …' : '同步'}
+              {/* v0.0.6：tree-toolbar 三个无边框图标按钮（新建草稿/打开目录/同步），flex 分散布局 */}
+              <button
+                className="tree-tool-btn"
+                onClick={() => void handleNewDraft()}
+                title="新建本地草稿"
+              >
+                <FilePlus size={14} />
               </button>
               <button
-                className="sync-btn"
+                className="tree-tool-btn"
                 onClick={() => {
                   void window.hqsf.openDocsDir().then((res) => {
                     if (!res.ok) alert(`打开存档目录失败: ${res.error}`)
@@ -456,7 +492,15 @@ export function Sidebar(): React.JSX.Element {
                 }}
                 title="在系统文件管理器中打开本地存档目录"
               >
-                打开目录
+                <FolderOpen size={14} />
+              </button>
+              <button
+                className="tree-tool-btn"
+                disabled={pulling}
+                onClick={() => void pull()}
+                title="从荒启拉取草稿与状态"
+              >
+                <RefreshCw size={14} className={`sync-icon${pulling ? ' spin' : ''}`} />
               </button>
             </div>
             {lastPull && (

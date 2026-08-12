@@ -13,6 +13,7 @@ import { apiUrl, uploadMultipart } from './net/api'
 import { endpoint } from './net/apiconfig'
 import { getDocsRoot, ensureDocsRoot, listLocalDocs, readLocalFile, writeLocalFile, createLocalDraft, chooseDocsDir, deleteLocalFile, createLocalDir } from './fs'
 import { pullRemote, pushToDraft, publish } from './sync'
+import type { ArticleMeta } from '../shared/frontmatter'
 import {
   addComment,
   addUserLog,
@@ -175,11 +176,11 @@ export function registerIpcHandlers(): void {
     }
   })
 
-  ipcMain.handle('hqsf:sync-push', async (_e, filePath: string, isDraft: boolean) => {
+  ipcMain.handle('hqsf:sync-push', async (_e, filePath: string, isDraft: boolean, meta?: ArticleMeta) => {
     const token = getStoredToken()
     if (!token) return fail(new Error('未登录，无法同步'))
     try {
-      return ok(isDraft ? await pushToDraft(token, filePath) : await publish(token, filePath))
+      return ok(isDraft ? await pushToDraft(token, filePath) : await publish(token, filePath, meta))
     } catch (err) {
       return fail(err)
     }

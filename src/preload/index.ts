@@ -22,6 +22,7 @@ import type {
   ReviewTaskItem,
   UserSession
 } from '../shared/types'
+import type { ArticleMeta } from '../shared/frontmatter'
 
 /**
  * 暴露给渲染进程的白名单 API（window.hqsf）。
@@ -64,8 +65,8 @@ const api = {
 
   // ---- 同步 ----
   syncPull: (): Promise<ApiResult<PullResult>> => ipcRenderer.invoke('hqsf:sync-pull'),
-  syncPush: (filePath: string, isDraft: boolean): Promise<ApiResult<PushResult>> =>
-    ipcRenderer.invoke('hqsf:sync-push', filePath, isDraft),
+  syncPush: (filePath: string, isDraft: boolean, meta?: ArticleMeta): Promise<ApiResult<PushResult>> =>
+    ipcRenderer.invoke('hqsf:sync-push', filePath, isDraft, meta),
 
   // ---- 本地存档 ----
   getDocsRoot: (): Promise<ApiResult<string>> => ipcRenderer.invoke('hqsf:get-docs-root'),

@@ -5,12 +5,15 @@ import { commonmark } from '@milkdown/kit/preset/commonmark'
 import { gfm } from '@milkdown/kit/preset/gfm'
 import { history } from '@milkdown/kit/plugin/history'
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
+import { math } from '@milkdown/plugin-math'
 import { nord } from '@milkdown/theme-nord'
 import { MilkdownToolbar } from './MilkdownToolbar'
+import { EditorBar } from './EditorBar'
 import { kaitiSchema, toggleKaitiCommand } from '../lib/kaitiMark'
 import { mediaNode, insertMediaCommand } from '../lib/mediaNode'
 import { useEditorStore } from '../stores/editor'
 import '@milkdown/theme-nord/style.css'
+import 'katex/dist/katex.min.css'
 
 interface MilkdownEditorProps {
   /** 文档标识：变化时用最新 content 重建编辑器（切换文档） */
@@ -22,7 +25,7 @@ interface MilkdownEditorProps {
 }
 
 /**
- * 所见即所得（WYSIWYG）编辑模式：milkdown v7（ProseMirror 内核），
+ * 可视化（WYSIWYG）编辑模式：milkdown v7（ProseMirror 内核），
  * 输入 Markdown 语法即时渲染为富文本。内容变化经 listener 同步为 md 字符串。
  */
 export function MilkdownEditor({ docKey, content, onChange }: MilkdownEditorProps): React.JSX.Element {
@@ -52,6 +55,7 @@ function Inner({ docKey, content, onChange }: MilkdownEditorProps): React.JSX.El
         .config(nord)
         .use(commonmark)
         .use(gfm)
+        .use(math)
         .use(kaitiSchema)
         .use(toggleKaitiCommand)
         .use(mediaNode)
@@ -83,7 +87,8 @@ function Inner({ docKey, content, onChange }: MilkdownEditorProps): React.JSX.El
 
   return (
     <div className="md-editor-wrap">
-      <MilkdownToolbar />
+      {/* v0.0.6：编辑栏并入编辑器内部——第一行（新建/保存/同步/发布/违禁 + 格式按钮组 + 状态 + 模式切换）与第二行（元数据 + 字数） */}
+      <EditorBar formatSlot={<MilkdownToolbar />} />
       <div className="milkdown-theme-nord prose md-editor-host">
         <Milkdown />
       </div>
