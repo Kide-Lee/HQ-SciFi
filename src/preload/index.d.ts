@@ -113,6 +113,8 @@ export interface HqsfApi {
   addLog: (type: 'likes' | 'mark' | 'reward', params: Record<string, unknown>) => Promise<ApiResult<LogOpResult>>
   isMark: (cid: string) => Promise<ApiResult<MarkStatus>>
   removeLog: (key: number | string) => Promise<ApiResult<LogOpResult>>
+  /** v0.0.6：弹系统文件框选图片并上传荒启（upload/full），返回图片 URL；取消返回 data: null */
+  pickUploadImage: () => Promise<ApiResult<{ url: string } | null>>
 }
 
 declare global {

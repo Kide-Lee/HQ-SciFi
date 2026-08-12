@@ -1,4 +1,6 @@
-import { app, BrowserWindow, clipboard, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
+import { readFileSync } from 'node:fs'
+import { basename } from 'node:path'
 import { loadAgreement, fetchHuangqiAgreement } from './agreement'
 import {
   loginWithPassword,
@@ -7,6 +9,8 @@ import {
   verifySessionToken,
   logout as doLogout
 } from './auth'
+import { apiUrl, uploadMultipart } from './net/api'
+import { endpoint } from './net/apiconfig'
 import { getDocsRoot, ensureDocsRoot, listLocalDocs, readLocalFile, writeLocalFile, createLocalDraft, chooseDocsDir, deleteLocalFile, createLocalDir } from './fs'
 import { pullRemote, pushToDraft, publish } from './sync'
 import {
@@ -118,6 +122,28 @@ export function registerIpcHandlers(): void {
   })
 
   ipcMain.handle('hqsf:get-session', () => ok(getSession()))
+
+  /**
+   * v0.0.6：编辑器「插入图片」——弹系统文件选择框，选中图片上传荒启（upload/full）后返回 URL。
+   * 取消选择返回 { ok: true, data: null }；未登录/上传失败返回 { ok: false, error }。
+   */
+  ipcMain.handle('media:pick-upload-image', async () => {
+    const token = getStoredToken()
+    if (!token) return fail('未登录，无法上传图片')
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      title: '选择要插入的图片',
+      properties: ['openFile'],
+      filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'] }]
+    })
+    if (canceled || !filePaths[0]) return ok(null)
+    try {
+      const file = filePaths[0]
+      const url = await uploadMultipart(apiUrl(endpoint('uploadFile').path), token, basename(file), readFileSync(file))
+      return ok({ url })
+    } catch (err) {
+      return fail(err)
+    }
+  })
 
   /** 校验当前会话 token 有效性（失效返回 valid:false；网络异常 reachable:false 不强制登出） */
   ipcMain.handle('hqsf:verify-session', async () => {

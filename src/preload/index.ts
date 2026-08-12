@@ -132,7 +132,11 @@ const api = {
   /** 查询文章收藏状态（返回 marked/logid） */
   isMark: (cid: string): Promise<ApiResult<MarkStatus>> => ipcRenderer.invoke('hqsf:is-mark', cid),
   /** 取消收藏（key=isMark 返回的 logid） */
-  removeLog: (key: number | string): Promise<ApiResult<LogOpResult>> => ipcRenderer.invoke('hqsf:remove-log', key)
+  removeLog: (key: number | string): Promise<ApiResult<LogOpResult>> => ipcRenderer.invoke('hqsf:remove-log', key),
+
+  // ---- v0.0.6：编辑器插入媒体 ----
+  /** 弹系统文件框选图片并上传荒启（upload/full），返回图片 URL；取消返回 data: null */
+  pickUploadImage: (): Promise<ApiResult<{ url: string } | null>> => ipcRenderer.invoke('media:pick-upload-image')
 }
 
 export type HqsfApi = typeof api

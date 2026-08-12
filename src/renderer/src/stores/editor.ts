@@ -1,6 +1,19 @@
 import { create } from 'zustand'
 import { parseFrontmatter, withFrontmatter, type ArticleMeta } from '../../../shared/frontmatter'
 
+/** v0.0.6：从 md 正文提取标题目录（h1-h6） */
+export function extractToc(md: string): Array<{ idx: number; level: number; text: string }> {
+  const items: Array<{ idx: number; level: number; text: string }> = []
+  const re = /^(#{1,6})\s+(.+?)\s*#*\s*$/gm
+  let m: RegExpExecArray | null
+  while ((m = re.exec(md))) {
+    const text = m[2].trim()
+    if (!text) continue
+    items.push({ idx: items.length, level: m[1].length, text })
+  }
+  return items
+}
+
 interface EditorState {
   /** 当前打开的本地文件绝对路径 */
   currentPath: string | null
@@ -10,6 +23,10 @@ interface EditorState {
   content: string
   /** 文章元数据（frontmatter：类型/标签/活动/公开） */
   meta: ArticleMeta
+  /** v0.0.6：编辑模式——所见即所得 / 分屏预览 SV（提升到 store 供顶栏感知右栏 tab） */
+  mode: 'wysiwyg' | 'split'
+  /** v0.0.6：正文标题目录（右栏「目录」tab 与顶栏按钮显示判断用） */
+  toc: Array<{ idx: number; level: number; text: string }>
   /** 与磁盘内容不一致（待保存） */
   dirty: boolean
   /** 是否已关联远端（有 cid） */
@@ -21,6 +38,7 @@ interface EditorState {
   update: (content: string) => void
   /** 更新元数据（类型/标签/活动/公开），标记未保存 */
   setMeta: (patch: Partial<ArticleMeta>) => void
+  setMode: (mode: 'wysiwyg' | 'split') => void
   save: () => Promise<void>
   /** 新建本地草稿并打开，返回文件路径 */
   createDraft: (title: string, dirRel?: string) => Promise<string | null>
@@ -47,6 +65,8 @@ export const useEditorStore = create<EditorState>((set, get) => {
     currentDir: '',
     content: '',
     meta: {},
+    mode: 'wysiwyg',
+    toc: [],
     dirty: false,
     synced: false,
     busy: false,
@@ -66,7 +86,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
       const res = await window.hqsf.readLocalFile(path)
       if (res.ok) {
         const { meta, body } = parseFrontmatter(res.data)
-        set({ currentPath: path, content: body, meta, dirty: false, busy: false })
+        set({ currentPath: path, content: body, meta, dirty: false, busy: false, toc: extractToc(body) })
         // 关联状态由索引刷新确定：读取文章索引中的该文件记录
         const arts = await window.hqsf.listArticles()
         if (arts.ok) {
@@ -79,7 +99,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     },
 
     update: (content) => {
-      set({ content, dirty: true })
+      set({ content, dirty: true, toc: extractToc(content) })
       scheduleSave()
     },
 
@@ -87,6 +107,8 @@ export const useEditorStore = create<EditorState>((set, get) => {
       set((s) => ({ meta: { ...s.meta, ...patch }, dirty: true }))
       scheduleSave()
     },
+
+    setMode: (mode) => set({ mode }),
 
     save: async () => {
       const { currentPath, content, meta, dirty } = get()
@@ -106,6 +128,8 @@ export const useEditorStore = create<EditorState>((set, get) => {
           currentPath: res.data,
           content: `# ${title}\n\n`,
           meta: {},
+          mode: 'wysiwyg',
+          toc: extractToc(`# ${title}\n\n`),
           dirty: false,
           synced: false,
           busy: false
@@ -120,7 +144,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
       // 关闭前落盘未保存修改
       if (get().dirty) await get().save()
       if (timer) clearTimeout(timer)
-      set({ currentPath: null, content: '', meta: {}, dirty: false, synced: false, error: null })
+      set({ currentPath: null, content: '', meta: {}, dirty: false, synced: false, error: null, toc: [] })
     },
 
     setCurrentDir: (currentDir) => set({ currentDir })

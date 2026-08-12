@@ -60,6 +60,12 @@ interface UiState {
   readerPanelOpen: boolean
   /** v0.0.3：右栏当前 tab（目录 / 评论 / 评审） */
   readerPanelTab: 'toc' | 'comments' | 'review'
+  /**
+   * v0.0.6：编辑器右栏（预览/目录）展开状态与当前 tab，
+   * 由顶栏「展开右栏」按钮切换（编辑态时）
+   */
+  editorPanelOpen: boolean
+  editorPanelTab: 'preview' | 'toc'
   setSection: (section: TopSection) => void
   setSelectedId: (id: string | null) => void
   /** 打开栏目列表（作品库分类等） */
@@ -69,6 +75,8 @@ interface UiState {
   toggleReaderPanel: () => void
   toggleSidebarCollapsed: () => void
   setReaderPanelTab: (tab: 'toc' | 'comments' | 'review') => void
+  toggleEditorPanel: () => void
+  setEditorPanelTab: (tab: 'preview' | 'toc') => void
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -79,6 +87,8 @@ export const useUiStore = create<UiState>((set) => ({
   sidebarCollapsed: localStorage.getItem('hqsf-sidebar-collapsed') === '1',
   readerPanelOpen: false,
   readerPanelTab: 'review',
+  editorPanelOpen: false,
+  editorPanelTab: 'preview',
   setSection: (section) => set({ section, selectedId: null, listContext: null }),
   setSelectedId: (selectedId) => set({ selectedId }),
   openList: (ctx) => set({ selectedId: ctx.title, listContext: ctx }),
@@ -91,5 +101,7 @@ export const useUiStore = create<UiState>((set) => ({
       localStorage.setItem('hqsf-sidebar-collapsed', v ? '1' : '0')
       return { sidebarCollapsed: v }
     }),
-  setReaderPanelTab: (readerPanelTab) => set({ readerPanelTab })
+  setReaderPanelTab: (readerPanelTab) => set({ readerPanelTab }),
+  toggleEditorPanel: () => set((s) => ({ editorPanelOpen: !s.editorPanelOpen })),
+  setEditorPanelTab: (editorPanelTab) => set({ editorPanelTab })
 }))

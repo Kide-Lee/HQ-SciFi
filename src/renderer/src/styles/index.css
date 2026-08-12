@@ -1067,11 +1067,11 @@ body {
   align-items: center;
   gap: 4px;
   width: 100%;
-  padding: 3px 8px;
+  padding: 7px 10px; /* v0.0.6：与文件项 .tree-node 一致（高度、字号） */
   border: none;
   background: transparent;
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
   /* v0.0.6：目录名字体颜色与文件名一致（.tree-node 为 #444a54） */
   color: #444a54;
   cursor: pointer;
@@ -1129,13 +1129,22 @@ body {
   background: var(--bg-card);
 }
 
-.editor-toolbar {
+.editor-bar {
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.editor-bar-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--border);
+  padding: 8px 16px;
   flex-wrap: wrap;
+}
+
+.editor-bar-row + .editor-bar-row {
+  border-top: 1px solid var(--border);
+  background: var(--bg-card);
 }
 
 .toolbar-btn {
@@ -1178,16 +1187,6 @@ body {
 
 .toolbar-spacer {
   flex: 1;
-}
-
-.editor-path {
-  font-size: 12px;
-  color: var(--text-muted);
-  max-width: 260px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  user-select: text;
 }
 
 .status-badge {
@@ -1236,8 +1235,20 @@ body {
   flex-direction: column;
   /* v0.0.6：写作首页背景与主界面一致（其他页面灰底） */
 }
+/* v0.0.6：编辑态横向排布——编辑器主体 + 右栏（RightPanel） */
+.editor-body.editing {
+  flex-direction: row;
+}
 .editor-body.home {
   background: var(--bg);
+}
+/* v0.0.6：编辑器主体（所见即所得 / 分屏源码），与右栏并排 */
+.editor-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .cm-host {
@@ -1481,25 +1492,8 @@ body {
   padding: 0 2px;
 }
 
-.editor-close {
-  position: fixed;
-  right: 16px;
-  bottom: 16px;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg-card);
-  font-size: 12px;
-  color: var(--text-muted);
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-.editor-close:hover {
-  color: #c0392b;
+.editor-close-btn {
+  margin-left: 4px;
 }
 
 .toast {
@@ -3709,7 +3703,7 @@ body {
 }
 
 
-/* ============ v0.0.7：编辑器三模式（所见即所得 / 即时预览 IR / 分屏预览 SV） ============ */
+/* ============ v0.0.7：编辑器双模式（所见即所得 / 分屏预览 SV） ============ */
 
 /* 工具栏模式切换（三按钮） */
 .editor-mode-switch {
@@ -3721,8 +3715,9 @@ body {
 .mode-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
-  padding: 5px 10px;
+  padding: 6px 9px;
   border: none;
   background: transparent;
   font: inherit;
@@ -3812,6 +3807,52 @@ body {
   min-height: 100%;
   color: var(--text);
 }
+/* v0.0.6：所见即所得渲染与文章页（reader-body）对齐——标题、行高、图片宽度 */
+.md-editor-host .ProseMirror {
+  line-height: 1.9;
+}
+.md-editor-host .ProseMirror h1,
+.md-editor-host .ProseMirror h2,
+.md-editor-host .ProseMirror h3,
+.md-editor-host .ProseMirror h4,
+.md-editor-host .ProseMirror h5,
+.md-editor-host .ProseMirror h6 {
+  margin: 1.2em 0 0.6em;
+  line-height: 1.4;
+  font-weight: 600;
+}
+.md-editor-host .ProseMirror h1 {
+  font-size: 1.5em;
+}
+.md-editor-host .ProseMirror h2 {
+  font-size: 1.3em;
+}
+.md-editor-host .ProseMirror h3 {
+  font-size: 1.15em;
+}
+.md-editor-host .ProseMirror img {
+  max-width: 100%;
+  height: auto;
+}
+/* v0.0.6：楷体 mark（替代斜体）——编辑器内与预览/阅读统一字体 */
+.kaiti {
+  font-family: "KaiTi", "STKaiti", "楷体", "Kaiti SC", serif;
+}
+.editor-preview-body .kaiti,
+.reader-body .kaiti {
+  font-family: "KaiTi", "STKaiti", "楷体", "Kaiti SC", serif;
+}
+/* v0.0.6：媒体标签节点（音乐/视频）——编辑器内以标签原文呈现 */
+.media-tag {
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-hover, rgba(0, 0, 0, 0.05));
+  color: var(--text-muted);
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 0.9em;
+  white-space: nowrap;
+}
 .md-editor-host .ProseMirror > * {
   margin: 0.55em 0;
 }
@@ -3897,70 +3938,28 @@ body {
   content: attr(data-checked) "";
 }
 
-/* ---------- 即时预览 IR：源码 + 光标块渲染 ---------- */
-
-.ir-editor {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-.ir-editor .cm-host {
-  flex: 1;
-}
-.ir-block-preview {
-  margin: 6px 10px 10px 14px;
-  padding: 10px 14px;
-  border-left: 3px solid var(--accent);
-  border-radius: 0 6px 6px 0;
-  background: var(--bg-quote, rgba(128, 128, 128, 0.06));
-  font-size: 14px;
-  line-height: 1.75;
-  pointer-events: none;
-  user-select: none;
-}
-.ir-block-preview > :first-child { margin-top: 0; }
-.ir-block-preview > :last-child { margin-bottom: 0; }
-.ir-block-preview img { max-width: 100%; }
-
 /* ---------- 分屏预览 SV ---------- */
 
 .split-editor {
   flex: 1;
   min-height: 0;
   display: flex;
-}
-.split-editor-source {
-  flex: 1;
-  min-width: 0;
-  display: flex;
   flex-direction: column;
 }
-.split-editor-source .cm-host {
+.split-editor .cm-host {
   flex: 1;
 }
-.split-editor-preview {
-  flex: 1;
+/* v0.0.6：整篇预览移至编辑器右栏「预览」tab（.editor-preview-body） */
+.editor-preview-body {
   min-width: 0;
-  overflow-y: auto;
-  padding: 18px 28px;
-  border-left: 1px solid var(--border);
-  background: var(--bg-card);
 }
-.split-editor-preview img {
+.editor-preview-body img {
   max-width: 100%;
 }
 
-/* ============ v0.0.7：文章属性栏（类型/标签/活动/公开 + 违禁词检测） ============ */
+/* ============ v0.0.7：文章属性（类型/标签/活动/公开）——v0.0.6 移入编辑栏第二行 ============ */
 
-.editor-meta-bar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px 18px;
-  padding: 8px 16px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg);
+.editor-bar-meta {
   font-size: 13px;
 }
 .meta-field {
@@ -3991,29 +3990,90 @@ body {
   flex: 1;
   min-width: 160px;
 }
-.meta-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+/* v0.0.6：标签改为多选下拉——已选标签以 chip 显示（点击移除），溢出裁剪 */
+.meta-tags-select {
+  position: relative;
+  display: inline-flex;
+  max-width: 240px;
 }
-.meta-tag {
-  padding: 2px 8px;
+.meta-tags-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  max-width: 220px;
+  padding: 3px 8px;
   border: 1px solid var(--border);
-  border-radius: 10px;
-  background: transparent;
-  color: var(--text-muted);
+  border-radius: 5px;
+  background: var(--bg-card);
+  color: var(--text);
   font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.meta-tags-trigger.open {
+  border-color: var(--accent);
+}
+.meta-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
   font-size: 12px;
+  white-space: nowrap;
   cursor: pointer;
 }
-.meta-tag:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+.meta-tag-chip:hover {
+  opacity: 0.85;
 }
-.meta-tag.on {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+.meta-tags-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 50;
+  min-width: 180px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-card);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+.meta-tags-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.meta-tags-option:hover {
+  background: var(--bg-hover, rgba(0, 0, 0, 0.06));
+}
+.meta-tags-option input {
+  accent-color: var(--accent);
+}
+/* v0.0.6：编辑栏第二行字数统计（不计空格标点），不足 3000 / 超 33000 提醒 */
+.editor-words {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.editor-words .editor-words-tip {
+  margin-left: 6px;
+  color: var(--danger, #d64545);
+  font-weight: 600;
+}
+.editor-words.warn {
+  color: var(--danger, #d64545);
 }
 .meta-check {
   display: inline-flex;

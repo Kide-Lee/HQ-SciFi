@@ -35,6 +35,14 @@ export function TopBar(): React.JSX.Element {
   const togglePanel = useUiStore((s) => s.toggleReaderPanel)
   const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed)
   const toggleSidebar = useUiStore((s) => s.toggleSidebarCollapsed)
+  // v0.0.6：编辑器右栏（预览/目录）——顶栏按钮仅在编辑器右栏有 tab 时显示
+  const currentPath = useEditorStore((s) => s.currentPath)
+  const editorMode = useEditorStore((s) => s.mode)
+  const editorToc = useEditorStore((s) => s.toc)
+  const editorPanelOpen = useUiStore((s) => s.editorPanelOpen)
+  const toggleEditorPanel = useUiStore((s) => s.toggleEditorPanel)
+  // v0.0.6：「零 tab 不显示右栏按钮」——编辑器右栏有 tab 当且仅当（分屏预览模式）或（正文有标题）
+  const editorHasTabs = !!currentPath && !readingCid && (editorMode === 'split' || editorToc.length > 0)
 
   const [maximized, setMaximized] = useState(false)
   useEffect(() => {
@@ -86,6 +94,16 @@ export function TopBar(): React.JSX.Element {
         {title}
       </div>
       <div className="topbar-controls">
+        {/* v0.0.6：编辑器右栏按钮（预览/目录，有 tab 才显示） */}
+        {editorHasTabs && (
+          <button
+            className="topbar-btn"
+            onClick={toggleEditorPanel}
+            title={editorPanelOpen ? '收起右栏' : '展开右栏'}
+          >
+            {editorPanelOpen ? <PanelRightClose size={14} /> : <PanelRightOpen size={14} />}
+          </button>
+        )}
         {readingCid && (
           <button
             className="topbar-btn"

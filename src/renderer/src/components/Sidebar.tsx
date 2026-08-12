@@ -351,7 +351,7 @@ export function Sidebar(): React.JSX.Element {
         const k = `local:${node.path}`
         const open = expanded.has(k)
         return (
-          <div key={node.path} className="tree-dir-wrap" style={{ paddingLeft: depth * 8 }}>
+          <div key={node.path} className="tree-dir-wrap" style={{ paddingLeft: 22 + depth * 12 }}>
             <button className="tree-dir-entry" onClick={() => toggleExpand(k)} title={node.path}>
               <ChevronRight size={12} className={`caret${open ? ' open' : ''}`} />
               {/* v0.0.6：目录不再显示 Folder 图标（与文件名样式一致） */}

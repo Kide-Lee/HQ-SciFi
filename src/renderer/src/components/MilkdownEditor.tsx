@@ -7,6 +7,8 @@ import { history } from '@milkdown/kit/plugin/history'
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
 import { nord } from '@milkdown/theme-nord'
 import { MilkdownToolbar } from './MilkdownToolbar'
+import { kaitiSchema, toggleKaitiCommand } from '../lib/kaitiMark'
+import { mediaNode, insertMediaCommand } from '../lib/mediaNode'
 import '@milkdown/theme-nord/style.css'
 
 interface MilkdownEditorProps {
@@ -49,6 +51,10 @@ function Inner({ docKey, content, onChange }: MilkdownEditorProps): React.JSX.El
         .config(nord)
         .use(commonmark)
         .use(gfm)
+        .use(kaitiSchema)
+        .use(toggleKaitiCommand)
+        .use(mediaNode)
+        .use(insertMediaCommand)
         .use(history)
         .use(listener),
     [docKey]

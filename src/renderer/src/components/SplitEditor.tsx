@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { EditorView, keymap } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
 import { basicSetup } from 'codemirror'
 import { markdown } from '@codemirror/lang-markdown'
-import { renderMdPreview } from '../lib/mdPreview'
 
 interface SplitEditorProps {
   /** 文档标识：变化时用最新 content 重建（切换文档） */
@@ -15,8 +14,8 @@ interface SplitEditorProps {
 }
 
 /**
- * 即时预览编辑模式：左栏 CodeMirror 6 源码编辑 + 右栏 markdown-it 实时渲染。
- * 每处输入即更新预览（md → HTML），与阅读排版共用样式类。
+ * 分屏预览（SV）编辑模式：左栏 CodeMirror 6 源码编辑。
+ * v0.0.6：整篇预览移至编辑器右栏「预览」tab（右栏与文章页共用，见 EditorPane）。
  */
 export function SplitEditor({ docKey, content, onChange }: SplitEditorProps): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -24,13 +23,10 @@ export function SplitEditor({ docKey, content, onChange }: SplitEditorProps): Re
   contentRef.current = content
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
-  const [preview, setPreview] = useState(() => renderMdPreview(content))
 
   // 切文档时重建编辑器实例
   useEffect(() => {
     if (!containerRef.current) return
-    // 重建后同步预览为最新文档内容
-    setPreview(renderMdPreview(contentRef.current))
     const view = new EditorView({
       state: EditorState.create({
         doc: contentRef.current,
@@ -41,9 +37,7 @@ export function SplitEditor({ docKey, content, onChange }: SplitEditorProps): Re
           keymap.of([{ key: 'Mod-s', run: () => true }]),
           EditorView.updateListener.of((u) => {
             if (u.docChanged) {
-              const md = u.state.doc.toString()
-              onChangeRef.current(md)
-              setPreview(renderMdPreview(md))
+              onChangeRef.current(u.state.doc.toString())
             }
           }),
           EditorView.theme({
@@ -64,10 +58,7 @@ export function SplitEditor({ docKey, content, onChange }: SplitEditorProps): Re
 
   return (
     <div className="split-editor">
-      <div className="split-editor-source">
-        <div className="cm-host" ref={containerRef} />
-      </div>
-      <div className="split-editor-preview reader-body" dangerouslySetInnerHTML={{ __html: preview }} />
+      <div className="cm-host" ref={containerRef} />
     </div>
   )
 }

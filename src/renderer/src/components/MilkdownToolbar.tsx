@@ -1,21 +1,24 @@
 import type { ReactNode } from 'react'
 import {
-  Bold, Code, Code2, Heading1, Heading2, Heading3, Image, Italic, Link,
-  List, ListOrdered, Minus, Quote, Redo2, RemoveFormatting, Undo2
+  Bold, Code, Code2, Heading1, Heading2, Heading3, Image, Link,
+  List, ListOrdered, Minus, Music, Quote, Redo2, RemoveFormatting, Type, Undo2, Video
 } from 'lucide-react'
 import { useInstance } from '@milkdown/react'
 import {
-  toggleStrongCommand, toggleEmphasisCommand, toggleInlineCodeCommand,
+  toggleStrongCommand, toggleInlineCodeCommand,
   toggleLinkCommand, wrapInHeadingCommand, wrapInBlockquoteCommand,
   wrapInBulletListCommand, wrapInOrderedListCommand, createCodeBlockCommand,
   insertHrCommand, insertImageCommand, turnIntoTextCommand
 } from '@milkdown/kit/preset/commonmark'
 import { editorViewCtx } from '@milkdown/kit/core'
 import { undo, redo } from '@milkdown/kit/prose/history'
+import { toggleKaitiCommand } from '../lib/kaitiMark'
+import { insertMediaCommand, normalizeMediaInput } from '../lib/mediaNode'
 
 /**
  * 所见即所得模式的编辑工具栏（milkdown 命令驱动）。
  * 必须位于 MilkdownProvider 内（经 useInstance 获取编辑器实例）。
+ * v0.0.6：取消斜体按钮 → 楷体按钮；新增插入媒体（图片上传 / 音乐 / 视频）。
  */
 export function MilkdownToolbar(): React.JSX.Element {
   const [loading, get] = useInstance()
@@ -35,9 +38,29 @@ export function MilkdownToolbar(): React.JSX.Element {
     if (href) run(() => toggleLinkCommand.run({ href }))
   }
 
-  const askImage = (): void => {
-    const src = window.prompt('图片地址（https://…）')
-    if (src) run(() => insertImageCommand.run({ src }))
+  /** v0.0.6：插入图片——本地文件经主进程上传（upload/full）后插入地址 */
+  const askImage = async (): Promise<void> => {
+    const res = await window.hqsf.pickUploadImage()
+    if (!res.ok) {
+      if (res.error) window.alert(res.error)
+      return
+    }
+    const url = res.data?.url
+    if (!url) return // 用户取消选择
+    run(() => insertImageCommand.run({ src: url }))  }
+
+  /** v0.0.6：插入网易云音乐标签（荒启正文媒体语法，阅读端展开为 iframe） */
+  const askMusic = (): void => {
+    const input = window.prompt('插入网易云音乐\n请输入歌曲/歌单 ID（如 29764595）')
+    const id = normalizeMediaInput('music 163', input ?? '')
+    if (id) run(() => insertMediaCommand.run({ tag: 'music 163', id }))
+  }
+
+  /** v0.0.6：插入 B 站视频标签（荒启正文媒体语法，阅读端展开为 iframe） */
+  const askVideo = (): void => {
+    const input = window.prompt('插入 B 站视频\n请输入 BV 号（如 BV1xx411c7mD）')
+    const id = normalizeMediaInput('video bilibili', input ?? '')
+    if (id) run(() => insertMediaCommand.run({ tag: 'video bilibili', id }))
   }
 
   interface Btn {
@@ -49,10 +72,11 @@ export function MilkdownToolbar(): React.JSX.Element {
   const groups: Btn[][] = [
     [
       { title: '粗体', icon: <Bold size={14} />, action: () => run(() => toggleStrongCommand.run()) },
-      { title: '斜体', icon: <Italic size={14} />, action: () => run(() => toggleEmphasisCommand.run()) },
+      // v0.0.6：取消斜体按钮，以楷体替代
+      { title: '楷体', icon: <Type size={14} />, action: () => run(() => toggleKaitiCommand.run()) },
       { title: '行内代码', icon: <Code size={14} />, action: () => run(() => toggleInlineCodeCommand.run()) },
       { title: '链接', icon: <Link size={14} />, action: askLink },
-      { title: '图片', icon: <Image size={14} />, action: askImage }
+      { title: '图片（上传）', icon: <Image size={14} />, action: () => void askImage() }
     ],
     [
       { title: '标题 1', icon: <Heading1 size={15} />, action: () => run(() => wrapInHeadingCommand.run(1)) },
@@ -68,6 +92,9 @@ export function MilkdownToolbar(): React.JSX.Element {
       { title: '清除格式', icon: <RemoveFormatting size={14} />, action: () => run(() => turnIntoTextCommand.run()) }
     ],
     [
+      // v0.0.6：插入媒体（音乐/视频，荒启标签语法）
+      { title: '插入音乐（网易云）', icon: <Music size={14} />, action: askMusic },
+      { title: '插入视频（B 站）', icon: <Video size={14} />, action: askVideo },
       {
         title: '撤销',
         icon: <Undo2 size={14} />,
