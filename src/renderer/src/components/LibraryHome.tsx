@@ -37,7 +37,10 @@ export function LibraryHome(): React.JSX.Element {
         if (c.ok)
           setCats(c.data.map((x) => ({ mid: x.mid, name: x.name, description: x.description, imgurl: x.imgurl })))
         else setError(c.error)
-        setLatest(l.ok ? l.data.items : [])
+        const latestItems = l.ok ? l.data.items : []
+        setLatest(latestItems)
+        // v0.0.6+：上报首页文章合集供右栏搜索
+        useReaderStore.getState().setHomeList(latestItems)
         setLoading(false)
       })
       .catch((err) => {

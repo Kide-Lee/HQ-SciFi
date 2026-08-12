@@ -1,6 +1,6 @@
-import { useRef } from 'react'
-import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react'
-import { Editor, rootCtx, defaultValueCtx } from '@milkdown/kit/core'
+import { useEffect, useRef } from 'react'
+import { Milkdown, MilkdownProvider, useEditor, useInstance } from '@milkdown/react'
+import { Editor, rootCtx, defaultValueCtx, parserCtx, editorViewCtx } from '@milkdown/kit/core'
 import { commonmark } from '@milkdown/kit/preset/commonmark'
 import { gfm } from '@milkdown/kit/preset/gfm'
 import { history } from '@milkdown/kit/plugin/history'
@@ -9,6 +9,7 @@ import { nord } from '@milkdown/theme-nord'
 import { MilkdownToolbar } from './MilkdownToolbar'
 import { kaitiSchema, toggleKaitiCommand } from '../lib/kaitiMark'
 import { mediaNode, insertMediaCommand } from '../lib/mediaNode'
+import { useEditorStore } from '../stores/editor'
 import '@milkdown/theme-nord/style.css'
 
 interface MilkdownEditorProps {
@@ -59,6 +60,26 @@ function Inner({ docKey, content, onChange }: MilkdownEditorProps): React.JSX.El
         .use(listener),
     [docKey]
   )
+
+  // v0.0.6+：搜索替换注入——订阅 externalContent（seq 变化）替换整个 doc；
+  // 替换经 listener 回流 onChange → store.content 与编辑器保持一致并防抖落盘
+  const externalContent = useEditorStore((s) => s.externalContent)
+  const [instLoading, getInstance] = useInstance()
+  useEffect(() => {
+    const ext = externalContent
+    if (!ext || instLoading) return
+    const editor = getInstance()
+    if (!editor) return
+    editor.action(async (ctx) => {
+      const view = ctx.get(editorViewCtx)
+      const parser = ctx.get(parserCtx)
+      const doc = parser(ext.md)
+      view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, doc.content))
+      view.focus()
+    })
+    // 仅 seq 变化触发；替换完成后 content 经 onChange 回流，不再重复注入
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalContent?.seq])
 
   return (
     <div className="md-editor-wrap">

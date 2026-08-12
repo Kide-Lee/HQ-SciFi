@@ -7,6 +7,9 @@ import { ErrorBanner } from './ErrorBanner'
 import { formatSize, formatTs, expandMediaTags } from '../lib/sanitize'
 import { renderMdPreview } from '../lib/mdPreview'
 import { RightPanel, type RightTab } from './RightPanel'
+import { SearchPanel } from './SearchPanel'
+import { buildRegex } from '../lib/searchText'
+import { jumpToMatchIn } from '../lib/searchJump'
 import type { ArticleRow, LocalNode } from '../../../shared/types'
 import { MilkdownEditor } from './MilkdownEditor'
 import { SplitEditor } from './SplitEditor'
@@ -65,10 +68,10 @@ export function EditorPane(): React.JSX.Element {
   const mode = useEditorStore((s) => s.mode)
   const setMode = useEditorStore((s) => s.setMode)
   const toc = useEditorStore((s) => s.toc)
-  // v0.0.6：编辑器右栏（预览/目录）展开与 tab 由 ui store 管理（顶栏按钮切换）
-  const editorPanelOpen = useUiStore((s) => s.editorPanelOpen)
-  const editorPanelTab = useUiStore((s) => s.editorPanelTab)
-  const setEditorPanelTab = useUiStore((s) => s.setEditorPanelTab)
+  // v0.0.6：编辑器右栏（预览/目录/搜索）展开与 tab 由 ui store 管理（顶栏按钮切换，全局单份）
+  const panelOpen = useUiStore((s) => s.panelOpen)
+  const panelTab = useUiStore((s) => s.panelTab)
+  const setPanelTab = useUiStore((s) => s.setPanelTab)
   // v0.0.6：新建文件夹输入框状态
   const [showNewDir, setShowNewDir] = useState(false)
   const [newDirName, setNewDirName] = useState('')
@@ -270,7 +273,7 @@ export function EditorPane(): React.JSX.Element {
   function jumpToEditorToc(idx: number): void {
     if (mode === 'split') {
       // 右栏同一时刻只渲染当前 tab：预览 tab 未激活时内容不在 DOM，先切过去再滚动
-      setEditorPanelTab('preview')
+      setPanelTab('preview')
       setTimeout(() => {
         const scope = document.querySelector('.editor-pane .reader-panel .editor-preview-body')
         const el = scope?.querySelectorAll('h1,h2,h3,h4,h5,h6')[idx]
@@ -283,9 +286,23 @@ export function EditorPane(): React.JSX.Element {
     el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
-  // v0.0.6：编辑器右栏 tabs——预览（仅分屏预览模式）/ 目录（正文有标题时）；
+  // v0.0.6：编辑器右栏 tabs——预览（仅分屏预览模式）/ 目录（正文有标题时）/ 搜索（基础 tab）；
   // 单 tab 无 tab 栏、零 tab 不渲染（RightPanel 内置），顶栏按钮据此联动
-  const editorTabs: Array<RightTab<'preview' | 'toc'>> = [
+  const applyExternalContent = useEditorStore((s) => s.applyExternalContent)
+  /** v0.0.6+：编辑器搜索跳转——SV 模式切预览 tab 后在预览 DOM 定位；WYSIWYG 在 milkdown DOM 定位 */
+  const jumpToSearch = (idx: number): void => {
+    const u = useUiStore.getState()
+    const re = buildRegex(u.searchQuery, u.searchRegex)
+    if (mode === 'split') {
+      setPanelTab('preview')
+      setTimeout(() => {
+        jumpToMatchIn(document.querySelector('.editor-pane .reader-panel .editor-preview-body'), re, idx)
+      }, 150)
+      return
+    }
+    jumpToMatchIn(document.querySelector('.editor-pane .milkdown-theme-nord'), re, idx)
+  }
+  const editorTabs: Array<RightTab<'preview' | 'toc' | 'search'>> = [
     ...(mode === 'split'
       ? [
           {
@@ -328,7 +345,43 @@ export function EditorPane(): React.JSX.Element {
             )
           }
         ]
-      : [])
+      : []),
+    // v0.0.6+：搜索（基础 tab）——编辑器支持批量/逐个/正则替换
+    {
+      key: 'search' as const,
+      label: '搜索',
+      content: (
+        <SearchPanel
+          text={content}
+          onJump={jumpToSearch}
+          replaceable
+          onReplace={applyExternalContent}
+        />
+      )
+    }
+  ]
+
+  // v0.0.6+：写作首页右栏——搜索本地文档（标题+摘要），点击打开
+  const homeItems = useMemo<Array<{ id: string; title: string; text?: string }>>(() => {
+    const out: Array<{ id: string; title: string; text?: string }> = []
+    const walk = (nodes: LocalNode[]): void => {
+      for (const n of nodes) {
+        if (n.isDir) {
+          if (n.children) walk(n.children)
+        } else {
+          out.push({ id: n.path, title: n.name.replace(/\.md$/i, ''), text: n.summary })
+        }
+      }
+    }
+    walk(localTree)
+    return out
+  }, [localTree])
+  const homeTabs: Array<RightTab<'search'>> = [
+    {
+      key: 'search',
+      label: '搜索',
+      content: <SearchPanel items={homeItems} onOpenItem={(path) => void openDoc(path)} />
+    }
   ]
 
   return (
@@ -520,26 +573,16 @@ export function EditorPane(): React.JSX.Element {
       )}
 
       <div className={`editor-body${currentPath ? ' editing' : ' home'}`}>
-        {currentPath ? (
-          <>
-            <div className="editor-main">
-              {mode === 'wysiwyg' ? (
-                <MilkdownEditor docKey={currentPath} content={content} onChange={update} />
-              ) : (
-                <SplitEditor docKey={currentPath} content={content} onChange={update} />
-              )}
-            </div>
-            {/* v0.0.6：编辑器右栏（预览/目录，与文章页共用 RightPanel 与规则） */}
-            <RightPanel
-              tabs={editorTabs}
-              activeTab={editorPanelTab}
-              onTabChange={setEditorPanelTab}
-              open={editorPanelOpen}
-            />
-          </>
-        ) : (
-          /* v0.0.6：写作首页——本地存档目录导航 + 文章卡片 */
-          <div className="editor-empty editor-local-home">
+        <div className="editor-main">
+          {currentPath ? (
+            mode === 'wysiwyg' ? (
+              <MilkdownEditor docKey={currentPath} content={content} onChange={update} />
+            ) : (
+              <SplitEditor docKey={currentPath} content={content} onChange={update} />
+            )
+          ) : (
+            /* v0.0.6：写作首页——本地存档目录导航 + 文章卡片 */
+            <div className="editor-empty editor-local-home">
             <div className="editor-local-home-head">
               {/* v0.0.6：面包屑（原「本地存档」标题改为纯面包屑） */}
               <span className="editor-local-crumbs">
@@ -702,7 +745,15 @@ export function EditorPane(): React.JSX.Element {
               </div>
             )}
           </div>
-        )}
+          )}
+        </div>
+        {/* v0.0.6+：右栏（编辑态=预览/目录/搜索；写作首页=搜索本地文档） */}
+        <RightPanel
+          tabs={currentPath ? editorTabs : homeTabs}
+          activeTab={panelTab}
+          onTabChange={setPanelTab}
+          open={panelOpen}
+        />
       </div>
 
       {toast && <div className="toast">{toast}</div>}

@@ -54,29 +54,28 @@ interface UiState {
    */
   sidebarCollapsed: boolean
   /**
-   * v0.0.3：阅读页右栏（目录/评论/评审）展开状态，
-   * 由顶栏「展开右栏」按钮切换（原 ReaderView 内部 showReview 提升至此）
+   * v0.0.3：右栏（目录/评论/评审/搜索…）展开状态，由顶栏「展开右栏」按钮切换。
+   * v0.0.6+：从阅读/编辑器各一份合并为全局单份——所有视图均可调出右栏（搜索为基础 tab）。
    */
-  readerPanelOpen: boolean
-  /** v0.0.3：右栏当前 tab（目录 / 评论 / 评审） */
-  readerPanelTab: 'toc' | 'comments' | 'review'
-  /**
-   * v0.0.6：编辑器右栏（预览/目录）展开状态与当前 tab，
-   * 由顶栏「展开右栏」按钮切换（编辑态时）
-   */
-  editorPanelOpen: boolean
-  editorPanelTab: 'preview' | 'toc'
+  panelOpen: boolean
+  /** 右栏当前 tab（key 由各视图 tabs 定义：文章页 toc/comments/review/search、编辑器 preview/toc/search 等） */
+  panelTab: string
+  /** v0.0.6+：搜索面板状态（Ctrl+F 调出；词与正则开关全局持久，切换视图不丢） */
+  searchQuery: string
+  searchRegex: boolean
   setSection: (section: TopSection) => void
   setSelectedId: (id: string | null) => void
   /** 打开栏目列表（作品库分类等） */
   openList: (ctx: ListContext) => void
   closeList: () => void
   setRevealTarget: (target: { section: TopSection; mid?: number | string; cid?: string } | null) => void
-  toggleReaderPanel: () => void
+  togglePanel: () => void
   toggleSidebarCollapsed: () => void
-  setReaderPanelTab: (tab: 'toc' | 'comments' | 'review') => void
-  toggleEditorPanel: () => void
-  setEditorPanelTab: (tab: 'preview' | 'toc') => void
+  setPanelTab: (tab: string) => void
+  /** 打开右栏并切到指定 tab（Ctrl+F 搜索用） */
+  openPanelTab: (tab: string) => void
+  setSearchQuery: (q: string) => void
+  setSearchRegex: (v: boolean) => void
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -85,23 +84,24 @@ export const useUiStore = create<UiState>((set) => ({
   listContext: null,
   revealTarget: null,
   sidebarCollapsed: localStorage.getItem('hqsf-sidebar-collapsed') === '1',
-  readerPanelOpen: false,
-  readerPanelTab: 'review',
-  editorPanelOpen: false,
-  editorPanelTab: 'preview',
+  panelOpen: false,
+  panelTab: 'search',
+  searchQuery: '',
+  searchRegex: false,
   setSection: (section) => set({ section, selectedId: null, listContext: null }),
   setSelectedId: (selectedId) => set({ selectedId }),
   openList: (ctx) => set({ selectedId: ctx.title, listContext: ctx }),
   closeList: () => set({ listContext: null }),
   setRevealTarget: (revealTarget) => set({ revealTarget }),
-  toggleReaderPanel: () => set((s) => ({ readerPanelOpen: !s.readerPanelOpen })),
+  togglePanel: () => set((s) => ({ panelOpen: !s.panelOpen })),
   toggleSidebarCollapsed: () =>
     set((s) => {
       const v = !s.sidebarCollapsed
       localStorage.setItem('hqsf-sidebar-collapsed', v ? '1' : '0')
       return { sidebarCollapsed: v }
     }),
-  setReaderPanelTab: (readerPanelTab) => set({ readerPanelTab }),
-  toggleEditorPanel: () => set((s) => ({ editorPanelOpen: !s.editorPanelOpen })),
-  setEditorPanelTab: (editorPanelTab) => set({ editorPanelTab })
+  setPanelTab: (panelTab) => set({ panelTab }),
+  openPanelTab: (panelTab) => set({ panelOpen: true, panelTab }),
+  setSearchQuery: (searchQuery) => set({ searchQuery }),
+  setSearchRegex: (searchRegex) => set({ searchRegex })
 }))

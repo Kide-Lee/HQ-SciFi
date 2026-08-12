@@ -35,8 +35,12 @@ export function RecommendHome(): React.JSX.Element {
     ])
       .then(([t, l]) => {
         if (!alive) return
-        setTop(t.ok ? t.data.items : [])
-        setLatest(l.ok ? l.data.items : [])
+        const topItems = t.ok ? t.data.items : []
+        const latestItems = l.ok ? l.data.items : []
+        setTop(topItems)
+        setLatest(latestItems)
+        // v0.0.6+：上报首页文章合集供右栏搜索
+        useReaderStore.getState().setHomeList([...topItems, ...latestItems])
         setError(!t.ok ? t.error : !l.ok ? l.error : null)
         setLoading(false)
       })

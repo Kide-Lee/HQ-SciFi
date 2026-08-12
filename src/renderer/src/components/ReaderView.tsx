@@ -8,6 +8,9 @@ import { ErrorBanner } from './ErrorBanner'
 import { CommentSection, CommentCard, ridOf } from './ReaderComments'
 import { ReaderInteractions } from './ReaderInteractions'
 import { RightPanel, type RightTab } from './RightPanel'
+import { SearchPanel } from './SearchPanel'
+import { buildRegex } from '../lib/searchText'
+import { jumpToMatchIn } from '../lib/searchJump'
 import { ArrowDown, ArrowUp, MessageCircle, PenLine, X } from 'lucide-react'
 import type { ArticleDetail, CommentItem, MetaRef, ReviewItem, ReviewPayload } from '../../../shared/types'
 
@@ -105,9 +108,9 @@ export function ReaderView(): React.JSX.Element {
   const closeArticle = useReaderStore((s) => s.closeArticle)
   const session = useAuthStore((s) => s.session)
 
-  // v0.0.3：右栏（目录/评论/评审）展开与 tab 由 ui store 管理（顶栏「展开右栏」按钮切换）
-  const panelOpen = useUiStore((s) => s.readerPanelOpen)
-  const panelTab = useUiStore((s) => s.readerPanelTab)
+  // v0.0.3：右栏（目录/评论/评审/搜索）展开与 tab 由 ui store 管理（顶栏「展开右栏」按钮切换；v0.0.6+ 全局单份）
+  const panelOpen = useUiStore((s) => s.panelOpen)
+  const panelTab = useUiStore((s) => s.panelTab)
 
   // v0.0.2：评审栏宽度比例（评审:总宽），默认 1/3（正文:评审 = 2:1），localStorage 持久化
   const [splitRatio, setSplitRatio] = useState<number>(() => {
@@ -161,12 +164,16 @@ export function ReaderView(): React.JSX.Element {
    *  注意：React 对 dangerouslySetInnerHTML 每次提交都会重写 innerHTML，effect 捕获的节点会被
    *  detached，因此跳转时实时查询标题元素（索引与 toc 生成时一致，正文会话内稳定）。 */
   const [toc, setToc] = useState<Array<{ idx: number; level: number; text: string }>>([])
+  // v0.0.6+：正文纯文本（搜索源；与正文 DOM 顺序一致，跳转按同索引定位）
+  const [bodyText, setBodyText] = useState('')
   useEffect(() => {
     const body = bodyRef.current
     if (!body) {
       setToc([])
+      setBodyText('')
       return
     }
+    setBodyText(body.textContent ?? '')
     const items: Array<{ idx: number; level: number; text: string }> = []
     Array.from(body.querySelectorAll('h1,h2,h3,h4,h5,h6')).forEach((h, i) => {
       const text = (h.textContent ?? '').trim()
@@ -208,12 +215,17 @@ export function ReaderView(): React.JSX.Element {
 
   // v0.0.6：右栏 tabs 由通用 RightPanel 渲染（零/单/多 tab 规则内置）——
   // 目录（有标题时）/ 评论 / 评审（非本人文章）；原 ReaderPanel 内嵌实现已抽离
-  const setPanelTab = useUiStore((s) => s.setReaderPanelTab)
+  const setPanelTab = useUiStore((s) => s.setPanelTab)
   const cid = detail?.cid ?? ''
   const commentsTotal = useReaderStore((s) => s.commentsTotal)
   const reviewsCount = useReaderStore((s) => s.reviews.length)
   const hasToc = toc.length > 0
-  const tabs: Array<RightTab<'toc' | 'comments' | 'review'>> = [
+  // v0.0.6+：正文搜索跳转（与 SearchPanel 同一正则，按索引定位正文 DOM）
+  const jumpToSearch = (idx: number): void => {
+    const u = useUiStore.getState()
+    jumpToMatchIn(bodyRef.current, buildRegex(u.searchQuery, u.searchRegex), idx)
+  }
+  const tabs: Array<RightTab<'toc' | 'comments' | 'review' | 'search'>> = [
     ...(hasToc
       ? [
           {
@@ -251,7 +263,13 @@ export function ReaderView(): React.JSX.Element {
             content: <ReviewPanel />
           }
         ]
-      : [])
+      : []),
+    // v0.0.6+：搜索（基础 tab，所有视图可用）
+    {
+      key: 'search' as const,
+      label: '搜索',
+      content: <SearchPanel text={bodyText} onJump={jumpToSearch} />
+    }
   ]
 
   if (detailLoading) {
@@ -315,14 +333,13 @@ export function ReaderView(): React.JSX.Element {
                 <button
                   className="review-toggle"
                   onClick={() => {
-                    const { readerPanelOpen, readerPanelTab, toggleReaderPanel, setReaderPanelTab } =
-                      useUiStore.getState()
+                    const { panelOpen, panelTab, togglePanel, setPanelTab } = useUiStore.getState()
                     // v0.0.6：右栏已是评审 → 收起；否则展开右栏并切到评审
-                    if (readerPanelOpen && readerPanelTab === 'review') {
-                      toggleReaderPanel()
+                    if (panelOpen && panelTab === 'review') {
+                      togglePanel()
                     } else {
-                      if (!readerPanelOpen) toggleReaderPanel()
-                      setReaderPanelTab('review')
+                      if (!panelOpen) togglePanel()
+                      setPanelTab('review')
                     }
                   }}
                   title={panelOpen && panelTab === 'review' ? '收起右栏评审' : '在右栏查看与撰写评审'}

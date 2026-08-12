@@ -62,6 +62,12 @@ interface ReaderState {
   listError: string | null
   listOrder: string
   /**
+   * v0.0.6+：栏目首页（推荐/连载/活动/作品库顶层概览）当前展示的文章合集，
+   * 供右栏搜索使用（首页数据在组件本地 state，汇总上报到 store）
+   */
+  homeList: RemoteArticle[]
+  setHomeList: (items: RemoteArticle[]) => void
+  /**
    * 排序方向：false=服务端默认（降序，大→小）；true=升序（小→大）。
    * 所有排序按钮共用一个 ↑/↓ 切换（v0.0.2）。
    */
@@ -130,6 +136,8 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
   listOrder: 'created',
   listOrderAsc: false,
   listHasMore: true,
+  homeList: [],
+  setHomeList: (homeList) => set({ homeList }),
 
   reviewTaskByCid: {},
   reviewTasksLoaded: false,

@@ -45,6 +45,12 @@ interface EditorState {
   close: () => Promise<void>
   /** v0.0.6：切换写作首页浏览目录 */
   setCurrentDir: (dir: string) => void
+  /**
+   * v0.0.6+：外部注入内容（搜索替换用）。
+   * MilkdownEditor 订阅 seq 变化并替换整个 doc；替换后经 onChange 回流 content 保持一致。
+   */
+  externalContent: { md: string; seq: number } | null
+  applyExternalContent: (md: string) => void
 }
 
 /** 本地即时保存防抖（ms） */
@@ -147,6 +153,8 @@ export const useEditorStore = create<EditorState>((set, get) => {
       set({ currentPath: null, content: '', meta: {}, dirty: false, synced: false, error: null, toc: [] })
     },
 
-    setCurrentDir: (currentDir) => set({ currentDir })
+    setCurrentDir: (currentDir) => set({ currentDir }),
+    externalContent: null,
+    applyExternalContent: (md) => set((s) => ({ externalContent: { md, seq: (s.externalContent?.seq ?? 0) + 1 } }))
   }
 })

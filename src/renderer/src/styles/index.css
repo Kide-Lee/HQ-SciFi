@@ -1236,7 +1236,8 @@ body {
   /* v0.0.6：写作首页背景与主界面一致（其他页面灰底） */
 }
 /* v0.0.6：编辑态横向排布——编辑器主体 + 右栏（RightPanel） */
-.editor-body.editing {
+.editor-body.editing,
+.editor-body.home {
   flex-direction: row;
 }
 .editor-body.home {
@@ -4092,4 +4093,158 @@ body {
 }
 .forbid-result.bad {
   color: var(--danger, #d64545);
+}
+
+/* ============ v0.0.6+：搜索面板（右栏基础 tab，Word 导航窗格版式） ============ */
+
+.search-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  min-height: 0;
+}
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.search-icon {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+.search-input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg-card);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+.search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.search-regex {
+  flex-shrink: 0;
+  padding: 4px 7px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  cursor: pointer;
+}
+.search-regex.on {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.search-clear {
+  flex-shrink: 0;
+  padding: 3px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+}
+.search-clear:hover {
+  color: var(--text);
+}
+.search-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.search-nav {
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg-card);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.search-nav:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.search-nav:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.search-count {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.search-active-no {
+  margin-left: 4px;
+}
+.search-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+.search-result {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  line-height: 1.5;
+}
+.search-result:hover {
+  background: var(--bg-hover, rgba(0, 0, 0, 0.05));
+}
+.search-result.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.search-result-no {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-right: 4px;
+}
+.search-result-title {
+  font-weight: 500;
+}
+.search-result-text {
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.search-empty {
+  padding: 8px;
+  font-size: 12px;
+}
+/* 搜索跳转临时高亮（1.2s 后由 lib/searchJump.ts 移除） */
+.search-jump-flash {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px;
+  border-radius: 2px;
 }
