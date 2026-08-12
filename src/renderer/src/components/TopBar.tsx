@@ -106,16 +106,6 @@ export function TopBar(): React.JSX.Element {
         >
           {panelOpen ? <PanelRightClose size={14} /> : <PanelRightOpen size={14} />}
         </button>
-        {readingCid && (
-          <button
-            className="topbar-btn"
-            onClick={togglePanel}
-            title={panelOpen ? '收起右栏' : '展开右栏'}
-          >
-            {/* v0.0.6：与左栏折叠按钮统一——收起/展开换图标，不再用 active 变色 */}
-            {panelOpen ? <PanelRightClose size={14} /> : <PanelRightOpen size={14} />}
-          </button>
-        )}
         {/* macOS 用原生红绿灯，不渲染自绘窗口按钮 */}
         {!isMac && (
           <>
