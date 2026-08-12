@@ -41,7 +41,7 @@ function ListShell({
   }, [list, homeList, openArticle])
 
   return (
-    <main className="main-area">
+    <main className="main-area main-area-panel">
       <div className={`main-content${contentClass ? ` ${contentClass}` : ''}`}>{children}</div>
       <RightPanel tabs={tabs} activeTab={panelTab} onTabChange={setPanelTab} open={panelOpen} />
     </main>
