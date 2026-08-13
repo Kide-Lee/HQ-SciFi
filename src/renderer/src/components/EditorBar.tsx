@@ -34,11 +34,31 @@ export function EditorBar({ formatSlot }: EditorBarProps): React.JSX.Element {
   const [forbidMsg, setForbidMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [showPublish, setShowPublish] = useState(false)
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const toolbarRef = useRef<HTMLDivElement | null>(null)
 
   // 切换文档时重置违禁词检测结果
   useEffect(() => {
     setForbidMsg(null)
   }, [currentPath])
+
+  // v0.0.7+：工具栏折行后，每行开头的分组隐藏左侧分割线。
+  // CSS 无法感知折行位置，用测量实现：分组左边缘与工具栏左边缘重合（含尚未去边距的 8px）
+  // 即为行首 → 加 .line-start；ResizeObserver 跟随工具栏尺寸变化（窗口/右栏宽度变化）重算
+  useEffect(() => {
+    const toolbar = toolbarRef.current
+    if (!toolbar) return
+    const update = (): void => {
+      const base = toolbar.getBoundingClientRect().left
+      const groups = Array.from(toolbar.querySelectorAll<HTMLElement>(':scope > .md-toolbar-group'))
+      for (const g of groups) {
+        g.classList.toggle('line-start', g.getBoundingClientRect().left - base < 9)
+      }
+    }
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(toolbar)
+    return () => ro.disconnect()
+  }, [])
 
   function showToast(msg: string): void {
     setToast(msg)
@@ -94,7 +114,7 @@ export function EditorBar({ formatSlot }: EditorBarProps): React.JSX.Element {
     <div className="editor-toolbar-strip">
       <div className="et-row et-actions">
         {/* v0.0.6：统一容器——操作组与格式组同为 .md-toolbar 内的 .md-toolbar-group 兄弟，共享分割线规则 */}
-        <div className="md-toolbar">
+        <div className="md-toolbar" ref={toolbarRef}>
         <div className="md-toolbar-group">
           {/* v0.0.6：编辑器最左面——保存/同步到草稿/发布/违禁词检测（图标按钮，统一为 .md-toolbar-group 分组；新建草稿在左栏 tree-toolbar） */}
           <button

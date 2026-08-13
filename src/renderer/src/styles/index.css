@@ -3761,6 +3761,12 @@ body {
   padding-left: 8px;
   border-left: 1px solid var(--border);
 }
+/* v0.0.7+：折行后每行开头的分组不显示左侧分割线（EditorBar 测量后切换 .line-start） */
+.md-toolbar-group.line-start {
+  border-left: none;
+  margin-left: 0;
+  padding-left: 0;
+}
 /* v0.0.6：编辑栏图标按钮（紧凑样式 + hover 伪元素效果） */
 .md-toolbar-btn {
   display: inline-flex;
