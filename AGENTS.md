@@ -5,7 +5,7 @@ Electron 桌面客户端，为 [荒启科幻](https://www.huangqisf.com/) 提供
 
 ## Project
 
-- 技术栈：Electron 34 + React 19 + TypeScript + electron-vite 5 + Vite 7 + Zustand 5 + electron-builder 26；better-sqlite3（本地索引）+ CodeMirror 6（编辑器）+ markdown-it/turndown（md⇄HTML 转换）+ lucide-react（图标，ISC 许可）。
+- 技术栈：Electron 34 + React 19 + TypeScript + electron-vite 5 + Vite 7 + Zustand 5 + electron-builder 26；better-sqlite3（本地索引）+ Milkdown v7/ProseMirror（可视化编辑器）+ CodeMirror 6（源码模式编辑器）+ markdown-it/turndown（md⇄HTML 转换）+ lucide-react（图标，ISC 许可）。
 - 入口：`src/main/index.ts`（单实例锁 → `initApp`）；渲染层入口 `src/renderer/src/main.tsx`。
 - M0（三端骨架 + IPC + API 代理）、M1（写作闭环：登录/同步/编辑/发布/四态）与 M2（读审一体：阅读视图 + 评审面板）代码已交付；GUI 与真实账号接口验证需正常桌面环境（沙箱限制，见 Notes 与 README 验证清单）。
 
@@ -31,7 +31,7 @@ Electron 桌面客户端，为 [荒启科幻](https://www.huangqisf.com/) 提供
   - `read.ts` 阅读与评审适配层（文章列表/详情、评审列表/提交/态度、作品库分类）
 - `src/preload/` — `contextBridge` 暴露 `window.hqsf`（白名单方法；不经过 token、不开放通用 API 代理）。
 - `src/shared/` — 三端共享类型单一来源（`types.ts`）。
-- `src/renderer/` — React UI：`LoginView`（账号密码/手机验证码）、`Sidebar`（用户卡 + 写作树：本地存档/草稿/待审核/已发布/已拒绝 + 同步按钮 + 栏目树）、`EditorPane`（CodeMirror 6 + 工具栏：新建/保存/同步到草稿/发布 + 状态角标）、`ReaderView`（M2 阅读视图：净化 HTML 正文 + 元信息 + 评审面板 `ReviewPanel` 五维表单）、`ArticleListView`（文章列表：排序/分页）、`lib/sanitize.ts`（远端 HTML 白名单净化防 XSS）、stores（`auth`/`docs`/`editor`/`reader`/`ui`）。
+- `src/renderer/` — React UI：`LoginView`（账号密码/手机验证码）、`Sidebar`（用户卡 + 写作树：本地存档/草稿/待审核/已发布/已拒绝 + 同步按钮 + 栏目树）、`EditorPane`（双模式编辑：可视化 Milkdown v7/ProseMirror `MilkdownEditor`+`MilkdownToolbar` / 源码 CodeMirror 6 `SplitEditor` + 工具栏：新建/保存/同步到草稿/发布 + 状态角标）、`ReaderView`（M2 阅读视图：净化 HTML 正文 + 元信息 + 评审面板 `ReviewPanel` 五维表单）、`ArticleListView`（文章列表：排序/分页）、`lib/sanitize.ts`（远端 HTML 白名单净化防 XSS）、stores（`auth`/`docs`/`editor`/`reader`/`ui`）。
 - `electron-builder.yml` — 打包配置（linux deb+AppImage、win NSIS；`asarUnpack` better-sqlite3）。
 
 ## Conventions
@@ -50,7 +50,7 @@ Electron 桌面客户端，为 [荒启科幻](https://www.huangqisf.com/) 提供
 - 本机开发沙箱（bwrap 只读容器）限制：官方 Electron 二进制无法启动 GUI（SIGTRAP，与代码无关）；`/tmp` 不跨命令持久；`rm` 走回收站会报只读，删文件用 `find -delete`；`~` 根只读，`~/.cache`/`~/.npm` 可写。
 - **better-sqlite3 ABI 坑**：必须用 `electron-builder install-app-deps` 为 Electron 重建（需 `HOME` 指向可写目录，`ELECTRON_GYP_DIR` 硬编码为 `$HOME/.electron-gyp`）；v13 要求 NAPI10/Node≥22，与 Electron 34（Node 20.18）不兼容，锁 **v12.11.1**；electron-builder.yml 已配置 `asarUnpack`。
 - **交叉打包 Windows 的原生模块坑**：Linux 上 `electron-builder --win` 会把本机 Linux 编译的 `better_sqlite3.node`（ELF）原样打进 Windows 包 → Windows 上 `initDb` 加载失败（unhandled rejection）→ 进程存活但永不创建窗口（界面打不开）。已修复：`scripts/win-prebuild.mjs`（apply 下载 better-sqlite3 官方 `electron-v{ABI}-win32-x64` prebuild 临时替换，restore 恢复），`npm run build:win` 已自动编排（apply 失败则不打、restore 必执行）；ABI 用 `ELECTRON_RUN_AS_NODE=1 node_modules/electron/dist/electron -p process.versions.modules` 实测（Electron 34.5.8 = 132）。升级 Electron 时 prebuild 的 ABI 需同步匹配（v12.11.1 release 覆盖到 electron-v146）。
-- **Windows 真机验证**（已用 KVM 虚拟机验证）：NSIS 安装后 `%LOCALAPPDATA%\Programs\huangqi-scifi\huangqi-scifi.exe`；SSH 启动的进程落在 Session 0 看不到 GUI，须用 `schtasks /create /it` + 批处理把应用拉进交互会话；验证界面用 CDP `--remote-debugging-port` + PowerShell `ClientWebSocket` 发 `Runtime.evaluate`（/tmp 下的 ssh 脚本不跨命令持久，见 git 记录 .ssh-tmp 一版）。
+- **Windows 真机验证**（已用 KVM 虚拟机验证）：NSIS 安装后 `%LOCALAPPDATA%\Programs\huangqi-scifi\huangqi-scifi.exe`；SSH 启动的进程落在 Session 0 看不到 GUI，须用 `schtasks /create /it` + 批处理把应用拉进交互会话；验证界面用 CDP `--remote-debugging-port` + PowerShell `ClientWebSocket` 发 `Runtime.evaluate`（/tmp 下的 ssh 脚本不跨命令持久，见 git 记录 .ssh-tmp 一版）。本机/VM 的 CDP 调试（含无重启挂载正在运行的实例）已沉淀为项目 skill `cdp-debugging`，见 `.dsh/skills/cdp-debugging/`。
 - **启动链路健壮性（待办）**：`app.whenReady().then()` 内 `initDb`/`registerImageProtocol`/`registerIpcHandlers` 任一抛错都是 unhandled rejection，进程静默无窗口、不留诊断信息——建议加 try/catch + `dialog.showErrorBox`。
 - npm install-scripts 已批准：esbuild、electron-winstaller、electron、better-sqlite3@12.11.1。
 - 打包工具已缓存于 `~/.cache/electron-builder`（沙箱内可直接 `npm run build:linux` 验证）。

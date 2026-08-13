@@ -1,6 +1,9 @@
 node_modules/
 dist/
 out/
+
+# CDP 调试辅助（本地浏览器二进制 + 脚本缓存）
+.devtools/
 *.log
 .DS_Store
 *.tsbuildinfo
