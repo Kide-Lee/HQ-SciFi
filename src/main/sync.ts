@@ -18,6 +18,7 @@ import {
   getArticleByFilePath,
   upsertArticle
 } from './db'
+import { fetchRemoteObject } from './read'
 import type { ArticleRow, ArticleType, PullResult, PushResult } from '../shared/types'
 import { parseFrontmatter, type ArticleMeta } from '../shared/frontmatter'
 
@@ -114,43 +115,20 @@ async function listRemote(
 
 /**
  * 拉取全文（HTML；contentsInfo 需登录）。markdown==1 时 text 为 md 原文。
- * 已实测确认两种调用形态：
- * - 编辑页：POST { key, token } —— 作者拉自己的文章/草稿，**草稿只能走这个**
- * - 阅读页：GET { key, isMd:0, token } —— 公开文章
- * GET 对未公开草稿返回「文章暂未公开访问」，因此 POST 优先、GET 回退。
- * 响应不遵循 {code,msg,data} 约定：成功返回裸文章对象 {title,text,...}，失败 {msg:'…'}。
+ * POST 编辑形态优先（作者可读自己的草稿）、GET 阅读形态回退——
+ * 底层 fetchRemoteObject（read.ts）已实现两种形态尝试与失败信息。
  */
-async function fetchFullText(token: string, cid: string): Promise<{ html: string; markdown: boolean }> {
-  const attempts: Array<() => Promise<Record<string, unknown>>> = [
-    () =>
-      apiRequest<Record<string, unknown>>(endpoint('contentsInfo').path, {
-        method: 'POST',
-        body: { key: cid, token },
-        raw: true
-      }),
-    () =>
-      apiRequest<Record<string, unknown>>(endpoint('contentsInfo').path, {
-        method: 'GET',
-        query: { key: cid, isMd: 0, token },
-        raw: true
-      })
-  ]
-  let lastError = '未知错误'
-  for (const attempt of attempts) {
-    try {
-      const obj = await attempt()
-      if (obj && typeof obj.title === 'string') {
-        return {
-          html: typeof obj.text === 'string' ? obj.text : '',
-          markdown: obj.markdown === 1
-        }
-      }
-      lastError = typeof obj?.msg === 'string' ? obj.msg : JSON.stringify(obj).slice(0, 200)
-    } catch (err) {
-      lastError = (err as Error).message
-    }
+async function fetchFullText(
+  token: string,
+  cid: string
+): Promise<{ title: string; html: string; markdown: boolean; type?: string }> {
+  const obj = await fetchRemoteObject(token, cid)
+  return {
+    title: typeof obj.title === 'string' ? obj.title : '未命名',
+    html: typeof obj.text === 'string' ? obj.text : '',
+    markdown: obj.markdown === 1,
+    type: typeof obj.type === 'string' ? obj.type : undefined
   }
-  throw new Error(`contentsInfo 拉取失败（POST/GET 均试）: ${lastError}`)
 }
 
 const turndown = new TurndownService({
@@ -539,6 +517,134 @@ export function pushToDraft(token: string, filePath: string): Promise<PushResult
 /** 发布（元数据来自发布表单 metaOverride） */
 export function publish(token: string, filePath: string, meta?: ArticleMeta): Promise<PushResult> {
   return upload(token, filePath, false, meta)
+}
+
+/* ===== 远端文章转存草稿 / 编辑（写作→草稿 与 四态转存，服务端处理） ===== */
+
+/**
+ * 准备转存提交正文：markdown 原文先转 HTML（与 upload() 的 isMd:0 约定对齐），
+ * 空正文（响应有 title 但缺 text 等形态）拒绝提交，避免空内容覆盖服务端文章。
+ */
+function draftSubmitHtml(full: { html: string; markdown: boolean }): string {
+  const html = full.markdown ? mdToHtml(full.html) : full.html
+  if (!html || !html.trim()) throw new Error('文章正文为空，无法转存为草稿')
+  return html
+}
+
+/** contentsUpdate 以 isDraft=1 提交（服务端把 待审核/已发布/已拒绝 转回草稿箱） */
+async function updateToDraft(token: string, cid: string, title: string, html: string): Promise<void> {
+  const resp = await apiRequest(endpoint('contentsUpdate').path, {
+    method: 'POST',
+    body: {
+      params: JSON.stringify({ cid, title }),
+      token,
+      text: html,
+      isSpace: 0,
+      isDraft: 1,
+      isMd: 0
+    }
+  })
+  if (resp.code !== 1) throw new Error(resp.msg || '转存草稿失败')
+}
+
+/**
+ * 远端文章转存为草稿（服务端处理）：
+ * 已是草稿（本地索引或服务端返回 type=post_draft）直接返回 converted:false，不再调用服务端；
+ * 服务端已是草稿但本地索引过期时同步修正索引（侧栏分组与按钮即时正确）；
+ * 转存成功后本地索引同步为草稿态（无本地文件的也建一条索引，侧栏「草稿」立即可见）。
+ */
+export async function convertToDraft(
+  token: string,
+  authorId: string,
+  cid: string
+): Promise<{ converted: boolean }> {
+  const existing = getArticleByCid(cid)
+  if (existing && existing.type === 'post_draft') return { converted: false }
+  const full = await fetchFullText(token, cid)
+  if ((full.type ?? existing?.type) === 'post_draft') {
+    // 本地索引过期（服务端已是草稿）：修正索引后返回，避免 UI 反复提示且不修正
+    if (existing && existing.type !== 'post_draft') {
+      upsertArticle({ ...existing, title: full.title, type: 'post_draft', status: '', updatedAt: Date.now() })
+    }
+    return { converted: false }
+  }
+  await updateToDraft(token, cid, full.title, draftSubmitHtml(full))
+  upsertArticle({
+    ...(existing ?? {
+      cid,
+      title: full.title,
+      type: 'post_draft' as ArticleType,
+      status: '',
+      authorId,
+      remoteModified: 0,
+      localModified: 0,
+      contentHash: '',
+      filePath: '',
+      syncedAt: 0,
+      createdAt: Date.now()
+    }),
+    title: full.title,
+    type: 'post_draft',
+    status: '',
+    updatedAt: Date.now()
+  })
+  return { converted: true }
+}
+
+/**
+ * 编辑远端文章（写作→草稿 / 四态文章的编辑入口）：
+ * 1. 非草稿（待审核/已发布/已拒绝）先经服务端转存为草稿（contentsUpdate isDraft=1）；
+ * 2. 把全文同步到本地存档（草稿命名规则：纯标题；已有本地副本则沿用其路径覆盖，不重命名），
+ * 3. 索引更新为草稿态并返回本地文件路径，渲染层直接打开编辑器本地编辑。
+ * 本地已有副本且含未推送修改时拒绝覆盖（与 pullRemote 的冲突策略一致，避免丢改动）。
+ */
+export async function editRemoteArticle(
+  token: string,
+  authorId: string,
+  cid: string
+): Promise<{ filePath: string; converted: boolean }> {
+  const root = ensureDocsRoot()
+  const existing = getArticleByCid(cid)
+  // 本地已有副本且被修改过（内容哈希 != 上次同步哈希）：拒绝覆盖，提示先同步
+  if (existing?.filePath && existsSync(existing.filePath) && isLocalDirty(existing)) {
+    throw new Error('本地文件有未同步的修改，请先「同步到草稿」或发布后再编辑')
+  }
+  const full = await fetchFullText(token, cid)
+  let converted = false
+  if ((full.type ?? existing?.type) !== 'post_draft') {
+    await updateToDraft(token, cid, full.title, draftSubmitHtml(full))
+    converted = true
+  }
+  let md = full.markdown ? full.html : htmlToMd(full.html)
+  md = await pullArticleImages(md, root, cid)
+  const filePath =
+    existing?.filePath && existsSync(existing.filePath)
+      ? existing.filePath
+      : createLocalDraft(root, localFileName('post_draft', full.title), md)
+  writeFileSync(filePath, md, 'utf8')
+  upsertArticle({
+    ...(existing ?? {
+      cid,
+      title: full.title,
+      type: 'post_draft' as ArticleType,
+      status: '',
+      authorId,
+      remoteModified: 0,
+      localModified: 0,
+      contentHash: '',
+      syncedAt: 0,
+      createdAt: Date.now()
+    }),
+    title: full.title,
+    type: 'post_draft',
+    status: '',
+    localModified: Date.now(),
+    contentHash: contentHash(md),
+    filePath,
+    syncedAt: Date.now(),
+    updatedAt: Date.now()
+  })
+  return { filePath, converted }
 }
 
 /** 供同步失败提示使用：取文件目录展示名 */

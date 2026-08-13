@@ -7,6 +7,8 @@ import type {
   ArticleRow,
   CommentItem,
   CommentSubmitResult,
+  ConvertDraftResult,
+  EditRemoteResult,
   GptModel,
   LocalNode,
   LoginResult,
@@ -67,12 +69,20 @@ const api = {
   syncPull: (): Promise<ApiResult<PullResult>> => ipcRenderer.invoke('hqsf:sync-pull'),
   syncPush: (filePath: string, isDraft: boolean, meta?: ArticleMeta): Promise<ApiResult<PushResult>> =>
     ipcRenderer.invoke('hqsf:sync-push', filePath, isDraft, meta),
+  /** 远端文章转存为草稿（服务端处理；converted=false=原本就是草稿） */
+  convertToDraft: (cid: string): Promise<ApiResult<ConvertDraftResult>> =>
+    ipcRenderer.invoke('hqsf:convert-to-draft', cid),
+  /** 编辑远端文章：非草稿先转存草稿（服务端），再同步到本地存档并返回本地文件路径 */
+  editRemoteArticle: (cid: string): Promise<ApiResult<EditRemoteResult>> =>
+    ipcRenderer.invoke('hqsf:edit-remote-article', cid),
 
   // ---- 本地存档 ----
   getDocsRoot: (): Promise<ApiResult<string>> => ipcRenderer.invoke('hqsf:get-docs-root'),
   openDocsDir: (): Promise<ApiResult<null>> => ipcRenderer.invoke('hqsf:open-docs-dir'),
   listLocalDocs: (): Promise<ApiResult<LocalNode[]>> => ipcRenderer.invoke('hqsf:list-local-docs'),
   readLocalFile: (path: string): Promise<ApiResult<string>> => ipcRenderer.invoke('hqsf:read-local-file', path),
+  /** 本地文件是否存在（侧栏打开远端索引项时校验；路径越界按不存在处理） */
+  fileExists: (path: string): Promise<ApiResult<boolean>> => ipcRenderer.invoke('hqsf:file-exists', path),
   writeLocalFile: (path: string, content: string): Promise<ApiResult<null>> =>
     ipcRenderer.invoke('hqsf:write-local-file', path, content),
   createLocalDraft: (title: string, content: string, dirRel?: string): Promise<ApiResult<string>> =>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useReaderStore } from '../stores/reader'
 import { ArticleCard } from './ArticleListView'
 import { ErrorBanner } from './ErrorBanner'
+import { SkeletonArticleCard } from './Skeletons'
 import type { RemoteArticle } from '../../../shared/types'
 
 /**
@@ -59,13 +60,14 @@ export function RecommendHome(): React.JSX.Element {
       {error && <ErrorBanner title="首页加载失败" message={error} />}
 
       {loading ? (
-        // v0.0.2：加载骨架——整行铺满 #home-view 宽度（不采用 grid，避免窄条）
+        // v0.0.7：预填充骨架——形状与加载完成后的页面同构（置顶 grid 卡 + 最新列表卡）
         <>
+          <span className="sr-only" role="status">加载中 …</span>
           <section className="home-section">
             <h2 className="home-section-title">置顶文章</h2>
-            <div className="home-list">
+            <div className="home-top-grid">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="skeleton-row" />
+                <SkeletonArticleCard key={i} />
               ))}
             </div>
           </section>
@@ -73,7 +75,7 @@ export function RecommendHome(): React.JSX.Element {
             <h2 className="home-section-title">最新发布</h2>
             <div className="home-list">
               {Array.from({ length: 12 }).map((_, i) => (
-                <div key={i} className="skeleton-row" />
+                <SkeletonArticleCard key={i} />
               ))}
             </div>
           </section>

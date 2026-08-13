@@ -82,7 +82,7 @@ export const useDocsStore = create<DocsState>((set, get) => ({
   deleteLocal: async (path) => {
     const res = await window.hqsf.deleteLocalDoc(path)
     if (res.ok) {
-      await get().refreshLocal()
+      await Promise.all([get().refreshLocal(), get().refreshArticles()])
       // 删除的恰是当前编辑文档时关闭编辑器
       if (useEditorStore.getState().currentPath === path) await useEditorStore.getState().close()
       return true

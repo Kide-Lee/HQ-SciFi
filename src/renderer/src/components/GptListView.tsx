@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ErrorBanner } from './ErrorBanner'
 import { cachedImageUrl } from '../lib/sanitize'
+import { SkeletonGptCard } from './Skeletons'
 import type { GptModel } from '../../../shared/types'
 
 /**
@@ -30,7 +31,15 @@ export function GptListView({ title }: { title: string }): React.JSX.Element {
       </div>
       {error && <ErrorBanner title="AI 模型加载失败" message={error} />}
       <div className="gpt-grid">
-        {models == null && !error && <div className="list-empty muted">加载中 …</div>}
+        {models == null && !error && (
+          // v0.0.7：预填充骨架——形状与真实 AI 模型卡片同构（头像 + 名称/标签 + 简介）
+          <>
+            <span className="sr-only" role="status">加载中 …</span>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <SkeletonGptCard key={i} />
+            ))}
+          </>
+        )}
         {models != null && models.length === 0 && !error && (
           <div className="list-empty muted">（暂无模型）</div>
         )}

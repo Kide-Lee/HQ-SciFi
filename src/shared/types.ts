@@ -83,6 +83,19 @@ export interface PushResult {
   error?: string
 }
 
+/** 远端文章转存为草稿结果（服务端处理；converted=false 表示原本就是草稿） */
+export interface ConvertDraftResult {
+  converted: boolean
+}
+
+/** 编辑远端文章结果：非草稿先转存草稿（服务端），再同步到本地存档 */
+export interface EditRemoteResult {
+  /** 同步到本地存档后的 md 文件绝对路径（编辑器直接打开） */
+  filePath: string
+  /** 是否发生了服务端转存草稿（false=原本就是草稿） */
+  converted: boolean
+}
+
 // ---------- 本地存档 ----------
 
 export interface LocalNode {
@@ -168,6 +181,13 @@ export interface ArticleDetail {
   introduction?: string
   /** 当前用户是否已点赞（0/1，2026-08 实测 contentsInfo 返回；用于点赞按钮初始态） */
   isLikes?: number
+  /**
+   * 远端状态（contentsInfo 裸对象字段，缺失时渲染层回退本地索引）：
+   * type：post_draft（草稿）/ post（已发布等）；status：publish / waiting / reject。
+   * 用于文章页判断「编辑 / 转存为草稿」按钮（草稿直接拉本地编辑，其余先转存草稿）。
+   */
+  type?: string
+  status?: string
 }
 
 /** 文章列表拉取选项（contentsList / selectContents / choiceList） */

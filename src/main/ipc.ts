@@ -1,5 +1,5 @@
 import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { basename } from 'node:path'
 import { loadAgreement, fetchHuangqiAgreement } from './agreement'
 import {
@@ -11,8 +11,8 @@ import {
 } from './auth'
 import { apiUrl, uploadMultipart } from './net/api'
 import { endpoint } from './net/apiconfig'
-import { getDocsRoot, ensureDocsRoot, listLocalDocs, readLocalFile, writeLocalFile, createLocalDraft, chooseDocsDir, deleteLocalFile, createLocalDir } from './fs'
-import { pullRemote, pushToDraft, publish } from './sync'
+import { getDocsRoot, ensureDocsRoot, listLocalDocs, readLocalFile, writeLocalFile, createLocalDraft, chooseDocsDir, deleteLocalFile, createLocalDir, assertInside } from './fs'
+import { pullRemote, pushToDraft, publish, convertToDraft, editRemoteArticle } from './sync'
 import type { ArticleMeta } from '../shared/frontmatter'
 import {
   addComment,
@@ -186,6 +186,38 @@ export function registerIpcHandlers(): void {
     }
   })
 
+  // 远端文章转存为草稿（服务端处理）：待审核/已发布/已拒绝 均可用；已是草稿返回 converted:false
+  ipcMain.handle('hqsf:convert-to-draft', async (event, cid: string) => {
+    const blocked = trusted(event)
+    if (blocked) return fail(blocked)
+    const token = getStoredToken()
+    if (!token) return fail(new Error('未登录，无法转存草稿'))
+    const key = String(cid ?? '').trim()
+    if (!key) return fail(new Error('缺少文章 ID'))
+    const uid = String(getSession()?.userinfo?.uid ?? getSession()?.userinfo?.id ?? '')
+    try {
+      return ok(await convertToDraft(token, uid, key))
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  // 编辑远端文章：非草稿先经服务端转存为草稿，再同步全文到本地存档，返回本地文件路径
+  ipcMain.handle('hqsf:edit-remote-article', async (event, cid: string) => {
+    const blocked = trusted(event)
+    if (blocked) return fail(blocked)
+    const token = getStoredToken()
+    if (!token) return fail(new Error('未登录，无法编辑'))
+    const key = String(cid ?? '').trim()
+    if (!key) return fail(new Error('缺少文章 ID'))
+    const uid = String(getSession()?.userinfo?.uid ?? getSession()?.userinfo?.id ?? '')
+    try {
+      return ok(await editRemoteArticle(token, uid, key))
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
   // ---- 本地存档 ----
   ipcMain.handle('hqsf:get-docs-root', () => ok(getDocsRoot()))
 
@@ -211,6 +243,18 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('hqsf:read-local-file', (_e, path: string) => {
     try {
       return ok(readLocalFile(getDocsRoot(), path))
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  // 本地文件是否存在（侧栏打开远端索引项时校验：文件被删除/失联则按文章处理；
+  // 路径越界等真实错误按 {ok:false,error} 返回，不伪装成"不存在"）
+  ipcMain.handle('hqsf:file-exists', (event, path: string) => {
+    const blocked = trusted(event)
+    if (blocked) return fail(blocked)
+    try {
+      return ok(existsSync(assertInside(getDocsRoot(), path)))
     } catch (err) {
       return fail(err)
     }
@@ -260,9 +304,14 @@ export function registerIpcHandlers(): void {
   })
 
   // ---- 四态索引 ----
+  // 返回前校验本地文件是否存在：索引里 filePath 指向的文件被删除/失联时置空，
+  // 让侧栏把它当「无本地文件」处理（按文章打开阅读视图 + 编辑按钮），
+  // 而不是让编辑器报「文件不存在」（v0.0.8：写作→草稿 缺失文档按文章处理）。
   ipcMain.handle('hqsf:list-articles', () => {
     try {
-      return ok(listArticles())
+      return ok(
+        listArticles().map((a) => (a.filePath && !existsSync(a.filePath) ? { ...a, filePath: '' } : a))
+      )
     } catch (err) {
       return fail(err)
     }
@@ -281,8 +330,10 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('hqsf:get-remote-article', async (_e, cid: string) => {
     const token = getStoredToken()
     if (!token) return fail(new Error('未登录，无法阅读全文'))
+    const rawUid = getSession()?.userinfo?.uid ?? getSession()?.userinfo?.id
+    const uid = rawUid == null ? undefined : typeof rawUid === 'number' ? rawUid : String(rawUid)
     try {
-      return ok(await fetchRemoteArticle(token, String(cid)))
+      return ok(await fetchRemoteArticle(token, String(cid), uid))
     } catch (err) {
       return fail(err)
     }

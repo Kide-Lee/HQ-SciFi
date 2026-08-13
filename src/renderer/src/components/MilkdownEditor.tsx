@@ -12,10 +12,15 @@ import { MilkdownToolbar } from './MilkdownToolbar'
 import { EditorBar } from './EditorBar'
 import { kaitiSchema, toggleKaitiCommand } from '../lib/kaitiMark'
 import { mediaNode, insertMediaCommand } from '../lib/mediaNode'
+import { mediaParsePlugin } from '../lib/mediaParse'
 import { mathClickPlugin } from '../lib/mathClick'
+import { mediaClickPlugin } from '../lib/mediaClick'
 import { editorSearchPlugin } from '../lib/editorSearch'
 import { useEditorStore } from '../stores/editor'
 import { MathModal } from './MathModal'
+import { MusicModal } from './MusicModal'
+import { VideoModal } from './VideoModal'
+import type { MediaTag } from '../lib/mediaNode'
 import '@milkdown/theme-nord/style.css'
 import 'katex/dist/katex.min.css'
 
@@ -69,6 +74,8 @@ function Inner({ docKey, content, onChange, onViewReady }: MilkdownEditorProps):
         .use(toggleKaitiCommand)
         .use(mediaNode)
         .use(insertMediaCommand)
+        .use(mediaParsePlugin)
+        .use(mediaClickPlugin)
         .use(history)
         .use(listener)
         // v0.0.7+：搜索高亮装饰（正文全部匹配 + 活动匹配/段落强调）
@@ -108,6 +115,125 @@ function Inner({ docKey, content, onChange, onViewReady }: MilkdownEditorProps):
   // v0.0.6：公式弹窗状态 + 确认处理（插入 math_block / 重编辑 setNodeAttribute）
   const mathModal = useEditorStore((s) => s.mathModal)
   const closeMathModal = useEditorStore((s) => s.closeMathModal)
+
+  // v0.0.8：媒体（音乐/视频）弹窗状态 + 确认处理（插入 / 重编辑 attrs / 删除）
+  const mediaModal = useEditorStore((s) => s.mediaModal)
+  const closeMediaModal = useEditorStore((s) => s.closeMediaModal)
+
+  function handleMediaConfirm(payload: { tag: MediaTag; id: string } | null): void {
+    if (instLoading) return
+    const editor = getInstance()
+    if (!editor) return
+    editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx)
+      if (mediaModal.pos == null) {
+        // 插入新媒体：独占一行（包裹为独立段落，与前后正文分离；清空残留 storedMarks）
+        const nodeType = view.state.schema.nodes.mediaTag
+        const paraType = view.state.schema.nodes.paragraph
+        if (nodeType && payload) {
+          const media = nodeType.create({ tag: payload.tag, id: payload.id })
+          const tr = view.state.tr
+          const $from = tr.selection.$from
+          const parent = $from.parent
+          if (parent.type.isTextblock && parent.childCount === 0) {
+            // 空文本块：媒体直接放入（该块即独占行）
+            tr.replaceSelectionWith(media).setStoredMarks([])
+          } else if (parent.type.isTextblock && $from.parentOffset > 0 && $from.parentOffset < parent.content.size) {
+            // 段中：拆分当前文本块，中间插入只含媒体的独立段落
+            tr.split($from.pos)
+            tr.insert($from.pos + 1, paraType.create(null, media))
+          } else if (parent.type.isTextblock && $from.parentOffset === 0) {
+            // 块首：在当前块之前插入独立段落
+            tr.insert($from.before(), paraType.create(null, media))
+          } else if (parent.type.isTextblock) {
+            // 块尾：在当前块之后插入独立段落
+            tr.insert($from.after(), paraType.create(null, media))
+          } else {
+            // 非文本块选区（如 NodeSelection）：替换为独立段落
+            tr.replaceSelectionWith(paraType.create(null, media)).setStoredMarks([])
+          }
+          view.dispatch(tr)
+        }
+      } else if (payload) {
+        // 重编辑：更新节点 attrs.tag/id，toDOM 重绘播放器（校验节点仍为 mediaTag，
+        // 防弹窗期间文档被替换导致陈旧 pos 误操作）
+        const pos = mediaModal.pos
+        const node = view.state.doc.nodeAt(pos)
+        if (node && node.type.name === 'mediaTag') {
+          view.dispatch(
+            view.state.tr
+              .setNodeAttribute(pos, 'tag', payload.tag)
+              .setNodeAttribute(pos, 'id', payload.id)
+          )
+        }
+      } else {
+        // 删除媒体节点：若其所在段落仅含该媒体（独占行），连同空段落删除并合并相邻文本块，
+        // 恢复插入前的段落结构——否则留下空段落，markdown 序列化为 <br /> 残留；
+        // 混排于正文中的节点只删节点本身
+        const pos = mediaModal.pos
+        const node = view.state.doc.nodeAt(pos)
+        if (node && node.type.name === 'mediaTag') {
+          const tr = view.state.tr
+          const $pos = tr.doc.resolve(pos)
+          const parent = $pos.parent
+          if (parent.type.isTextblock && parent.childCount === 1 && parent.firstChild === node) {
+            const from = $pos.before()
+            const to = $pos.after()
+            tr.delete(from, to)
+            // 合并相邻同类文本块（不可合并时 join 为 no-op）
+            try {
+              tr.join(from)
+            } catch {
+              // 位置非法等情况保留两个段落
+            }
+            // 列表项清理：段落删除后所在列表项若只剩空段落/已无内容则逐级移除
+            // （join 在列表内会抛 Inconsistent open depths；PM 会拒绝删除"唯一列表项"，
+            //  此时改为删除整个列表；变化检测防结构性拒绝导致死循环）
+            for (let guard = 0; guard < 5; guard++) {
+              const docBefore = tr.doc
+              let changed = false
+              const $at = tr.doc.resolve(Math.min(from, tr.doc.content.size))
+              for (let d = $at.depth; d > 0; d--) {
+                const n = $at.node(d)
+                const isEmptyLi =
+                  n.type.name === 'listItem' &&
+                  (n.content.size === 0 ||
+                    (n.content.childCount === 1 &&
+                      n.content.child(0).isTextblock &&
+                      n.content.child(0).content.size === 0))
+                if (isEmptyLi) {
+                  const list = d > 1 ? $at.node(d - 1) : null
+                  const listOnly =
+                    !!list &&
+                    (list.type.name === 'orderedList' || list.type.name === 'bulletList') &&
+                    list.childCount === 1
+                  const start = listOnly && list ? $at.before(d - 1) : $at.before(d)
+                  const end = listOnly && list ? $at.after(d - 1) : $at.after(d)
+                  tr.delete(start, end)
+                  changed = !tr.doc.eq(docBefore)
+                  break
+                }
+                if (
+                  (n.type.name === 'orderedList' || n.type.name === 'bulletList') &&
+                  n.content.size === 0
+                ) {
+                  tr.delete($at.before(d), $at.after(d))
+                  changed = !tr.doc.eq(docBefore)
+                  break
+                }
+              }
+              if (!changed) break
+            }
+          } else {
+            tr.delete(pos, pos + node.nodeSize)
+          }
+          view.dispatch(tr)
+        }
+      }
+      view.focus()
+    })
+    closeMediaModal()
+  }
 
   function handleMathConfirm(latex: string): void {
     if (instLoading) return
@@ -155,6 +281,25 @@ function Inner({ docKey, content, onChange, onViewReady }: MilkdownEditorProps):
         onClose={closeMathModal}
         onConfirm={handleMathConfirm}
       />
+      {/* v0.0.8：媒体插入/编辑弹窗——音乐与视频各自独立（由节点 tag 决定打开哪个） */}
+      {mediaModal.tag.startsWith('music') ? (
+        <MusicModal
+          open={mediaModal.open}
+          tag={mediaModal.tag as 'music 163' | 'music qq'}
+          id={mediaModal.id}
+          pos={mediaModal.pos}
+          onClose={closeMediaModal}
+          onConfirm={handleMediaConfirm}
+        />
+      ) : (
+        <VideoModal
+          open={mediaModal.open}
+          id={mediaModal.id}
+          pos={mediaModal.pos}
+          onClose={closeMediaModal}
+          onConfirm={handleMediaConfirm}
+        />
+      )}
     </div>
   )
 }

@@ -63,25 +63,30 @@ export function EditorPane(): React.JSX.Element {
   const pmViewRef = useRef<EditorView | null>(null)
   // v0.0.7+：源码模式的 CodeMirror view 句柄（源码搜索高亮/滚动用；切换模式即失效）
   const cmViewRef = useRef<CMEditorView | null>(null)
+  // v0.0.8：编辑器视图就绪标记（onViewReady 置位触发重渲染——WYSIWYG 搜索面板
+  // 需在视图就绪后才能取到渲染文本；同时兜底补一次搜索装饰刷新）
+  const [viewReady, setViewReady] = useState(false)
   useEffect(() => {
     if (mode !== 'wysiwyg') pmViewRef.current = null
     if (mode !== 'split') cmViewRef.current = null
+    setViewReady(false)
   }, [mode])
 
   // v0.0.7+：搜索词/正则变化 → 同步参数并刷新 WYSIWYG 装饰与源码高亮
+  // v0.0.8：刷新防抖 150ms——输入时装饰全量重算有成本；活动序号路径保持即时
   useEffect(() => {
-    const active = useUiStore.getState().searchActive
     editorSearchParams.query = searchQuery
     editorSearchParams.regex = searchRegex
-    editorSearchParams.active = active
     sourceSearchParams.query = searchQuery
     sourceSearchParams.regex = searchRegex
-    sourceSearchParams.active = active
-    if (mode === 'wysiwyg' && pmViewRef.current) refreshEditorSearch(pmViewRef.current)
-    if (mode === 'split' && cmViewRef.current) refreshSourceSearch(cmViewRef.current)
+    const t = window.setTimeout(() => {
+      if (mode === 'wysiwyg' && pmViewRef.current) refreshEditorSearch(pmViewRef.current)
+      if (mode === 'split' && cmViewRef.current) refreshSourceSearch(cmViewRef.current)
+    }, 150)
+    return () => window.clearTimeout(t)
   }, [searchQuery, searchRegex, mode])
 
-  // v0.0.7+：活动序号变化 → 刷新高亮（滚动定位由 jumpToSearch 负责，避免输入时意外滚动）
+  // v0.0.7+：活动序号变化 → 立即刷新高亮（滚动定位由 jumpToSearch 负责，避免输入时意外滚动）
   useEffect(() => {
     editorSearchParams.active = searchActive
     sourceSearchParams.active = searchActive
@@ -209,6 +214,20 @@ export function EditorPane(): React.JSX.Element {
   // 音乐/视频标签（[music 163]/[video bilibili]…）展开为 iframe，与阅读视图一致
   const previewHtml = useMemo(() => expandMediaTags(renderMdPreview(content)), [content])
 
+  /**
+   * v0.0.8：WYSIWYG 搜索面板文本 = PM 渲染文本——与 editorSearch 装饰高亮同源
+   * （textBetween(0, size, '', '') 无分隔符拼接，等价于装饰的文本段 join）。
+   * 依赖 content（每次输入变化）+ viewReady（视图就绪后重取）；view 的 doc 在
+   * listener 回调时已更新，渲染时取到的即当前文档。
+   */
+  const wysiwygSearchText = useMemo(() => {
+    if (mode !== 'wysiwyg') return undefined
+    const view = pmViewRef.current
+    if (!view) return undefined
+    return view.state.doc.textBetween(0, view.state.doc.content.size, '', '')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [content, mode, viewReady])
+
   /** v0.0.6：编辑器右栏目录跳转——按当前模式定位标题容器 */
   function jumpToEditorToc(idx: number): void {
     if (mode === 'split') {
@@ -282,12 +301,14 @@ export function EditorPane(): React.JSX.Element {
         ]
       : []),
     // v0.0.6+：搜索（基础 tab）——编辑器支持批量/逐个/正则替换
+    // v0.0.8：WYSIWYG 用渲染文本（与装饰高亮同源）——搜索 md 源文本会在命中语法
+    // token（链接/图片/媒体标签/公式）时面板计数与编辑器高亮错位
     {
       key: 'search' as const,
       label: '搜索',
       content: (
         <SearchPanel
-          text={content}
+          text={mode === 'wysiwyg' ? wysiwygSearchText : content}
           onJump={jumpToSearch}
           replaceable
           onReplace={applyExternalContent}
@@ -363,7 +384,12 @@ export function EditorPane(): React.JSX.Element {
                 onChange={update}
                 onViewReady={(view) => {
                   // 防陈旧实例：视图已脱离文档（卸载/StrictMode 重挂）则丢弃
-                  if (view.dom.isConnected) pmViewRef.current = view
+                  if (view.dom.isConnected) {
+                    pmViewRef.current = view
+                    setViewReady(true)
+                    // v0.0.8：视图就绪后补一次装饰刷新（防止参数写入与异步创建竞态导致首帧不高亮）
+                    refreshEditorSearch(view)
+                  }
                 }}
               />
             ) : (
@@ -373,7 +399,12 @@ export function EditorPane(): React.JSX.Element {
                 onChange={update}
                 onViewReady={(view) => {
                   // 防陈旧实例：视图已脱离文档（卸载/StrictMode 重挂）则丢弃
-                  if (view.dom.isConnected) cmViewRef.current = view
+                  if (view.dom.isConnected) {
+                    cmViewRef.current = view
+                    setViewReady(true)
+                    // v0.0.8：视图就绪后补一次装饰刷新
+                    refreshSourceSearch(view)
+                  }
                 }}
               />
             )

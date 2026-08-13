@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import {
   Bold, Code, Code2, Heading1, Heading2, Heading3, Image, Link,
   List, ListOrdered, Minus, Music, Quote, Redo2, RemoveFormatting, Sigma, Undo2, Video
@@ -13,13 +13,14 @@ import {
 import { editorViewCtx } from '@milkdown/kit/core'
 import { undo, redo } from '@milkdown/kit/prose/history'
 import { toggleKaitiCommand } from '../lib/kaitiMark'
-import { insertMediaCommand, normalizeMediaInput } from '../lib/mediaNode'
 import { useEditorStore } from '../stores/editor'
+import { PromptModal } from './PromptModal'
 
 /**
  * 可视化模式的编辑工具栏（milkdown 命令驱动）。
  * 必须位于 MilkdownProvider 内（经 useInstance 获取编辑器实例）。
  * v0.0.6：取消斜体按钮 → 楷体按钮；新增插入媒体（图片上传 / 音乐 / 视频）。
+ * v0.0.8：音乐/视频改为打开 MediaModal 弹窗（平台切换 + 预览 + 重编辑），不再用 window.prompt。
  */
 export function MilkdownToolbar(): React.JSX.Element {
   const [loading, get] = useInstance()
@@ -34,9 +35,14 @@ export function MilkdownToolbar(): React.JSX.Element {
     }
   }
 
-  const askLink = (): void => {
-    const href = window.prompt('链接地址（https://…）')
-    if (href) run(() => toggleLinkCommand.run({ href }))
+  // v0.0.8：链接输入弹窗（替代 window.prompt，Electron 渲染进程不支持）
+  const [linkOpen, setLinkOpen] = useState(false)
+
+  const askLink = (): void => setLinkOpen(true)
+
+  function confirmLink(href: string): void {
+    setLinkOpen(false)
+    run(() => toggleLinkCommand.run({ href }))
   }
 
   /** v0.0.6：插入图片——本地文件经主进程上传（upload/full）后插入地址 */
@@ -50,18 +56,14 @@ export function MilkdownToolbar(): React.JSX.Element {
     if (!url) return // 用户取消选择
     run(() => insertImageCommand.run({ src: url }))  }
 
-  /** v0.0.6：插入网易云音乐标签（荒启正文媒体语法，阅读端展开为 iframe） */
+  /** v0.0.8：插入音乐——打开媒体弹窗（网易云 / QQ 音乐，插入模式） */
   const askMusic = (): void => {
-    const input = window.prompt('插入网易云音乐\n请输入歌曲/歌单 ID（如 29764595）')
-    const id = normalizeMediaInput('music 163', input ?? '')
-    if (id) run(() => insertMediaCommand.run({ tag: 'music 163', id }))
+    useEditorStore.getState().openMediaModal('music 163', '', null)
   }
 
-  /** v0.0.6：插入 B 站视频标签（荒启正文媒体语法，阅读端展开为 iframe） */
+  /** v0.0.8：插入视频——打开媒体弹窗（B 站 BV 号，插入模式） */
   const askVideo = (): void => {
-    const input = window.prompt('插入 B 站视频\n请输入 BV 号（如 BV1xx411c7mD）')
-    const id = normalizeMediaInput('video bilibili', input ?? '')
-    if (id) run(() => insertMediaCommand.run({ tag: 'video bilibili', id }))
+    useEditorStore.getState().openMediaModal('video bilibili', '', null)
   }
 
   /** v0.0.6：插入公式——打开公式弹窗（插入模式，确认后由 MilkdownEditor 插入 math_block） */
@@ -128,6 +130,19 @@ export function MilkdownToolbar(): React.JSX.Element {
           ))}
         </div>
       ))}
+      {/* v0.0.8：链接地址弹窗（替代 window.prompt）；scheme 白名单防 javascript: 等注入 */}
+      <PromptModal
+        open={linkOpen}
+        title="插入链接"
+        placeholder="https://…"
+        validate={(v) =>
+          /^(https?:\/\/|mailto:|#|\/|\.\/|\.\.\/)/i.test(v)
+            ? null
+            : '仅支持 http(s)://、mailto:、锚点(#) 或相对路径'
+        }
+        onClose={() => setLinkOpen(false)}
+        onConfirm={confirmLink}
+      />
     </>
   )
 }

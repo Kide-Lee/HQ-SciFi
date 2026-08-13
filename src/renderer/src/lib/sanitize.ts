@@ -183,22 +183,44 @@ export function htmlToText(html: string): string {
  * 必须在 sanitizeHtml 之后调用（文本已在白名单内）；这里只生成受控 iframe：
  * src 域名/路径固定、id 经严格校验，杜绝注入任意 URL。
  */
-const MUSIC_163_IFRAME =
-  '<iframe class="hqsf-media" frameborder="no" border="0" marginwidth="0" marginheight="0" ' +
-  'width="330" height="86" src="https://music.163.com/outchain/player?type=2&id=$1&auto=0&height=66"></iframe>'
-const MUSIC_QQ_IFRAME =
-  '<iframe class="hqsf-media" frameborder="no" border="0" marginwidth="0" marginheight="0" ' +
-  'width="330" height="66" src="https://i.y.qq.com/n2/m/outchain/player/index.html?songid=$1"></iframe>'
-const BILI_IFRAME =
-  '<iframe class="hqsf-media hqsf-video" src="https://player.bilibili.com/player.html?bvid=$1" ' +
-  'scrolling="no" border="0" frameborder="no" width="100%" height="420" allowfullscreen="true"></iframe>'
+const MUSIC_163_RE = /\[music\s+163\]\s*(\d{3,20})\s*\[\/music\s+163\]/g
+const MUSIC_QQ_RE = /\[music\s+qq\]\s*(\d{3,20})\s*\[\/music\s+qq\]/g
+const BILI_RE = /\[video\s+bilibili\]\s*(BV[0-9A-Za-z]{6,20})\s*\[\/video\s+bilibili\]/g
+
+/**
+ * 媒体标签 → 播放器 iframe src（编辑器内嵌播放器与阅读/预览展开共用同一 URL 来源）。
+ * 域名/路径固定、id 经严格校验（音乐纯数字、B 站仅大写 BV 号——与阅读端正则一致，
+ * 小写 bv 前缀不认，避免编辑器预览正常但阅读端不展开），非法返回 null。
+ */
+export function mediaPlayerUrl(tag: string, id: string): string | null {
+  if (tag === 'music 163' && /^\d{3,20}$/.test(id)) {
+    return `https://music.163.com/outchain/player?type=2&id=${id}&auto=0&height=66`
+  }
+  if (tag === 'music qq' && /^\d{3,20}$/.test(id)) {
+    return `https://i.y.qq.com/n2/m/outchain/player/index.html?songid=${id}`
+  }
+  if (tag === 'video bilibili' && /^BV[0-9A-Za-z]{6,20}$/.test(id)) {
+    return `https://player.bilibili.com/player.html?bvid=${id}`
+  }
+  return null
+}
+
+const MUSIC_163_IFRAME = (id: string): string =>
+  `<iframe class="hqsf-media" frameborder="no" border="0" marginwidth="0" marginheight="0" ` +
+  `width="330" height="86" src="${mediaPlayerUrl('music 163', id)}"></iframe>`
+const MUSIC_QQ_IFRAME = (id: string): string =>
+  `<iframe class="hqsf-media" frameborder="no" border="0" marginwidth="0" marginheight="0" ` +
+  `width="330" height="66" src="${mediaPlayerUrl('music qq', id)}"></iframe>`
+const BILI_IFRAME = (id: string): string =>
+  `<iframe class="hqsf-media hqsf-video" src="${mediaPlayerUrl('video bilibili', id)}" ` +
+  `scrolling="no" border="0" frameborder="no" width="100%" height="420" allowfullscreen="true"></iframe>`
 
 export function expandMediaTags(html: string): string {
   if (!html) return ''
   return html
-    .replace(/\[music\s+163\]\s*(\d{3,20})\s*\[\/music\s+163\]/g, MUSIC_163_IFRAME)
-    .replace(/\[music\s+qq\]\s*(\d{3,20})\s*\[\/music\s+qq\]/g, MUSIC_QQ_IFRAME)
-    .replace(/\[video\s+bilibili\]\s*(BV[0-9A-Za-z]{6,20})\s*\[\/video\s+bilibili\]/g, BILI_IFRAME)
+    .replace(MUSIC_163_RE, (_m, id: string) => MUSIC_163_IFRAME(id))
+    .replace(MUSIC_QQ_RE, (_m, id: string) => MUSIC_QQ_IFRAME(id))
+    .replace(BILI_RE, (_m, id: string) => BILI_IFRAME(id))
 }
 
 /** 秒级时间戳 → 本地日期串（YYYY-MM-DD HH:mm） */

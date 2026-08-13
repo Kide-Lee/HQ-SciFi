@@ -4,6 +4,7 @@ import { ACTIVITY_PHASE_LABEL, activityPhase, sortActivities } from '../lib/acti
 import { cachedImageUrl, formatSize, formatTs } from '../lib/sanitize'
 import { CoverImage } from './CoverImage'
 import { ErrorBanner } from './ErrorBanner'
+import { SkeletonActivityCard } from './Skeletons'
 import type { MetaInfo } from '../../../shared/types'
 
 /** 聚合统计的活动数上限（近期活动才有实时统计，避免全量请求） */
@@ -99,10 +100,14 @@ export function ActivityHome(): React.JSX.Element {
       {error && <ErrorBanner title="活动栏目加载失败" message={error} />}
 
       {loading ? (
+        // v0.0.7：预填充骨架——形状与真实活动卡片同构（封面 + 名称/徽章 + 描述 + 统计）
         <section className="home-section">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="skeleton-row" style={{ marginBottom: 10 }} />
-          ))}
+          <span className="sr-only" role="status">加载中 …</span>
+          <div className="home-list">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <SkeletonActivityCard key={i} />
+            ))}
+          </div>
         </section>
       ) : (
         <section className="home-section">

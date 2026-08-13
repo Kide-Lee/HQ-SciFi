@@ -4,6 +4,7 @@ import { ARTICLE_ORDERS, useReaderStore } from '../stores/reader'
 import { cachedImageUrl, formatSize, formatTs, scoreColor } from '../lib/sanitize'
 import { ErrorBanner } from './ErrorBanner'
 import { CoverImage } from './CoverImage'
+import { SkeletonArticleCard } from './Skeletons'
 import type { RemoteArticle } from '../../../shared/types'
 
 /**
@@ -197,7 +198,15 @@ export function ArticleListView({
       {listError && <ErrorBanner title="列表加载失败" message={listError} />}
 
       <div className="article-list">
-        {listLoading && list.length === 0 && <div className="list-empty muted">加载中 …</div>}
+        {listLoading && list.length === 0 && (
+          // v0.0.7：预填充骨架——形状与真实文章卡片同构（封面 + 标题/摘要 + meta）
+          <>
+            <span className="sr-only" role="status">加载中 …</span>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <SkeletonArticleCard key={i} />
+            ))}
+          </>
+        )}
         {!listLoading && list.length === 0 && !listError && (
           <div className="list-empty muted">（该栏目暂无文章）</div>
         )}

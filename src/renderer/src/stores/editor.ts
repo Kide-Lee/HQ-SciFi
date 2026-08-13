@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 import { parseFrontmatter, type ArticleMeta } from '../../../shared/frontmatter'
+import { useUiStore } from './ui'
+import type { MediaTag } from '../lib/mediaNode'
 
 /** v0.0.6：从 md 正文提取标题目录（h1-h6） */
 export function extractToc(md: string): Array<{ idx: number; level: number; text: string }> {
@@ -37,6 +39,8 @@ interface EditorState {
   error: string | null
   open: (path: string) => Promise<void>
   update: (content: string) => void
+  /** v0.0.8：强制从磁盘重载当前打开的文档（远端「编辑」拉取覆盖本地后使用；丢弃未保存修改） */
+  reload: () => Promise<void>
   /** 更新元数据（类型/标签/活动/公开），标记未保存 */
   /** v0.0.6：元数据改由发布表单提供，移除 setMeta（本地 frontmatter 不再记录） */
   setMode: (mode: 'wysiwyg' | 'split') => void
@@ -59,6 +63,13 @@ interface EditorState {
   mathModal: { open: boolean; value: string; pos: number | null }
   openMathModal: (value: string, pos: number | null) => void
   closeMathModal: () => void
+  /**
+   * v0.0.8：媒体（音乐/视频）插入/编辑弹窗状态——tag 当前媒体类型、id 当前值、
+   * pos 编辑目标节点位置（null=插入新模式）。由工具栏按钮打开（插入）；由媒体节点点击打开（编辑）。
+   */
+  mediaModal: { open: boolean; tag: MediaTag; id: string; pos: number | null }
+  openMediaModal: (tag: MediaTag, id: string, pos: number | null) => void
+  closeMediaModal: () => void
 }
 
 /** 本地即时保存防抖（ms） */
@@ -89,7 +100,9 @@ export const useEditorStore = create<EditorState>((set, get) => {
     open: async (path) => {
       const { currentPath, dirty } = get()
       if (currentPath === path) {
-        // 同文档：若未保存则保留内存内容（防止磁盘内容覆盖未保存修改），否则无需重载
+        // 同文档：若未保存则保留内存内容（防止磁盘内容覆盖未保存修改），否则无需重载；
+        // 重开同文档（如从文章阅读态切回）时选中态跟随，避免侧栏高亮残留
+        useUiStore.getState().setSelectedId(path)
         return
       }
       // 切换文档前先落盘当前未保存修改，避免防抖窗口内丢内容
@@ -101,6 +114,8 @@ export const useEditorStore = create<EditorState>((set, get) => {
       if (res.ok) {
         const { meta, body } = parseFrontmatter(res.data)
         set({ currentPath: path, content: body, meta, dirty: false, busy: false, toc: extractToc(body) })
+        // 侧栏选中跟随打开的文档（本地树高亮以 selectedId 为唯一来源）
+        useUiStore.getState().setSelectedId(path)
         // 关联状态由索引刷新确定：读取文章索引中的该文件记录
         const arts = await window.hqsf.listArticles()
         if (arts.ok) {
@@ -115,6 +130,19 @@ export const useEditorStore = create<EditorState>((set, get) => {
     update: (content) => {
       set({ content, dirty: true, toc: extractToc(content) })
       scheduleSave()
+    },
+
+    reload: async () => {
+      const { currentPath } = get()
+      if (!currentPath) return
+      set({ busy: true, error: null })
+      const res = await window.hqsf.readLocalFile(currentPath)
+      if (res.ok) {
+        const { meta, body } = parseFrontmatter(res.data)
+        set({ content: body, meta, dirty: false, busy: false, toc: extractToc(body) })
+      } else {
+        set({ busy: false, error: res.error })
+      }
     },
 
     setMode: (mode) => set({ mode }),
@@ -143,6 +171,8 @@ export const useEditorStore = create<EditorState>((set, get) => {
           synced: false,
           busy: false
         })
+        // 侧栏选中跟随新建的草稿
+        useUiStore.getState().setSelectedId(res.data)
         return res.data
       }
       set({ busy: false, error: res.error })
@@ -154,6 +184,8 @@ export const useEditorStore = create<EditorState>((set, get) => {
       if (get().dirty) await get().save()
       if (timer) clearTimeout(timer)
       set({ currentPath: null, content: '', meta: {}, dirty: false, synced: false, error: null, toc: [] })
+      // 关闭文档后清除侧栏选中（本地树高亮以 selectedId 为唯一来源）
+      useUiStore.getState().setSelectedId(null)
     },
 
     setCurrentDir: (currentDir) => set({ currentDir }),
@@ -161,6 +193,9 @@ export const useEditorStore = create<EditorState>((set, get) => {
     applyExternalContent: (md) => set((s) => ({ externalContent: { md, seq: (s.externalContent?.seq ?? 0) + 1 } })),
     mathModal: { open: false, value: '', pos: null },
     openMathModal: (value, pos) => set({ mathModal: { open: true, value, pos } }),
-    closeMathModal: () => set((s) => ({ mathModal: { ...s.mathModal, open: false } }))
+    closeMathModal: () => set((s) => ({ mathModal: { ...s.mathModal, open: false } })),
+    mediaModal: { open: false, tag: 'music 163', id: '', pos: null },
+    openMediaModal: (tag, id, pos) => set({ mediaModal: { open: true, tag, id, pos } }),
+    closeMediaModal: () => set((s) => ({ mediaModal: { ...s.mediaModal, open: false } }))
   }
 })

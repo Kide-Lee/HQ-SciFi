@@ -2,7 +2,7 @@ import { $prose } from '@milkdown/kit/utils'
 import { Plugin, PluginKey } from '@milkdown/prose/state'
 import { Decoration, DecorationSet, type EditorView } from '@milkdown/prose/view'
 import type { Node as ProseMirrorNode } from '@milkdown/prose/model'
-import { buildRegex, wrapIndex } from './searchText'
+import { buildRegex, wrapIndex, type SearchParams } from './searchText'
 
 /**
  * v0.0.7+：WYSIWYG（milkdown/ProseMirror）搜索高亮装饰插件。
@@ -10,17 +10,13 @@ import { buildRegex, wrapIndex } from './searchText'
  * 因此用装饰（Decoration）实现：只影响渲染，不进文档、不影响 md 序列化。
  * 搜索参数由 React 写入 editorSearchParams，再派发空事务（meta）触发重算；
  * 文档变化（输入/替换）时插件随事务自动重算。
+ * v0.0.8：匹配文本 = 各文本节点内容按文档顺序拼接（与 SearchPanel 在 WYSIWYG
+ * 下所用的渲染文本 textBetween(0, size, '', '') 一致——注意 PM 的 Node.textContent
+ * 会在块间插 \n、叶节点插空格，不能用它）；同时排除零宽匹配。
  */
 
-export interface EditorSearchParams {
-  query: string
-  regex: boolean
-  /** 活动匹配序号（0-based，越界回绕） */
-  active: number
-}
-
 /** 当前搜索参数（模块级单例——React 写入，插件在事务时读取） */
-export const editorSearchParams: EditorSearchParams = { query: '', regex: false, active: 0 }
+export const editorSearchParams: SearchParams = { query: '', regex: false, active: 0 }
 
 /** 外部触发装饰重算的事务 meta 键 */
 const REFRESH_META = 'hqsf-editor-search-refresh'
@@ -38,12 +34,12 @@ function docPosOf(segs: Array<{ from: number; text: string }>, offset: number, d
 }
 
 /** 按当前参数计算全部匹配装饰（活动匹配 + 所在段落强调） */
-function computeDecorations(doc: ProseMirrorNode, params: EditorSearchParams): DecorationSet {
+function computeDecorations(doc: ProseMirrorNode, params: SearchParams): DecorationSet {
   if (!params.query) return DecorationSet.empty
   const re = buildRegex(params.query, params.regex)
   if (!re) return DecorationSet.empty
 
-  // 收集文本段（文档顺序，拼接结果与 textContent 一致）
+  // 收集文本段（文档顺序，拼接结果与渲染文本 textBetween(0,size,'','') 一致）
   const segs: Array<{ from: number; text: string }> = []
   doc.descendants((node, pos) => {
     if (node.isText) segs.push({ from: pos, text: node.text ?? '' })
@@ -54,8 +50,12 @@ function computeDecorations(doc: ProseMirrorNode, params: EditorSearchParams): D
   re.lastIndex = 0
   let m: RegExpExecArray | null
   while ((m = re.exec(full))) {
+    // 排除零宽匹配（^/$/\b 等无可高亮区间）
+    if (m[0].length === 0) {
+      re.lastIndex++
+      continue
+    }
     matches.push({ start: m.index, end: m.index + m[0].length })
-    if (m[0].length === 0) re.lastIndex++
   }
   if (matches.length === 0) return DecorationSet.empty
 

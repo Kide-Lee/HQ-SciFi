@@ -229,32 +229,69 @@ export async function listReviewTasks(token: string | null, uid: number | string
 }
 
 /**
- * 拉取文章详情（完整 HTML 正文；需登录）。contentsInfo 响应为裸对象；结果本地缓存（1 天未使用即丢弃）。
+ * 拉取文章全文原始对象（POST 编辑形态优先——作者可读自己的草稿完整正文；
+ * GET 阅读形态回退——公开文章）。contentsInfo 响应不遵循 {code,msg,data} 约定：
+ * 成功返回裸文章对象（以 title 字段判断），失败返回 {msg:'…'}。
+ * 供阅读详情（fetchRemoteArticle）与同步引擎（sync.ts 的 fetchFullText）共用。
  */
-export async function fetchRemoteArticle(token: string, cid: string): Promise<ArticleDetail> {
-  const cacheKey = `article:${cid}`
+export async function fetchRemoteObject(token: string, cid: string): Promise<Record<string, unknown>> {
+  const attempts: Array<() => Promise<Record<string, unknown>>> = [
+    () =>
+      apiRequest<Record<string, unknown>>(endpoint('contentsInfo').path, {
+        method: 'POST',
+        body: { key: cid, token },
+        raw: true
+      }),
+    () =>
+      apiRequest<Record<string, unknown>>(endpoint('contentsInfo').path, {
+        method: 'GET',
+        query: { key: cid, isMd: 0, token },
+        raw: true
+      })
+  ]
+  let lastError = '未知错误'
+  for (const attempt of attempts) {
+    try {
+      const obj = await attempt()
+      if (obj && typeof obj.title === 'string') return obj
+      lastError = typeof obj?.msg === 'string' ? obj.msg : JSON.stringify(obj).slice(0, 200)
+    } catch (err) {
+      lastError = (err as Error).message
+    }
+  }
+  throw new Error(`contentsInfo 拉取失败（POST/GET 均试）: ${lastError}`)
+}
+
+/**
+ * 拉取文章详情（完整 HTML 正文；需登录）。POST 编辑形态优先，因此作者自己的
+ * 草稿也可在阅读视图打开（「按文章处理」）；结果本地缓存（1 天未使用即丢弃）。
+ * uid 用于区分「本人文章」：isopen=0（未公开/被隐藏）仅对非本人文章报错，
+ * 本人草稿（未公开）必须可读。
+ */
+export async function fetchRemoteArticle(
+  token: string,
+  cid: string,
+  uid?: number | string
+): Promise<ArticleDetail> {
+  // 缓存键并入登录态：本批起作者自己的私有草稿也会入缓存（isopen 豁免），
+  // 无 uid 维度的旧键会让切换账号后读到上一账号的私有文章
+  const uidKey = uid != null && String(uid) !== '' ? String(uid) : 'anon'
+  const cacheKey = `article:${uidKey}:${cid}`
   const cached = getReadCache<ArticleDetail>(cacheKey)
   if (cached) return cached
 
-  const obj = await apiRequest<Record<string, unknown>>(endpoint('contentsInfo').path, {
-    method: 'GET',
-    query: { key: cid, isMd: 0, token },
-    raw: true
-  })
-  if (!obj || typeof obj.title !== 'string') {
-    throw new Error(`拉取文章失败: ${str(obj?.msg) || '未公开或不存在'}`)
-  }
-  // 文章未公开/被隐藏（如 cid=1254 热岛，contentsInfo 仍返回 title 但 isopen=0）。
-  // 走到此处说明本次缓存未命中（key 通常已被 getReadCache 清理/删除）；deleteReadCache
-  // 是幂等兜底：防止并发请求刚写入的缓存、或未来 TTL 策略变化后的残留被读到。
-  if (obj.isopen === 0 || obj.isopen === '0') {
-    deleteReadCache(cacheKey)
-    throw new Error(`拉取文章失败: ${str(obj?.msg) || '未公开或不存在'}`)
-  }
+  const obj = await fetchRemoteObject(token, cid)
   const userJson = obj.userJson as Record<string, unknown> | undefined
   const authorId =
     str(obj.authorId) ||
     str((userJson && (userJson.uid ?? userJson.id)) ?? '')
+  // 文章未公开/被隐藏（如 cid=1254 热岛，contentsInfo 仍返回 title 但 isopen=0）。
+  // 本人文章豁免：草稿/被撤稿的本人文章在编辑形态（POST）下应可读。
+  // 走到此处说明本次缓存未命中；deleteReadCache 是幂等兜底。
+  if ((obj.isopen === 0 || obj.isopen === '0') && String(uid ?? '') !== authorId) {
+    deleteReadCache(cacheKey)
+    throw new Error(`拉取文章失败: ${str(obj?.msg) || '未公开或不存在'}`)
+  }
   const detail: ArticleDetail = {
     cid,
     title: str(obj.title),
@@ -274,7 +311,9 @@ export async function fetchRemoteArticle(token: string, cid: string): Promise<Ar
     active: Array.isArray(obj.active) ? obj.active.map(toMetaRef) : null,
     markdown: num(obj.markdown),
     introduction: stripMediaTags(obj.introduction) || undefined,
-    isLikes: num(obj.isLikes)
+    isLikes: num(obj.isLikes),
+    type: str(obj.type) || undefined,
+    status: str(obj.status) || undefined
   }
   setReadCache(cacheKey, detail)
   return detail

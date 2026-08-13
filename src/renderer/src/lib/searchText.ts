@@ -2,6 +2,14 @@
  * v0.0.6+：搜索匹配工具（SearchPanel 与各视图跳转共用同一套正则逻辑）。
  */
 
+/** 搜索参数（SearchPanel 与编辑器装饰共用：词/正则开关/活动序号） */
+export interface SearchParams {
+  query: string
+  regex: boolean
+  /** 活动匹配序号（0-based，越界回绕） */
+  active: number
+}
+
 /** 转义正则特殊字符（普通查找用） */
 export function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -17,13 +25,16 @@ export function buildRegex(query: string, regex: boolean): RegExp | null {
   }
 }
 
-/** 文本全文匹配（防零宽死循环） */
+/**
+ * 文本全文匹配（防零宽死循环；排除零宽匹配——`^`/`$`/`\b`/`a*` 等可空模式
+ * 不产生可见高亮，若计入会导致面板计数与高亮数量不一致）。
+ */
 export function findMatches(text: string, re: RegExp): Array<{ start: number; end: number }> {
   const out: Array<{ start: number; end: number }> = []
   let m: RegExpExecArray | null
   while ((m = re.exec(text))) {
-    out.push({ start: m.index, end: m.index + m[0].length })
-    if (m[0].length === 0) re.lastIndex++
+    if (m[0].length > 0) out.push({ start: m.index, end: m.index + m[0].length })
+    else re.lastIndex++
   }
   return out
 }

@@ -3,6 +3,7 @@ import { useUiStore } from '../stores/ui'
 import { cachedImageUrl } from '../lib/sanitize'
 import { ErrorBanner } from './ErrorBanner'
 import { CoverImage } from './CoverImage'
+import { SkeletonMetaCard } from './Skeletons'
 import type { MetaInfo } from '../../../shared/types'
 
 /** 每组推荐的展示数量上限（v0.0.2：避免栏目过长） */
@@ -59,13 +60,15 @@ export function SerialHome(): React.JSX.Element {
       {error && <ErrorBanner title="连载栏目加载失败" message={error} />}
 
       {loading ? (
+        // v0.0.7：预填充骨架——形状与真实 meta 卡片同构（封面 + 名称/描述）
         <>
+          <span className="sr-only" role="status">加载中 …</span>
           {GROUPS.map((g) => (
             <section className="home-section" key={g.type}>
               <h2 className="home-section-title">{g.title}</h2>
               <div className="home-meta-grid">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="skeleton-meta" />
+                  <SkeletonMetaCard key={i} />
                 ))}
               </div>
             </section>

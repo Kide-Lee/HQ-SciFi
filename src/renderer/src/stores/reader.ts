@@ -1,6 +1,17 @@
 import { create } from 'zustand'
-import type { ArticleDetail, CommentItem, RemoteArticle, ReviewItem, ReviewPayload } from '../../../shared/types'
+import type {
+  ApiResult,
+  ArticleDetail,
+  CommentItem,
+  ConvertDraftResult,
+  EditRemoteResult,
+  RemoteArticle,
+  ReviewItem,
+  ReviewPayload
+} from '../../../shared/types'
 import { useUiStore } from './ui'
+import { useEditorStore } from './editor'
+import { useDocsStore } from './docs'
 
 /** 列表排序（对应官方 topList：评分/点赞/评论/阅读/时间/回复；size 按字数为本地排序） */
 export const ARTICLE_ORDERS: Array<{ key: string; label: string }> = [
@@ -88,6 +99,14 @@ interface ReaderState {
 
   openArticle: (cid: string) => Promise<void>
   closeArticle: () => void
+  /**
+   * 编辑远端文章（写作→草稿 / 四态文章的编辑入口）：
+   * 非草稿先经服务端转存为草稿，再同步全文到本地存档，退出阅读态并切到写作打开编辑器。
+   * 返回 IPC 结果；失败时留在当前阅读页（调用方展示错误）。
+   */
+  editRemoteArticle: (cid: string) => Promise<ApiResult<EditRemoteResult>>
+  /** 远端文章转存为草稿（服务端处理）；成功后刷新四态索引（侧栏「草稿」即时更新） */
+  convertToDraft: (cid: string) => Promise<ApiResult<ConvertDraftResult>>
   loadReviews: (cid: string) => Promise<void>
   setReviewOrder: (order: string) => void
   toggleReviewOrderAsc: () => void
@@ -159,8 +178,46 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
     }
   },
 
-  closeArticle: () =>
-    set({ readingCid: null, detail: null, detailError: null, reviews: [], comments: [], commentMessage: null }),
+  closeArticle: () => {
+    set({ readingCid: null, detail: null, detailError: null, reviews: [], comments: [], commentMessage: null })
+    // 关闭阅读态后，侧栏选中回到编辑器当前打开的文档（若无则清除），避免高亮残留
+    useUiStore.getState().setSelectedId(useEditorStore.getState().currentPath)
+  },
+
+  editRemoteArticle: async (cid) => {
+    // 目标文章对应的本地文件若正被编辑器打开：先落盘未保存修改，
+    // 避免主进程拉取覆盖磁盘后，内存陈旧内容经防抖保存回写（v0.0.8 审查修复）
+    const row = useDocsStore.getState().articles.find((a) => a.cid === cid)
+    const ed = useEditorStore.getState()
+    if (row?.filePath && ed.currentPath === row.filePath && ed.dirty) await ed.save()
+    const res = await window.hqsf.editRemoteArticle(cid)
+    if (!res.ok) return res
+    // 退出阅读态 → 切到写作 → 打开同步到本地的文件（编辑器本地编辑）
+    get().closeArticle()
+    const ui = useUiStore.getState()
+    ui.setSection('writing')
+    ui.setSelectedId(res.data.filePath)
+    if (useEditorStore.getState().currentPath === res.data.filePath) {
+      // 磁盘刚被拉取覆盖：强制重载（open 同路径会早退，避免显示旧内容并回写覆盖）
+      await useEditorStore.getState().reload()
+    } else {
+      await useEditorStore.getState().open(res.data.filePath)
+    }
+    await Promise.all([
+      useDocsStore.getState().refreshLocal(),
+      useDocsStore.getState().refreshArticles()
+    ])
+    return res
+  },
+
+  convertToDraft: async (cid) => {
+    const res = await window.hqsf.convertToDraft(cid)
+    if (res.ok) {
+      // 索引同步为草稿态：侧栏「草稿」分组即时出现该文章（无本地文件时仍按文章可读）
+      await useDocsStore.getState().refreshArticles()
+    }
+    return res
+  },
 
   loadReviews: async (cid) => {
     set({ reviewsLoading: true })

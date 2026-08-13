@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { REVIEW_ORDERS, useReaderStore } from '../stores/reader'
 import { useAuthStore } from '../stores/auth'
 import { useUiStore } from '../stores/ui'
+import { useDocsStore } from '../stores/docs'
 import { activityPhase, type ActivityPhase } from '../lib/activity'
 import { cachedImageUrl, formatSize, formatTs, expandMediaTags, sanitizeHtml, scoreColor } from '../lib/sanitize'
 import { ErrorBanner } from './ErrorBanner'
@@ -9,10 +10,11 @@ import { CommentSection, CommentCard, ridOf } from './ReaderComments'
 import { ReaderInteractions } from './ReaderInteractions'
 import { RightPanel, type RightTab } from './RightPanel'
 import { SearchPanel } from './SearchPanel'
+import { SkeletonReader } from './Skeletons'
 import { buildRegex } from '../lib/searchText'
 import { clearSearchMarks, jumpToSearchMark, setActiveSearchMark, wrapSearchMatches } from '../lib/searchJump'
-import { ArrowDown, ArrowUp, MessageCircle, PenLine, X } from 'lucide-react'
-import type { ArticleDetail, CommentItem, MetaRef, ReviewItem, ReviewPayload } from '../../../shared/types'
+import { ArrowDown, ArrowUp, FileDown, MessageCircle, PenLine, X } from 'lucide-react'
+import type { ArticleDetail, ArticleType, CommentItem, MetaRef, ReviewItem, ReviewPayload } from '../../../shared/types'
 
 /** 活动状态缓存（mid → phase；从文章跳转活动列表时用，避免重复请求） */
 let activePhaseCache: Record<string, ActivityPhase> | null = null
@@ -161,19 +163,24 @@ export function ReaderView(): React.JSX.Element {
   // <mark class="search-highlight">，并按当前活动序号强调对应匹配与所在段落。
   // 注意：article 的 dangerouslySetInnerHTML 传稳定引用，React 不会重写 innerHTML，
   // 这里直接改 DOM 的高亮标记可跨渲染保留（正文音乐 iframe 不受影响）。
+  // v0.0.8：包裹防抖 120ms（输入时全篇重包有成本）；活动强调在包裹完成后重设。
   useEffect(() => {
     const body = bodyRef.current
     if (!body) return
-    clearSearchMarks(body)
-    if (searchRe) wrapSearchMatches(body, searchRe)
-    setActiveSearchMark(body, useUiStore.getState().searchActive)
+    const t = window.setTimeout(() => {
+      clearSearchMarks(body)
+      if (searchRe) wrapSearchMatches(body, searchRe)
+      setActiveSearchMark(body, useUiStore.getState().searchActive, searchRe)
+    }, 120)
+    return () => window.clearTimeout(t)
   }, [safeHtml, searchRe])
 
-  // v0.0.7+：活动匹配变化（上一处/下一处/点击结果）→ 移动强调标记与段落高亮
+  // v0.0.7+：活动匹配变化（上一处/下一处/点击结果）→ 立即移动强调标记与段落高亮
+  // （v0.0.8：仅依赖 searchActive 与 searchRe，避免与高亮 effect 同批重复执行）
   useEffect(() => {
     const body = bodyRef.current
-    if (body) setActiveSearchMark(body, searchActive)
-  }, [searchActive, safeHtml, searchRe])
+    if (body) setActiveSearchMark(body, searchActive, searchRe)
+  }, [searchActive, searchRe])
 
   function jumpTo(idx: number): void {
     const body = bodyRef.current
@@ -205,10 +212,47 @@ export function ReaderView(): React.JSX.Element {
   const myUid = String(session?.userinfo?.uid ?? session?.userinfo?.id ?? '')
   const isMine = !!detail && myUid !== '' && String(detail.authorId) === myUid
 
+  // v0.0.8：本人文章操作（编辑 / 转存为草稿）状态
+  const [remoteBusy, setRemoteBusy] = useState(false)
+  const [remoteMsg, setRemoteMsg] = useState<string | null>(null)
+  const cid = detail?.cid ?? ''
+  // 远端状态：本地索引优先（转存后即时反映），详情字段兜底（未同步/缓存的文章）
+  const articles = useDocsStore((s) => s.articles)
+  const row = articles.find((a) => a.cid === cid)
+  const remoteType = row?.type ?? ((detail?.type as ArticleType | undefined) ?? undefined)
+  const isDraftArticle = remoteType === 'post_draft'
+
+  /** 短暂展示操作结果提示（4 秒自动消失） */
+  function flashRemoteMsg(msg: string): void {
+    setRemoteMsg(msg)
+    window.setTimeout(() => setRemoteMsg((m) => (m === msg ? null : m)), 4000)
+  }
+
+  /** 编辑本人远端文章：非草稿先经服务端转存为草稿，再同步到本地存档并打开编辑器 */
+  async function handleEditRemote(): Promise<void> {
+    if (remoteBusy) return
+    setRemoteBusy(true)
+    setRemoteMsg(null)
+    const res = await useReaderStore.getState().editRemoteArticle(cid)
+    setRemoteBusy(false)
+    if (!res.ok) flashRemoteMsg(`编辑失败: ${res.error}`)
+    // 成功时已退出阅读态并切到编辑器，无需提示
+  }
+
+  /** 转存为草稿（仅服务端处理，不打开编辑器） */
+  async function handleConvertToDraft(): Promise<void> {
+    if (remoteBusy) return
+    setRemoteBusy(true)
+    setRemoteMsg(null)
+    const res = await useReaderStore.getState().convertToDraft(cid)
+    setRemoteBusy(false)
+    if (!res.ok) flashRemoteMsg(`转存失败: ${res.error}`)
+    else flashRemoteMsg(res.data.converted ? '已转存为草稿（服务端处理）' : '这篇文章已是草稿')
+  }
+
   // v0.0.6：右栏 tabs 由通用 RightPanel 渲染（零/单/多 tab 规则内置）——
   // 目录（有标题时）/ 评论 / 评审（非本人文章）；原 ReaderPanel 内嵌实现已抽离
   const setPanelTab = useUiStore((s) => s.setPanelTab)
-  const cid = detail?.cid ?? ''
   const commentsTotal = useReaderStore((s) => s.commentsTotal)
   const reviewsCount = useReaderStore((s) => s.reviews.length)
   const hasToc = toc.length > 0
@@ -265,9 +309,13 @@ export function ReaderView(): React.JSX.Element {
   ]
 
   if (detailLoading) {
+    // v0.0.7：预填充骨架——形状与真实阅读页同构（标题 + meta + 正文段落，限宽居中）
     return (
       <main className="main-area">
-        <div className="reader-loading">正在加载文章 …</div>
+        <div className="reader-main">
+          <span className="sr-only" role="status">正在加载文章 …</span>
+          <SkeletonReader />
+        </div>
       </main>
     )
   }
@@ -339,8 +387,40 @@ export function ReaderView(): React.JSX.Element {
                   <PenLine size={14} /> 评审
                 </button>
               )}
+              {/* v0.0.8：本人文章操作——草稿直接同步本地编辑；待审核/已发布/已拒绝先服务端转存草稿 */}
+              {isMine && (
+                <>
+                  {!isDraftArticle && (
+                    <button
+                      className="review-toggle reader-own-action"
+                      onClick={() => void handleConvertToDraft()}
+                      disabled={remoteBusy}
+                      title="转存为草稿（服务端处理）"
+                    >
+                      <FileDown size={14} /> {remoteBusy ? '转存中…' : '转存为草稿'}
+                    </button>
+                  )}
+                  <button
+                    className="review-toggle reader-own-action"
+                    onClick={() => void handleEditRemote()}
+                    disabled={remoteBusy}
+                    title={
+                      isDraftArticle
+                        ? '同步到本地存档并本地编辑'
+                        : '先在服务端转存为草稿，再同步到本地存档编辑'
+                    }
+                  >
+                    <PenLine size={14} /> {remoteBusy ? '处理中…' : '编辑'}
+                  </button>
+                </>
+              )}
             </div>
           </header>
+          {remoteMsg && (
+            <div className={`reader-remote-msg${remoteMsg.startsWith('编辑失败') || remoteMsg.startsWith('转存失败') ? ' err' : ''}`}>
+              {remoteMsg}
+            </div>
+          )}
           {intro && <div className="reader-intro">{intro}</div>}
           {/* v0.0.3：目录已移入右栏 tab；正文下方评论区已移入右栏 tab */}
           <article

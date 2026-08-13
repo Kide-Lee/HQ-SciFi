@@ -3,11 +3,11 @@ import {
   BookOpen,
   CalendarDays,
   ChevronRight,
+  CloudDownload,
   FilePlus,
   FolderOpen,
   Layers,
   PenLine,
-  RefreshCw,
   Settings,
   Sparkles
 } from 'lucide-react'
@@ -19,6 +19,7 @@ import { useEditorStore } from '../stores/editor'
 import { useReaderStore } from '../stores/reader'
 import { sortActivities, activityPhase, ACTIVITY_PHASE_LABEL } from '../lib/activity'
 import type { ArticleRow, LocalNode, MetaInfo, RemoteArticle } from '../../../shared/types'
+import { PromptModal } from './PromptModal'
 
 const SECTIONS: TopSection[] = ['writing', 'recommend', 'serial', 'activity', 'library']
 
@@ -265,15 +266,22 @@ export function Sidebar(): React.JSX.Element {
     }
   }, [section, serialMetas, activeMetas, metasError])
 
+  /** 打开本地文档：先退出文章阅读态（阅读中点击本地文档须切回编辑器），再打开 */
   async function handleOpenLocal(path: string): Promise<void> {
+    closeArticle()
     setSelectedId(path)
     await openDoc(path)
   }
 
-  function handleOpenRemote(row: ArticleRow): void {
+  /** 打开远端索引项：有本地文件 → 本地编辑；无本地文件（或被删除/失联）→ 按文章处理（阅读视图 + 编辑按钮） */
+  async function handleOpenRemote(row: ArticleRow): Promise<void> {
     if (row.filePath) {
-      void handleOpenLocal(row.filePath)
-      return
+      // 实时校验文件存在：索引可能残留失效路径（文件被删除），此时也按文章处理
+      const exists = await window.hqsf.fileExists(row.filePath)
+      if (exists.ok && exists.data) {
+        void handleOpenLocal(row.filePath)
+        return
+      }
     }
     setSelectedId(`remote:${row.cid}`)
     void openArticle(row.cid)
@@ -361,10 +369,10 @@ export function Sidebar(): React.JSX.Element {
     })
   }
 
-  /** v0.0.6：tree-toolbar「新建草稿」——当前浏览目录内创建并打开编辑器 */
-  async function handleNewDraft(): Promise<void> {
-    const title = window.prompt('新草稿标题')
-    if (!title?.trim()) return
+  /** v0.0.6：tree-toolbar「新建草稿」——弹窗输入标题，在当前浏览目录内创建并打开编辑器 */
+  const [newDraftOpen, setNewDraftOpen] = useState(false)
+  async function handleNewDraft(title: string): Promise<void> {
+    if (!title.trim()) return
     const dirNode = currentDir ? findDirNode(localTree, currentDir) : null
     const dirRel = currentDir ? (dirNode?.rel ?? '') : ''
     const path = await createDraft(title.trim(), dirRel)
@@ -397,7 +405,7 @@ export function Sidebar(): React.JSX.Element {
       return (
         <button
           key={node.path}
-          className={`tree-node ${currentPath === node.path ? 'active' : ''}`}
+          className={`tree-node ${selectedId === node.path ? 'active' : ''}`}
           onClick={() => void handleOpenLocal(node.path)}
           title={node.path}
           style={{ paddingLeft: 22 + depth * 12 }}
@@ -478,7 +486,7 @@ export function Sidebar(): React.JSX.Element {
               {/* v0.0.6：tree-toolbar 三个无边框图标按钮（新建草稿/打开目录/同步），flex 分散布局 */}
               <button
                 className="tree-tool-btn"
-                onClick={() => void handleNewDraft()}
+                onClick={() => setNewDraftOpen(true)}
                 title="新建本地草稿"
               >
                 <FilePlus size={14} />
@@ -498,9 +506,9 @@ export function Sidebar(): React.JSX.Element {
                 className="tree-tool-btn"
                 disabled={pulling}
                 onClick={() => void pull()}
-                title="从荒启拉取草稿与状态"
+                title="从云端下载草稿与状态"
               >
-                <RefreshCw size={14} className={`sync-icon${pulling ? ' spin' : ''}`} />
+                <CloudDownload size={14} className={`sync-icon${pulling ? ' spin' : ''}`} />
               </button>
             </div>
             {lastPull && (
@@ -681,6 +689,18 @@ export function Sidebar(): React.JSX.Element {
           <Settings size={14} /> <span>设置</span>
         </button>
       </div>
+
+      {/* v0.0.8：新建草稿弹窗（替代 window.prompt，Electron 渲染进程不支持） */}
+      <PromptModal
+        open={newDraftOpen}
+        title="新建草稿"
+        placeholder="新草稿标题"
+        onClose={() => setNewDraftOpen(false)}
+        onConfirm={(title) => {
+          setNewDraftOpen(false)
+          void handleNewDraft(title)
+        }}
+      />
     </aside>
   )
 }

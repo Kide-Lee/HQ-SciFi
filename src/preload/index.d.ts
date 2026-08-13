@@ -6,6 +6,8 @@ import type {
   ArticleRow,
   CommentItem,
   CommentSubmitResult,
+  ConvertDraftResult,
+  EditRemoteResult,
   GptModel,
   LocalNode,
   LoginResult,
@@ -30,6 +32,8 @@ export type {
   ArticleRow,
   CommentItem,
   CommentSubmitResult,
+  ConvertDraftResult,
+  EditRemoteResult,
   GptModel,
   LocalNode,
   LoginResult,
@@ -78,10 +82,16 @@ export interface HqsfApi {
   logout: () => Promise<ApiResult<null>>
   syncPull: () => Promise<ApiResult<PullResult>>
   syncPush: (filePath: string, isDraft: boolean, meta?: ArticleMeta) => Promise<ApiResult<PushResult>>
+  /** 远端文章转存为草稿（服务端处理；converted=false=原本就是草稿） */
+  convertToDraft: (cid: string) => Promise<ApiResult<ConvertDraftResult>>
+  /** 编辑远端文章：非草稿先转存草稿（服务端），再同步到本地存档并返回本地文件路径 */
+  editRemoteArticle: (cid: string) => Promise<ApiResult<EditRemoteResult>>
   getDocsRoot: () => Promise<ApiResult<string>>
   openDocsDir: () => Promise<ApiResult<null>>
   listLocalDocs: () => Promise<ApiResult<LocalNode[]>>
   readLocalFile: (path: string) => Promise<ApiResult<string>>
+  /** 本地文件是否存在（侧栏打开远端索引项时校验；路径越界按不存在处理） */
+  fileExists: (path: string) => Promise<ApiResult<boolean>>
   writeLocalFile: (path: string, content: string) => Promise<ApiResult<null>>
   createLocalDraft: (title: string, content: string, dirRel?: string) => Promise<ApiResult<string>>
   /** v0.0.6：新建本地文件夹（相对存档根） */

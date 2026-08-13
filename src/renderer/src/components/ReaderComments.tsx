@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { X } from 'lucide-react'
 import { useReaderStore } from '../stores/reader'
 import { cachedImageUrl, formatTs } from '../lib/sanitize'
+import { SkeletonComment } from './Skeletons'
 import type { CommentItem } from '../../../shared/types'
 
 /**
@@ -81,7 +82,16 @@ export function CommentSection({ cid }: { cid: string }): React.JSX.Element {
 
       {/* v0.0.6：评论列表占满右栏可滚动区域；发表框固定在右栏底部 */}
       <div className="comment-list">
-        {commentsLoading && <div className="muted comment-loading">加载评论中 …</div>}
+        {/* v0.0.7：预填充骨架——仅首屏（无评论）显示；「加载更多」追加时不遮已有列表 */}
+        {commentsLoading && top.length === 0 && (
+          // 形状与真实评论行同构（头像 + 昵称/时间 + 内容）
+          <>
+            <span className="sr-only" role="status">加载评论中 …</span>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <SkeletonComment key={i} />
+            ))}
+          </>
+        )}
         {!commentsLoading && top.length === 0 && (
           <div className="muted comment-empty">还没有评论，来抢沙发吧</div>
         )}

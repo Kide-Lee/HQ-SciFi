@@ -66,9 +66,16 @@ export function SearchPanel({
     [text, re]
   )
   // 列表模式匹配（标题 + 摘要）
+  // v0.0.8：re 为全局正则（'g'），re.test 有状态（lastIndex 前进）——每次测试前重置，
+  // 否则过滤结果依赖遍历顺序会漏匹配
   const itemMatches = useMemo(() => {
     if (!items || !re) return []
-    return items.filter((it) => re.test(it.title) || (it.text ? re.test(it.text) : false))
+    return items.filter((it) => {
+      re.lastIndex = 0
+      if (re.test(it.title)) return true
+      re.lastIndex = 0
+      return it.text ? re.test(it.text) : false
+    })
   }, [items, re])
 
   const total = text !== undefined ? textMatches.length : itemMatches.length

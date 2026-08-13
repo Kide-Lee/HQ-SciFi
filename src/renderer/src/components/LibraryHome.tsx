@@ -5,12 +5,13 @@ import { cachedImageUrl } from '../lib/sanitize'
 import { ArticleCard } from './ArticleListView'
 import { CoverImage } from './CoverImage'
 import { ErrorBanner } from './ErrorBanner'
+import { SkeletonArticleCard, SkeletonMetaCard } from './Skeletons'
 import type { RemoteArticle } from '../../../shared/types'
 
 /**
  * 作品库栏目首页（v0.0.2）：点击左栏「作品库」顶层（未选中子项）时显示
  * 四个作品分类入口（原创作品/科幻杂谈/官方公告/外文翻译）+ 最新发布流；
- * 加载中渲染预填充骨架（宽度填满父元素）。
+ * 加载中渲染与真实结构同构的预填充骨架（分类 meta 卡 + 文章卡）。
  */
 export function LibraryHome(): React.JSX.Element {
   const openList = useUiStore((s) => s.openList)
@@ -58,20 +59,22 @@ export function LibraryHome(): React.JSX.Element {
       {error && <ErrorBanner title="作品库加载失败" message={error} />}
 
       {loading ? (
+        // v0.0.7：预填充骨架——形状与真实结构同构（分类 meta 卡 grid + 最新文章列表卡）
         <>
+          <span className="sr-only" role="status">加载中 …</span>
           <section className="home-section">
             <h2 className="home-section-title">作品分类</h2>
-            <div className="home-list">
+            <div className="home-meta-grid library-cat-grid">
               {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="skeleton-row" />
+                <SkeletonMetaCard key={i} />
               ))}
             </div>
           </section>
           <section className="home-section">
             <h2 className="home-section-title">最新发布</h2>
             <div className="home-list">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="skeleton-row" />
+              {Array.from({ length: 12 }).map((_, i) => (
+                <SkeletonArticleCard key={i} />
               ))}
             </div>
           </section>
