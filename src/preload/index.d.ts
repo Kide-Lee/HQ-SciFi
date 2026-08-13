@@ -102,6 +102,10 @@ export interface HqsfApi {
   listMetas: (type: string) => Promise<ApiResult<MetaInfo[]>>
   /** 违禁词检测（官方接口，付费 5 能量币/次）：返回服务端检测结果 { code, msg } */
   checkForbidden: (title: string, text: string) => Promise<ApiResult<{ code: number; msg: string }>>
+  /** v0.0.6：选择本地媒体文件上传到荒启（upload/full），返回 { url, filename, size }；用户取消返回 data=null */
+  uploadMedia: (filters?: Array<{ name: string; extensions: string[] }>) => Promise<
+    ApiResult<{ url: string; filename: string; size: number } | null>
+  >
   listGptModels: () => Promise<ApiResult<GptModel[]>>
   listReviewTasks: () => Promise<ApiResult<ReviewTaskItem[]>>
   listComments: (cid: string, opts?: { limit?: number; page?: number; order?: string }) => Promise<

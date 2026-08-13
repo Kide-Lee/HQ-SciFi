@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDown, ArrowUp, ChevronRight, Columns2, FilePlus, Folder, FolderPlus, PenLine, Trash2, X, Zap } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Eye, FilePlus, Folder, FolderPlus, PenLine, Trash2, X, Zap } from 'lucide-react'
 import { useEditorStore } from '../stores/editor'
 import { useDocsStore } from '../stores/docs'
+import { useUiStore } from '../stores/ui'
 import { ErrorBanner } from './ErrorBanner'
-import { formatSize, formatTs } from '../lib/sanitize'
+import { cachedImageUrl, formatSize, formatTs } from '../lib/sanitize'
 import type { ArticleRow, LocalNode } from '../../../shared/types'
 import { VditorEditor } from './VditorEditor'
+import { RightPanel } from './RightPanel'
 
 /** 远端非草稿类型的展示名（同步/推送后角标显示当前远端状态） */
 const REMOTE_TYPE_LABEL: Partial<Record<ArticleRow['type'], string>> = {
@@ -38,7 +40,6 @@ export function EditorPane(): React.JSX.Element {
   const save = useEditorStore((s) => s.save)
   const createDraft = useEditorStore((s) => s.createDraft)
   const openDoc = useEditorStore((s) => s.open)
-  const close = useEditorStore((s) => s.close)
   const push = useDocsStore((s) => s.push)
   const pushing = useDocsStore((s) => s.pushing)
   const refreshLocal = useDocsStore((s) => s.refreshLocal)
@@ -53,6 +54,20 @@ export function EditorPane(): React.JSX.Element {
   const [newTitle, setNewTitle] = useState('')
   // v0.0.7：编辑模式——所见即所得 / 即时预览 IR（源码+光标块渲染）/ 分屏预览 SV（源码+整篇渲染），由 Vditor 三模式一体实现
   const [mode, setMode] = useState<'wysiwyg' | 'ir' | 'sv'>('wysiwyg')
+  // v0.0.6：编辑器右栏（预览/目录）展开与 tab（ui store 全局管理，顶栏按钮切换）
+  const editorPanelOpen = useUiStore((s) => s.editorPanelOpen)
+  const editorPanelTab = useUiStore((s) => s.editorPanelTab)
+  const setEditorPanelTab = useUiStore((s) => s.setEditorPanelTab)
+  const toggleEditorPanel = useUiStore((s) => s.toggleEditorPanel)
+  const setEditorPanelAvailable = useUiStore((s) => s.setEditorPanelAvailable)
+  // v0.0.6：编辑器右栏宽度比例（右栏:总宽），默认 1/3，localStorage 持久化（与阅读页分栏一致）
+  const [editorSplit, setEditorSplit] = useState<number>(() => {
+    const v = Number(localStorage.getItem('editor-split-ratio'))
+    return v >= 0.2 && v <= 0.6 ? v : 1 / 3
+  })
+  const [editorPanResizing, setEditorPanResizing] = useState(false)
+  const editorLayoutRef = useRef<HTMLDivElement | null>(null)
+  const previewBodyRef = useRef<HTMLDivElement | null>(null)
   // v0.0.6：新建文件夹输入框状态
   const [showNewDir, setShowNewDir] = useState(false)
   const [newDirName, setNewDirName] = useState('')
@@ -69,6 +84,8 @@ export function EditorPane(): React.JSX.Element {
   const [tags, setTags] = useState<Array<{ mid: string; name: string }>>([])
   const [acts, setActs] = useState<Array<{ mid: string; name: string }>>([])
   const [forbidMsg, setForbidMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  // v0.0.6：第二行「标签」下拉多选面板开合
+  const [tagPickerOpen, setTagPickerOpen] = useState(false)
 
   // 编辑态加载 metas（类型/标签/活动）；失败静默（属性栏置空，同步/发布仍可用类型必选校验拦截）
   useEffect(() => {
@@ -103,6 +120,97 @@ export function EditorPane(): React.JSX.Element {
   function toggleTag(name: string): void {
     const cur = meta.tags ?? []
     setMeta({ tags: cur.includes(name) ? cur.filter((t) => t !== name) : [...cur, name] })
+  }
+
+  /**
+   * v0.0.6：正文字数统计——不计空格和标点符号等（汉字 + 字母 + 数字）。
+   * 不足 3000 提醒「字数不足」，超过 33000 提醒「字数太多」（与 design.md v0.0.6 一致）。
+   */
+  const wordCount = useMemo(() => {
+    const m = content.match(/[\u4e00-\u9fa5A-Za-z0-9]/g)
+    return m ? m.length : 0
+  }, [content])
+  const wordTip = wordCount < 3000 ? '字数不足' : wordCount > 33000 ? '字数太多' : null
+
+  // ---- v0.0.6：编辑器右栏「预览」tab（SV 模式隐藏 Vditor 自带预览，预览统一渲染在右栏） ----
+  // 渲染核心与 Vditor 一致：已本地打包的 window.Lute（VditorEditor 引入）；图片改写为 hqsf-img:// 缓存协议（与阅读视图一致）
+  const previewHtml = useMemo(() => {
+    if (!content) return ''
+    const Lute = (window as unknown as { Lute?: { New: () => { MarkdownStr: (renderer: string, md: string) => string } } }).Lute
+    if (!Lute) return ''
+    try {
+      return Lute.New()
+        .MarkdownStr('', content)
+        .replace(
+          /(<img[^>]*\ssrc=")(https?:\/\/[^"]+)(")/g,
+          (_pre, pre: string, url: string, post: string) => `${pre}${cachedImageUrl(url)}${post}`
+        )
+    } catch {
+      return ''
+    }
+  }, [content])
+
+  // v0.0.6：目录——预览 HTML 中提取 h1-h6（≥1 个才显示「目录」tab）
+  const toc = useMemo(() => {
+    if (!previewHtml) return []
+    const doc = new DOMParser().parseFromString(previewHtml, 'text/html')
+    const items: Array<{ idx: number; level: number; text: string }> = []
+    Array.from(doc.querySelectorAll('h1,h2,h3,h4,h5,h6')).forEach((h, i) => {
+      const text = (h.textContent ?? '').trim()
+      if (!text) return
+      items.push({ idx: i, level: Number(h.tagName.slice(1)), text })
+    })
+    return items
+  }, [previewHtml])
+
+  // v0.0.6：右栏可用性——预览 tab 仅分屏预览（SV）模式提供；目录 tab 存在标题时提供
+  const editorPanelAvailable = mode === 'sv' || toc.length > 0
+  // 无可用 tab 时同步关闭右栏（并通知顶栏隐藏按钮）
+  useEffect(() => {
+    setEditorPanelAvailable(editorPanelAvailable)
+    if (!editorPanelAvailable && useUiStore.getState().editorPanelOpen) {
+      useUiStore.setState({ editorPanelOpen: false })
+    }
+  }, [editorPanelAvailable, setEditorPanelAvailable])
+
+  // v0.0.6：编辑器右栏宽度拖动（与阅读页 reader-layout 一致的交互；localStorage 持久化）
+  useEffect(() => {
+    localStorage.setItem('editor-split-ratio', String(editorSplit))
+  }, [editorSplit])
+  function onEditorDividerDown(e: React.MouseEvent): void {
+    e.preventDefault()
+    setEditorPanResizing(true)
+    const onMove = (ev: MouseEvent): void => {
+      const layout = editorLayoutRef.current
+      if (!layout) return
+      const rect = layout.getBoundingClientRect()
+      if (rect.width <= 0) return
+      setEditorSplit(Math.min(0.6, Math.max(0.2, (rect.right - ev.clientX) / rect.width)))
+    }
+    const onUp = (): void => {
+      setEditorPanResizing(false)
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
+  /** v0.0.6：目录跳转——优先编辑区（所见即所得/IR 的标题元素），兜底右栏预览容器 */
+  function jumpToHeading(idx: number): void {
+    const root = document.querySelector('.vditor-editor-wrap .vditor')
+    if (root) {
+      const headings = Array.from(root.querySelectorAll('h1,h2,h3,h4,h5,h6'))
+      if (headings[idx]) {
+        headings[idx].scrollIntoView({ behavior: 'smooth', block: 'start' })
+        return
+      }
+    }
+    const preview = previewBodyRef.current
+    if (preview) {
+      const headings = Array.from(preview.querySelectorAll('h1,h2,h3,h4,h5,h6'))
+      if (headings[idx]) headings[idx].scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
   }
 
   const pullErrors = lastPull?.errors ?? []
@@ -243,58 +351,49 @@ export function EditorPane(): React.JSX.Element {
 
   return (
     <div className="editor-pane">
-      {/* v0.0.6：工具栏仅在编辑态显示；写作首页不显示（新建草稿入口在首页头部） */}
+      {/* v0.0.6：编辑栏第一行——最左「新建草稿/保存/同步到草稿/发布」+ 状态角标，右侧三个模式图标按钮（仅图标） */}
       {currentPath && (
-        <div className="editor-toolbar">
-          <button className="toolbar-btn" onClick={() => setShowNew((v) => !v)}>
-            + 新建草稿
+        <div className="editor-bar editor-bar-main">
+          <button className="toolbar-btn" onClick={() => setShowNew((v) => !v)} title="新建草稿（当前目录）">
+            <FilePlus size={14} /> 新建草稿
           </button>
-          {/* v0.0.7：编辑模式切换——所见即所得 / 即时预览 IR / 分屏预览 SV */}
+          <button className="toolbar-btn" onClick={() => void save()} disabled={!dirty || busy} title="保存（Ctrl+S）">
+            保存
+          </button>
+          <button className="toolbar-btn accent" onClick={() => void handlePush(true)} disabled={!currentPath || !meta.category || pushingNow || busy} title={meta.category ? '将当前内容保存为远端草稿' : '请先选择文章类型'}>
+            {pushingNow ? '同步中 …' : '同步到草稿'}
+          </button>
+          <button className="toolbar-btn primary" onClick={() => void handlePush(false)} disabled={!currentPath || !meta.category || pushingNow || busy} title={meta.category ? '发布后进入待审核，由服务器裁决为已发布或已拒绝' : '请先选择文章类型'}>
+            发布
+          </button>
+          <span className={`status-badge ${dirty ? 'warn' : synced ? 'ok' : ''}`} title={statusTip}>
+            {statusLabel}
+          </span>
+          <span className="toolbar-spacer" />
+          {/* v0.0.6：模式切换——取消文字只留图标，位于编辑栏右面（分屏预览用眼睛图标） */}
           <div className="editor-mode-switch">
             <button
               className={`mode-btn${mode === 'wysiwyg' ? ' active' : ''}`}
               onClick={() => setMode('wysiwyg')}
               title="所见即所得：输入 Markdown 语法即时渲染为富文本（带编辑工具栏）"
             >
-              <PenLine size={13} /> 所见即所得
+              <PenLine size={14} />
             </button>
             <button
               className={`mode-btn${mode === 'ir' ? ' active' : ''}`}
               onClick={() => setMode('ir')}
               title="即时预览（IR）：源码编辑，光标所在块下方实时渲染效果"
             >
-              <Zap size={13} /> 即时预览
+              <Zap size={14} />
             </button>
             <button
               className={`mode-btn${mode === 'sv' ? ' active' : ''}`}
               onClick={() => setMode('sv')}
-              title="分屏预览（SV）：左侧源码编辑，右侧整篇实时渲染"
+              title="分屏预览（SV）：源码编辑，右侧整篇实时渲染"
             >
-              <Columns2 size={13} /> 分屏预览
+              <Eye size={14} />
             </button>
           </div>
-          {currentPath && (
-            <>
-              <button className="toolbar-btn" onClick={() => void save()} disabled={!dirty || busy}>
-                保存
-              </button>
-              <button className="toolbar-btn accent" onClick={() => void handlePush(true)} disabled={!currentPath || !meta.category || pushingNow || busy} title={meta.category ? '将当前内容保存为远端草稿' : '请先选择文章类型'}>
-                {pushingNow ? '同步中 …' : '同步到草稿'}
-              </button>
-              <button className="toolbar-btn primary" onClick={() => void handlePush(false)} disabled={!currentPath || !meta.category || pushingNow || busy} title={meta.category ? '发布后进入待审核，由服务器裁决为已发布或已拒绝' : '请先选择文章类型'}>
-                发布
-              </button>
-            </>
-          )}
-          {currentPath && (
-            <span className={`status-badge ${dirty ? 'warn' : synced ? 'ok' : ''}`} title={statusTip}>
-              {statusLabel}
-            </span>
-          )}
-          <span className="toolbar-spacer" />
-          <span className="editor-path" title={currentPath ?? ''}>
-            {currentPath ? currentPath.split('/').pop() : ''}
-          </span>
         </div>
       )}
 
@@ -330,9 +429,9 @@ export function EditorPane(): React.JSX.Element {
         />
       )}
 
-      {/* v0.0.7：文章属性栏（类型/标签/活动/公开 + 违禁词检测），仅编辑态显示 */}
+      {/* v0.0.6：编辑栏第二行——类型/标签（下拉多选+已选可取消）/活动/公开 + 违禁词检测，最右显示字数（不计空格和标点） */}
       {currentPath && (
-        <div className="editor-meta-bar">
+        <div className="editor-bar editor-bar-meta">
           <label className="meta-field">
             <span className="meta-label">类型</span>
             <select
@@ -350,18 +449,36 @@ export function EditorPane(): React.JSX.Element {
           </label>
           <div className="meta-field meta-tags-field">
             <span className="meta-label">标签</span>
-            <div className="meta-tags">
-              {tags.length === 0 && <span className="muted">（加载中/无标签）</span>}
-              {tags.map((t) => (
-                <button
-                  key={t.mid}
-                  className={`meta-tag${(meta.tags ?? []).includes(t.name) ? ' on' : ''}`}
-                  onClick={() => toggleTag(t.name)}
-                  title={t.name}
-                >
-                  {t.name}
+            {/* v0.0.6：已选标签（点击可取消；溢出裁剪由 CSS 控制） */}
+            <div className="meta-tag-chips">
+              {(meta.tags ?? []).map((t) => (
+                <button key={t} className="meta-tag-chip" onClick={() => toggleTag(t)} title={`取消标签「${t}」`}>
+                  <span className="meta-tag-chip-name">{t}</span>
+                  <X size={11} />
                 </button>
               ))}
+            </div>
+            {/* v0.0.6：标签下拉多选 */}
+            <div className="meta-tag-picker">
+              <button className="meta-tag-picker-btn" onClick={() => setTagPickerOpen((v) => !v)} title="从标签库选择（多选）">
+                选择标签 <ChevronDown size={12} />
+              </button>
+              {tagPickerOpen && (
+                <div className="meta-tag-picker-menu">
+                  {tags.length === 0 && <div className="muted meta-tag-picker-empty">（加载中/无标签）</div>}
+                  {tags.map((t) => (
+                    <label
+                      key={t.mid}
+                      className={`meta-tag-option${(meta.tags ?? []).includes(t.name) ? ' on' : ''}`}
+                    >
+                      <input type="checkbox" checked={(meta.tags ?? []).includes(t.name)} onChange={() => toggleTag(t.name)} />
+                      <span className="meta-tag-option-name" title={t.name}>
+                        {t.name}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           <label className="meta-field">
@@ -392,9 +509,18 @@ export function EditorPane(): React.JSX.Element {
           {forbidMsg && (
             <span className={`forbid-result ${forbidMsg.ok ? 'ok' : 'bad'}`}>{forbidMsg.text}</span>
           )}
+          <span className="toolbar-spacer" />
+          {/* v0.0.6：字数统计（不计空格和标点），最右；不足 3000 / 超过 33000 提醒 */}
+          <span
+            className={`editor-words${wordTip ? (wordCount > 33000 ? ' bad' : ' warn') : ''}`}
+            title={wordTip ? `${wordCount} 字，${wordTip}` : `${wordCount} 字`}
+          >
+            {wordCount} 字{wordTip ? ` · ${wordTip}` : ''}
+          </span>
         </div>
       )}
 
+      <div className="editor-main-row" ref={editorLayoutRef}>
       <div className={`editor-body${currentPath ? ' editing' : ' home'}`}>
         {currentPath ? (
           <VditorEditor docKey={currentPath} mode={mode} content={content} onChange={update} />
@@ -565,13 +691,68 @@ export function EditorPane(): React.JSX.Element {
           </div>
         )}
       </div>
+      {/* v0.0.6：编辑器右栏（预览/目录，通用 RightPanel；SV 模式隐藏 Vditor 自带预览、预览统一在此渲染） */}
+      {currentPath && editorPanelAvailable && (
+        <>
+          {editorPanelOpen && (
+            <div className="reader-divider" onMouseDown={onEditorDividerDown} title="拖动调整编辑区与右栏比例" />
+          )}
+          <RightPanel
+            tab={editorPanelTab}
+            onTabChange={(id) => setEditorPanelTab(id as 'preview' | 'toc')}
+            collapsed={!editorPanelOpen}
+            dragging={editorPanResizing}
+            width={`${editorSplit * 100}%`}
+            tabs={[
+              {
+                id: 'preview',
+                label: '预览',
+                visible: mode === 'sv',
+                content: (
+                  <div className="reader-panel-scroll editor-preview-panel">
+                    {previewHtml ? (
+                      <div
+                        className="reader-body editor-preview-body"
+                        ref={previewBodyRef}
+                        dangerouslySetInnerHTML={{ __html: previewHtml }}
+                      />
+                    ) : (
+                      <div className="muted editor-preview-empty">（暂无内容）</div>
+                    )}
+                  </div>
+                )
+              },
+              {
+                id: 'toc',
+                label: '目录',
+                visible: toc.length > 0,
+                content: (
+                  <div className="reader-panel-scroll">
+                    <ul className="reader-toc-list">
+                      {toc.map((t) => (
+                        <li key={t.idx} className={`reader-toc-item lv-${Math.min(6, Math.max(1, t.level))}`}>
+                          <a
+                            href={`#etoc-${t.idx + 1}`}
+                            onClick={(e) => {
+                              e.preventDefault()
+                              jumpToHeading(t.idx)
+                            }}
+                          >
+                            {t.text}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )
+              }
+            ]}
+          />
+        </>
+      )}
+      </div>
 
       {toast && <div className="toast">{toast}</div>}
-      {currentPath && (
-        <div className="editor-close" onClick={() => close()} title="关闭当前文档">
-          <X size={12} /> 关闭
-        </div>
-      )}
     </div>
   )
 }

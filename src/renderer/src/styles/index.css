@@ -1068,12 +1068,12 @@ body {
   align-items: center;
   gap: 4px;
   width: 100%;
-  padding: 3px 8px;
+  /* v0.0.6：与文件项 .tree-node 一致的内边距/字号（修复高度与字号不一致） */
+  padding: 7px 10px;
   border: none;
   background: transparent;
   font: inherit;
-  font-size: 12px;
-  /* v0.0.6：目录名字体颜色与文件名一致（.tree-node 为 #444a54） */
+  font-size: 13px;
   color: #444a54;
   cursor: pointer;
   border-radius: 4px;
@@ -1130,13 +1130,37 @@ body {
   background: var(--bg-card);
 }
 
-.editor-toolbar {
+/* v0.0.6：统一编辑栏（两行：第一行功能按钮+模式切换，第二行属性栏+字数），废弃 .editor-toolbar/.editor-meta-bar */
+.editor-bar {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
+  padding: 8px 16px;
   border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
   flex-wrap: wrap;
+}
+.editor-bar-main {
+  /* 第一行：新建/保存/同步/发布 + 状态角标 + 右侧模式切换 */
+}
+.editor-bar-meta {
+  font-size: 13px;
+  background: var(--bg);
+  gap: 10px 18px;
+}
+/* v0.0.6：第二行最右字数统计（不计空格和标点；<3000 提醒字数不足、>33000 提醒字数太多） */
+.editor-words {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  user-select: text;
+}
+.editor-words.warn {
+  color: #b25e09;
+}
+.editor-words.bad {
+  color: #d64545;
+  font-weight: 600;
 }
 
 .toolbar-btn {
@@ -1181,16 +1205,6 @@ body {
   flex: 1;
 }
 
-.editor-path {
-  font-size: 12px;
-  color: var(--text-muted);
-  max-width: 260px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  user-select: text;
-}
-
 .status-badge {
   font-size: 12px;
   padding: 2px 8px;
@@ -1230,15 +1244,39 @@ body {
   border-color: var(--accent);
 }
 
+/* v0.0.6：编辑器主体行——编辑区 + 可拖动右栏（预览/目录） */
+.editor-main-row {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  min-width: 0;
+}
 .editor-body {
   flex: 1;
   min-height: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   /* v0.0.6：写作首页背景与主界面一致（其他页面灰底） */
 }
 .editor-body.home {
   background: var(--bg);
+}
+/* v0.0.6：SV 模式隐藏 Vditor 自带右侧预览，预览统一放右栏「预览」tab（IR/WYSIWYG 无 .vditor-preview 元素，不受影响）。
+   Vditor 模式切换时会内联设置 preview 的 display（SV=block），故需 !important 覆盖内联样式 */
+.vditor-editor-wrap .vditor-content .vditor-preview {
+  display: none !important;
+}
+/* v0.0.6：编辑器右栏「预览」tab 内容（排版复用 .reader-body，与文章页一致） */
+.editor-preview-panel {
+  padding: 0;
+}
+.editor-preview-body {
+  padding: 14px 18px 28px;
+}
+.editor-preview-empty {
+  padding: 24px 16px;
+  font-size: 13px;
 }
 
 /* ---------- Vditor 编辑器（三模式一体）布局 ---------- */
@@ -1266,6 +1304,66 @@ body {
 }
 .vditor-editor-wrap .vditor-reset--first {
   padding-top: 12px;
+}
+
+/* v0.0.6：Vditor 三模式渲染/预览区排版对齐文章页 .reader-body
+   （所见即所得编辑区 / IR 光标块渲染 / SV 预览，字号/行高/标题/引用/代码/图片等与阅读页一致） */
+.vditor-editor-wrap :is(.vditor-wysiwyg, .vditor-ir, .vditor-preview .vditor-reset) {
+  font-size: 15px;
+  line-height: 1.9;
+  color: #2b2f36;
+}
+.vditor-editor-wrap :is(.vditor-wysiwyg, .vditor-ir, .vditor-preview .vditor-reset)
+  :is(h1, h2, h3, h4, h5, h6) {
+  margin: 1.2em 0 0.6em;
+  line-height: 1.4;
+  font-weight: 600;
+}
+.vditor-editor-wrap :is(.vditor-wysiwyg, .vditor-ir, .vditor-preview .vditor-reset) h1 {
+  font-size: 1.5em;
+}
+.vditor-editor-wrap :is(.vditor-wysiwyg, .vditor-ir, .vditor-preview .vditor-reset) h2 {
+  font-size: 1.3em;
+}
+.vditor-editor-wrap :is(.vditor-wysiwyg, .vditor-ir, .vditor-preview .vditor-reset) h3 {
+  font-size: 1.15em;
+}
+.vditor-editor-wrap :is(.vditor-wysiwyg, .vditor-ir, .vditor-preview .vditor-reset) p {
+  margin: 0.6em 0;
+}
+.vditor-editor-wrap :is(.vditor-wysiwyg, .vditor-ir, .vditor-preview .vditor-reset) blockquote {
+  margin: 0.8em 0;
+  padding: 6px 14px;
+  border-left: 3px solid var(--accent);
+  background: #f6f7fb;
+  color: #5a6270;
+}
+.vditor-editor-wrap
+  :is(.vditor-wysiwyg, .vditor-ir, .vditor-preview .vditor-reset)
+  pre:is(.vditor-wysiwyg__preview, .vditor-ir__preview):has(> code) {
+  background: #282c34;
+  color: #e6e6e6;
+  padding: 12px 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.vditor-editor-wrap :is(.vditor-wysiwyg, .vditor-ir, .vditor-preview .vditor-reset) code {
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  font-size: 0.92em;
+}
+.vditor-editor-wrap
+  :is(.vditor-wysiwyg, .vditor-ir, .vditor-preview .vditor-reset)
+  :is(p, li)
+  code {
+  background: #f0f1f5;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.vditor-editor-wrap :is(.vditor-wysiwyg, .vditor-ir, .vditor-preview .vditor-reset) img {
+  max-width: 100%;
+  border-radius: 6px;
 }
 
 /* ---------- 插入数学公式弹窗（Electron 渲染层不支持 window.prompt，自绘输入框） ---------- */
@@ -1553,27 +1651,6 @@ body {
 .editor-local-crumbs .crumb-sep {
   color: var(--border);
   padding: 0 2px;
-}
-
-.editor-close {
-  position: fixed;
-  right: 16px;
-  bottom: 16px;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg-card);
-  font-size: 12px;
-  color: var(--text-muted);
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-.editor-close:hover {
-  color: #c0392b;
 }
 
 .toast {
@@ -3785,7 +3862,7 @@ body {
 
 /* ============ v0.0.7：编辑器三模式（所见即所得 / 即时预览 IR / 分屏预览 SV） ============ */
 
-/* 工具栏模式切换（三按钮） */
+/* v0.0.6：工具栏模式切换（三个纯图标按钮，位于编辑栏第一行右面） */
 .editor-mode-switch {
   display: inline-flex;
   border: 1px solid var(--border);
@@ -3795,15 +3872,14 @@ body {
 .mode-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 5px 10px;
+  justify-content: center;
+  width: 30px;
+  height: 28px;
+  padding: 0;
   border: none;
   background: transparent;
-  font: inherit;
-  font-size: 12px;
   color: var(--text-muted);
   cursor: pointer;
-  white-space: nowrap;
 }
 .mode-btn + .mode-btn {
   border-left: 1px solid var(--border);
@@ -3819,16 +3895,6 @@ body {
 /* ---------- 所见即所得：milkdown + 编辑工具栏 ---------- */
 /* ============ v0.0.7：文章属性栏（类型/标签/活动/公开 + 违禁词检测） ============ */
 
-.editor-meta-bar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px 18px;
-  padding: 8px 16px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg);
-  font-size: 13px;
-}
 .meta-field {
   display: inline-flex;
   align-items: center;
@@ -3856,30 +3922,112 @@ body {
 .meta-tags-field {
   flex: 1;
   min-width: 160px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
-.meta-tags {
+/* v0.0.6：已选标签 chips（点击取消；溢出裁剪） */
+.meta-tag-chips {
+  flex: 1;
+  min-width: 0;
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   gap: 4px;
+  overflow: hidden;
 }
-.meta-tag {
-  padding: 2px 8px;
-  border: 1px solid var(--border);
+.meta-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 110px;
+  padding: 1px 7px;
+  border: 1px solid var(--accent);
   border-radius: 10px;
-  background: transparent;
-  color: var(--text-muted);
+  background: var(--accent-soft);
+  color: var(--accent);
   font: inherit;
   font-size: 12px;
+  line-height: 1.6;
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
-.meta-tag:hover {
+.meta-tag-chip:hover {
+  border-color: #d64545;
+  color: #d64545;
+  background: #fdf3f3;
+  text-decoration: line-through;
+}
+.meta-tag-chip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* v0.0.6：标签下拉多选 */
+.meta-tag-picker {
+  position: relative;
+  flex-shrink: 0;
+}
+.meta-tag-picker-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px dashed var(--border);
+  border-radius: 5px;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.meta-tag-picker-btn:hover {
   border-color: var(--accent);
   color: var(--accent);
 }
-.meta-tag.on {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+.meta-tag-picker-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 60;
+  min-width: 190px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  display: flex;
+  flex-direction: column;
+}
+.meta-tag-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+}
+.meta-tag-option:hover {
+  background: var(--accent-soft);
+}
+.meta-tag-option.on {
+  color: var(--accent);
+}
+.meta-tag-option-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.meta-tag-picker-empty {
+  padding: 6px;
+  font-size: 12px;
 }
 .meta-check {
   display: inline-flex;

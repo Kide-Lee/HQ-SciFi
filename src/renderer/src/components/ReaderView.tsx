@@ -6,6 +6,7 @@ import { activityPhase, type ActivityPhase } from '../lib/activity'
 import { cachedImageUrl, formatSize, formatTs, expandMediaTags, sanitizeHtml, scoreColor } from '../lib/sanitize'
 import { ErrorBanner } from './ErrorBanner'
 import { CommentSection, CommentCard, ridOf } from './ReaderComments'
+import { RightPanel } from './RightPanel'
 import { ReaderInteractions } from './ReaderInteractions'
 import { ArrowDown, ArrowUp, MessageCircle, PenLine, X } from 'lucide-react'
 import type { ArticleDetail, CommentItem, MetaRef, ReviewItem, ReviewPayload } from '../../../shared/types'
@@ -107,6 +108,11 @@ export function ReaderView(): React.JSX.Element {
   // v0.0.3：右栏（目录/评论/评审）展开与 tab 由 ui store 管理（顶栏「展开右栏」按钮切换）
   const panelOpen = useUiStore((s) => s.readerPanelOpen)
   const panelTab = useUiStore((s) => s.readerPanelTab)
+  const setReaderPanelTab = useUiStore((s) => s.setReaderPanelTab)
+  // v0.0.6：右栏 tab 数据（原 ReaderPanel 内部取值上移，供通用 RightPanel 使用）
+  const readerCid = detail?.cid ?? ''
+  const commentsTotal = useReaderStore((s) => s.commentsTotal)
+  const reviewsCount = useReaderStore((s) => s.reviews.length)
 
   // v0.0.2：评审栏宽度比例（评审:总宽），默认 1/3（正文:评审 = 2:1），localStorage 持久化
   const [splitRatio, setSplitRatio] = useState<number>(() => {
@@ -174,6 +180,12 @@ export function ReaderView(): React.JSX.Element {
     })
     setToc(items)
   }, [safeHtml, detail?.cid])
+
+  // v0.0.6：无目录的文章不显示「目录」tab；若当前停在目录 tab 则回退到「评审」（原 ReaderPanel 内逻辑，迁移后保留）
+  const hasToc = toc.length > 0
+  useEffect(() => {
+    if (panelTab === 'toc' && !hasToc) setReaderPanelTab('review')
+  }, [panelTab, hasToc, setReaderPanelTab])
 
   function jumpTo(idx: number): void {
     const body = bodyRef.current
@@ -299,14 +311,60 @@ export function ReaderView(): React.JSX.Element {
         {panelOpen && (
           <div className="reader-divider" onMouseDown={onDividerDown} title="拖动调整正文与右栏比例" />
         )}
-        {/* v0.0.6：右栏常驻渲染，宽度由 collapsed 控制（0 ↔ 分栏比例），收起/展开带过渡动画 */}
-        <ReaderPanel
-          splitRatio={splitRatio}
-          toc={toc}
-          jumpTo={jumpTo}
-          isMine={isMine}
+        {/* v0.0.6：右栏常驻渲染，宽度由 collapsed 控制（0 ↔ 分栏比例），收起/展开带过渡动画；通用 RightPanel 承载目录/评论/评审 tab */}
+        <RightPanel
+          tab={panelTab}
+          onTabChange={(id) => setReaderPanelTab(id as 'toc' | 'comments' | 'review')}
           collapsed={!panelOpen}
           dragging={panResizing}
+          width={`${splitRatio * 100}%`}
+          tabs={[
+            {
+              id: 'toc',
+              label: '目录',
+              visible: hasToc,
+              content: (
+                <div className="reader-panel-scroll">
+                  <ul className="reader-toc-list">
+                    {toc.map((t) => (
+                      <li key={t.idx} className={`reader-toc-item lv-${Math.min(6, Math.max(1, t.level))}`}>
+                        <a
+                          href={`#toc-${t.idx + 1}`}
+                          onClick={(e) => {
+                            e.preventDefault()
+                            jumpTo(t.idx)
+                          }}
+                        >
+                          {t.text}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )
+            },
+            {
+              id: 'comments',
+              label: '评论',
+              count: commentsTotal > 0 ? commentsTotal : undefined,
+              visible: true,
+              content: <CommentSection cid={readerCid} />
+            },
+            {
+              id: 'review',
+              label: '评审',
+              count: reviewsCount > 0 ? reviewsCount : undefined,
+              visible: !isMine,
+              content:
+                isMine ? (
+                  <div className="reader-panel-scroll">
+                    <div className="muted review-empty">这是你自己的文章，无需评审。</div>
+                  </div>
+                ) : (
+                  <ReviewPanel />
+                )
+            }
+          ]}
         />
       </div>
     </main>
@@ -900,92 +958,4 @@ function ReviewPanel(): React.JSX.Element {
   )
 }
 
-/**
- * v0.0.3：阅读页右栏 tab 容器（目录 / 评论 / 评审）。
- * 宽度由拖动分栏比例控制（ReaderView splitRatio）；评审 tab 对本人文章隐藏。
- * v0.0.6：常驻渲染——collapsed 时宽度 0（收起动画），dragging 时禁用过渡。
- */
-function ReaderPanel({
-  splitRatio,
-  toc,
-  jumpTo,
-  isMine,
-  collapsed,
-  dragging
-}: {
-  splitRatio: number
-  toc: Array<{ idx: number; level: number; text: string }>
-  jumpTo: (idx: number) => void
-  isMine: boolean
-  collapsed: boolean
-  dragging: boolean
-}): React.JSX.Element {
-  const tab = useUiStore((s) => s.readerPanelTab)
-  const setTab = useUiStore((s) => s.setReaderPanelTab)
-  const cid = useReaderStore((s) => s.detail)?.cid ?? ''
-  const commentsTotal = useReaderStore((s) => s.commentsTotal)
-  const reviewsCount = useReaderStore((s) => s.reviews.length)
 
-  // v0.0.6：无目录的文章不显示「目录」tab；若当前停在目录 tab 则回退到「评审」
-  const hasToc = toc.length > 0
-  useEffect(() => {
-    if (tab === 'toc' && !hasToc) setTab('review')
-  }, [tab, hasToc, setTab])
-
-  return (
-    <aside
-      className={`reader-panel${collapsed ? ' collapsed' : ''}${dragging ? ' dragging' : ''}`}
-      style={{ width: collapsed ? 0 : `${splitRatio * 100}%` }}
-    >
-      <div className="reader-panel-tabs">
-        {hasToc && (
-          <button className={`reader-panel-tab ${tab === 'toc' ? 'active' : ''}`} onClick={() => setTab('toc')}>
-            目录
-          </button>
-        )}
-        <button
-          className={`reader-panel-tab ${tab === 'comments' ? 'active' : ''}`}
-          onClick={() => setTab('comments')}
-        >
-          评论{commentsTotal > 0 ? ` ${commentsTotal}` : ''}
-        </button>
-        {!isMine && (
-          <button className={`reader-panel-tab ${tab === 'review' ? 'active' : ''}`} onClick={() => setTab('review')}>
-            评审{reviewsCount > 0 ? ` ${reviewsCount}` : ''}
-          </button>
-        )}
-      </div>
-
-      {tab === 'toc' && hasToc && (
-        <div className="reader-panel-scroll">
-          <ul className="reader-toc-list">
-            {toc.map((t) => (
-              <li key={t.idx} className={`reader-toc-item lv-${Math.min(6, Math.max(1, t.level))}`}>
-                <a
-                  href={`#toc-${t.idx + 1}`}
-                  onClick={(e) => {
-                    e.preventDefault()
-                    jumpTo(t.idx)
-                  }}
-                >
-                  {t.text}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {tab === 'comments' && <CommentSection cid={cid} />}
-
-      {tab === 'review' &&
-        (isMine ? (
-          <div className="reader-panel-scroll">
-            <div className="muted review-empty">这是你自己的文章，无需评审。</div>
-          </div>
-        ) : (
-          <ReviewPanel />
-        ))}
-    </aside>
-  )
-}

@@ -110,6 +110,11 @@ const api = {
   /** 违禁词检测（官方接口，付费 5 能量币/次）：返回服务端检测结果 { code, msg } */
   checkForbidden: (title: string, text: string): Promise<ApiResult<{ code: number; msg: string }>> =>
     ipcRenderer.invoke('hqsf:check-forbidden', title, text),
+  /** v0.0.6：选择本地媒体文件上传到荒启（upload/full），返回 { url, filename, size }；用户取消返回 data=null */
+  uploadMedia: (
+    filters?: Array<{ name: string; extensions: string[] }>
+  ): Promise<ApiResult<{ url: string; filename: string; size: number } | null>> =>
+    ipcRenderer.invoke('hqsf:upload-media', filters),
   /** AI 模型列表（推荐栏目「AI模型」） */
   listGptModels: (): Promise<ApiResult<GptModel[]>> => ipcRenderer.invoke('hqsf:list-gpt-models'),
   /** 当前账号的评审任务（待评审/已完成文章列表） */

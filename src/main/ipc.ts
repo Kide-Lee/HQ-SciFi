@@ -1,4 +1,6 @@
-import { app, BrowserWindow, clipboard, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
+import { readFileSync } from 'node:fs'
+import { basename } from 'node:path'
 import { loadAgreement, fetchHuangqiAgreement } from './agreement'
 import {
   loginWithPassword,
@@ -27,6 +29,7 @@ import {
   checkTextBlockStatus
 } from './read'
 import { clearArticles, listArticles } from './db'
+import { apiUrl, endpoint, uploadMultipart } from './net/api'
 import type { ArticleListOptions, ReviewPayload } from '../shared/types'
 
 /** IPC 返回约定：成功 { ok: true, data }，失败 { ok: false, error }（避免 Error 序列化丢 message） */
@@ -339,6 +342,38 @@ export function registerIpcHandlers(): void {
       return fail(err)
     }
   })
+
+  // ---- 编辑器媒体上传（v0.0.6 插入图片/音乐/视频） ----
+  /**
+   * 选择本地媒体文件并上传到荒启（upload/full）→ 返回远端 URL。
+   * filters 由渲染层按媒体类型传入（图片/音频/视频扩展名）；用户取消返回 ok(null)。
+   */
+  ipcMain.handle(
+    'hqsf:upload-media',
+    async (event, filters: Array<{ name: string; extensions: string[] }> = []) => {
+      const t = trusted(event)
+      if (t) return fail(t)
+      const token = getStoredToken()
+      if (!token) return fail(new Error('未登录，无法上传'))
+      try {
+        const win = BrowserWindow.fromWebContents(event.sender)
+        const openOptions: Electron.OpenDialogOptions = {
+          title: '选择要上传的媒体文件',
+          properties: ['openFile'],
+          filters: filters.length > 0 ? filters : undefined
+        }
+        const result = await (win ? dialog.showOpenDialog(win, openOptions) : dialog.showOpenDialog(openOptions))
+        if (result.canceled || result.filePaths.length === 0) return ok(null)
+        const filePath = result.filePaths[0]
+        const buffer = readFileSync(filePath)
+        const filename = basename(filePath)
+        const url = await uploadMultipart(apiUrl(endpoint('uploadFile').path), token, filename, buffer)
+        return ok({ url, filename, size: buffer.length })
+      } catch (err) {
+        return fail(err)
+      }
+    }
+  )
 
   ipcMain.handle('hqsf:list-gpt-models', async () => {
     const token = getStoredToken()

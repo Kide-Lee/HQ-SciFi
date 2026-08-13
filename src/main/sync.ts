@@ -159,6 +159,21 @@ const turndown = new TurndownService({
   bulletListMarker: '-'
 })
 
+// v0.0.6：楷体与音视频拉回保留——本地 md 用受控 HTML 存储（<font face="楷体">/<audio>/<video>），
+// md2html 白名单可还原；turndown 默认会丢弃这些标签，需显式保留
+// 注：主进程 lib 无 DOM，回调参数显式 any（@types/turndown 的 Filter 引用 HTMLElement）
+turndown.addRule('kaiti', {
+  filter: (node: any) => node.nodeName === 'FONT' && node.getAttribute('face') === '楷体',
+  replacement: (content: string, node: any) => {
+    const face = node.getAttribute('face') ?? '楷体'
+    return `<font face="${face}">${content}</font>`
+  }
+})
+turndown.addRule('mediaHtml', {
+  filter: (node: any) => node.nodeName === 'AUDIO' || node.nodeName === 'VIDEO' || node.nodeName === 'SOURCE',
+  replacement: (_content: string, node: any) => node.outerHTML
+})
+
 /** Quill HTML → md（拉回本地存档用） */
 function htmlToMd(html: string): string {
   return turndown.turndown(html)

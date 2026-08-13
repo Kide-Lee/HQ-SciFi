@@ -85,6 +85,9 @@ export function VditorEditor({ docKey, mode, content, onChange }: VditorEditorPr
   const vditorRef = useRef<Vditor | null>(null)
   const [mathOpen, setMathOpen] = useState(false)
   const [mathLatex, setMathLatex] = useState('')
+  // v0.0.6：插入音乐（外链 URL 弹窗）——实测 upload/full 服务端拒绝音频上传（只允许图片/视频），音频走外链方案
+  const [audioOpen, setAudioOpen] = useState(false)
+  const [audioUrl, setAudioUrl] = useState('')
 
   /** 公式弹窗确认：插入块级公式 $$…$$（经 Vditor 渲染为 KaTeX 公式块） */
   function handleInsertMath(): void {
@@ -103,6 +106,53 @@ export function VditorEditor({ docKey, mode, content, onChange }: VditorEditorPr
     }
     setMathOpen(false)
     setMathLatex('')
+  }
+
+  /**
+   * v0.0.6：插入媒体（图片/视频）——选择本地文件 → 主进程上传（upload/full）→ 在光标处插入。
+   * 图片插 md 语法 ![](url)；视频插受控 HTML（<video>）。音频服务端不支持上传，走 handleInsertAudio（外链 URL）。
+   */
+  async function handleUploadMedia(kind: 'image' | 'video'): Promise<void> {
+    const filters =
+      kind === 'image'
+        ? [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'] }]
+        : [{ name: '视频', extensions: ['mp4', 'webm', 'mov', 'mkv', 'avi'] }]
+    const res = await window.hqsf.uploadMedia(filters)
+    if (!res.ok) {
+      window.alert(res.error ?? '上传失败')
+      return
+    }
+    if (!res.data) return // 用户取消选择
+    const { url, filename } = res.data
+    const name = filename.replace(/\.[^.]+$/, '') || '媒体'
+    const insert = kind === 'image' ? `![${name}](${url})` : `<video controls src="${url}"></video>`
+    const vditor = vditorRef.current
+    if (!vditor) return
+    try {
+      vditor.focus()
+    } catch {
+      // 忽略
+    }
+    if (vditor.vditor) {
+      vditor.insertValue(insert, true)
+    }
+  }
+
+  /** v0.0.6：插入音乐（外链 URL）——弹窗输入音频链接，插入 <audio controls src="..."> */
+  function handleInsertAudio(): void {
+    const url = audioUrl.trim()
+    const vditor = vditorRef.current
+    if (!url || !vditor) return
+    try {
+      vditor.focus()
+    } catch {
+      // 忽略
+    }
+    if (vditor.vditor) {
+      vditor.insertValue(`<audio controls src="${url}"></audio>`, true)
+    }
+    setAudioOpen(false)
+    setAudioUrl('')
   }
 
   useEffect(() => {
@@ -139,13 +189,23 @@ export function VditorEditor({ docKey, mode, content, onChange }: VditorEditorPr
       toolbar: [
         'headings',
         'bold',
-        'italic',
+        // v0.0.6：取消斜体按钮，以「楷体」替代（选中文字转为楷体，生成 <font face="楷体">）
+        {
+          name: 'kaiti',
+          icon: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>',
+          tip: '楷体（替代斜体）',
+          click: () => {
+            // Vditor 工具栏 mousedown 已 preventDefault，编辑器选区得以保留；Chromium 的
+            // execCommand('fontName') 生成 <font face="楷体">…</font>，与本地 md 存储格式一致
+            document.execCommand('fontName', false, '楷体')
+          }
+        },
         'strike',
         'link',
         '|',
         'list',
         'ordered-list',
-        'check',
+        // v0.0.6：取消任务列表按钮
         '|',
         'quote',
         'line',
@@ -160,6 +220,32 @@ export function VditorEditor({ docKey, mode, content, onChange }: VditorEditorPr
             // Electron 渲染层不支持 window.prompt，用 React 弹窗输入 LaTeX；
             // 插入走 vditorRef（effect 里的 Vditor 实例，含 insertValue；click 回调参数是 IVditor 无此方法）
             setMathOpen(true)
+          }
+        },
+        // v0.0.6：插入媒体（图片/音乐/视频）——本地文件上传 upload/full 后插入
+        {
+          name: 'upload-image',
+          icon: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>',
+          tip: '插入图片',
+          click: () => {
+            void handleUploadMedia('image')
+          }
+        },
+        {
+          name: 'upload-music',
+          icon: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+          tip: '插入音乐（外链链接；服务端不支持音频上传）',
+          click: () => {
+            // 实测 upload/full 只允许图片/视频，音频走外链 URL 方案
+            setAudioOpen(true)
+          }
+        },
+        {
+          name: 'upload-video',
+          icon: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg>',
+          tip: '插入视频',
+          click: () => {
+            void handleUploadMedia('video')
           }
         },
         'table',
@@ -251,6 +337,36 @@ export function VditorEditor({ docKey, mode, content, onChange }: VditorEditorPr
                   取消
                 </button>
                 <button className="toolbar-btn primary" onClick={handleInsertMath} disabled={!mathLatex.trim()}>
+                  插入
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+      {/* v0.0.6：插入音乐（外链 URL）弹窗——服务端不支持音频上传（实测 upload/full 只允许图片/视频） */}
+      {audioOpen &&
+        createPortal(
+          <div className="math-dialog-mask" onClick={() => setAudioOpen(false)}>
+            <div className="math-dialog" onClick={(e) => e.stopPropagation()}>
+              <h3>插入音乐</h3>
+              <p className="muted">荒启服务端暂不支持音频上传，请粘贴音频文件的网络链接（mp3/wav 等）。</p>
+              <input
+                autoFocus
+                type="url"
+                value={audioUrl}
+                onChange={(e) => setAudioUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleInsertAudio()
+                  if (e.key === 'Escape') setAudioOpen(false)
+                }}
+                placeholder="https://example.com/audio.mp3"
+              />
+              <div className="math-dialog-actions">
+                <button className="toolbar-btn" onClick={() => setAudioOpen(false)}>
+                  取消
+                </button>
+                <button className="toolbar-btn primary" onClick={handleInsertAudio} disabled={!audioUrl.trim()}>
                   插入
                 </button>
               </div>
