@@ -52,6 +52,13 @@ interface EditorState {
    */
   externalContent: { md: string; seq: number } | null
   applyExternalContent: (md: string) => void
+  /**
+   * v0.0.6：公式编辑弹窗状态——open 是否打开、value 当前 LaTeX、pos 编辑目标节点位置（null=插入新模式）。
+   * 由 MilkdownToolbar「公式」按钮打开（插入）；由 MilkdownEditor 监听 NodeSelection 打开（编辑）。
+   */
+  mathModal: { open: boolean; value: string; pos: number | null }
+  openMathModal: (value: string, pos: number | null) => void
+  closeMathModal: () => void
 }
 
 /** 本地即时保存防抖（ms） */
@@ -151,6 +158,9 @@ export const useEditorStore = create<EditorState>((set, get) => {
 
     setCurrentDir: (currentDir) => set({ currentDir }),
     externalContent: null,
-    applyExternalContent: (md) => set((s) => ({ externalContent: { md, seq: (s.externalContent?.seq ?? 0) + 1 } }))
+    applyExternalContent: (md) => set((s) => ({ externalContent: { md, seq: (s.externalContent?.seq ?? 0) + 1 } })),
+    mathModal: { open: false, value: '', pos: null },
+    openMathModal: (value, pos) => set({ mathModal: { open: true, value, pos } }),
+    closeMathModal: () => set((s) => ({ mathModal: { ...s.mathModal, open: false } }))
   }
 })

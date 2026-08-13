@@ -11,7 +11,9 @@ import { MilkdownToolbar } from './MilkdownToolbar'
 import { EditorBar } from './EditorBar'
 import { kaitiSchema, toggleKaitiCommand } from '../lib/kaitiMark'
 import { mediaNode, insertMediaCommand } from '../lib/mediaNode'
+import { mathClickPlugin } from '../lib/mathClick'
 import { useEditorStore } from '../stores/editor'
+import { MathModal } from './MathModal'
 import '@milkdown/theme-nord/style.css'
 import 'katex/dist/katex.min.css'
 
@@ -56,6 +58,7 @@ function Inner({ docKey, content, onChange }: MilkdownEditorProps): React.JSX.El
         .use(commonmark)
         .use(gfm)
         .use(math)
+        .use(mathClickPlugin)
         .use(kaitiSchema)
         .use(toggleKaitiCommand)
         .use(mediaNode)
@@ -85,13 +88,56 @@ function Inner({ docKey, content, onChange }: MilkdownEditorProps): React.JSX.El
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [externalContent?.seq])
 
+  // v0.0.6：公式弹窗状态 + 确认处理（插入 math_block / 重编辑 setNodeAttribute）
+  const mathModal = useEditorStore((s) => s.mathModal)
+  const closeMathModal = useEditorStore((s) => s.closeMathModal)
+
+  function handleMathConfirm(latex: string): void {
+    if (instLoading) return
+    const editor = getInstance()
+    if (!editor) return
+    editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx)
+      if (mathModal.pos == null) {
+        // 插入新公式（块级 math_block）
+        const nodeType = view.state.schema.nodes.math_block
+        if (nodeType) view.dispatch(view.state.tr.replaceSelectionWith(nodeType.create({ value: latex })))
+      } else if (latex) {
+        // 重编辑：更新节点 attrs.value，toDOM 重绘 KaTeX
+        view.dispatch(view.state.tr.setNodeAttribute(mathModal.pos, 'value', latex))
+      } else {
+        // v0.0.7：清空编辑区确定 = 删除公式——块公式替换为空段落（留空行），行内公式直接删除
+        const pos = mathModal.pos
+        const node = view.state.doc.nodeAt(pos)
+        if (node) {
+          if (node.type.name === 'math_block') {
+            const paragraph = view.state.schema.nodes.paragraph
+            if (paragraph) view.dispatch(view.state.tr.replaceWith(pos, pos + node.nodeSize, paragraph.create()))
+          } else {
+            view.dispatch(view.state.tr.delete(pos, pos + node.nodeSize))
+          }
+        }
+      }
+      view.focus()
+    })
+    closeMathModal()
+  }
+
   return (
     <div className="md-editor-wrap">
-      {/* v0.0.6：编辑栏并入编辑器内部——第一行（新建/保存/同步/发布/违禁 + 格式按钮组 + 状态 + 模式切换）与第二行（元数据 + 字数） */}
+      {/* v0.0.6：编辑栏并入编辑器内部——第一行（保存/同步/发布/违禁 + 格式按钮组 + 字数 + 模式切换） */}
       <EditorBar formatSlot={<MilkdownToolbar />} />
       <div className="milkdown-theme-nord prose md-editor-host">
         <Milkdown />
       </div>
+      {/* v0.0.6：公式编辑弹窗（插入/重编辑；v0.0.7 起清空编辑区确定 = 删除） */}
+      <MathModal
+        open={mathModal.open}
+        value={mathModal.value}
+        editable={mathModal.pos != null}
+        onClose={closeMathModal}
+        onConfirm={handleMathConfirm}
+      />
     </div>
   )
 }

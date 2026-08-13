@@ -14,6 +14,7 @@ import { editorViewCtx } from '@milkdown/kit/core'
 import { undo, redo } from '@milkdown/kit/prose/history'
 import { toggleKaitiCommand } from '../lib/kaitiMark'
 import { insertMediaCommand, normalizeMediaInput } from '../lib/mediaNode'
+import { useEditorStore } from '../stores/editor'
 
 /**
  * 可视化模式的编辑工具栏（milkdown 命令驱动）。
@@ -63,20 +64,9 @@ export function MilkdownToolbar(): React.JSX.Element {
     if (id) run(() => insertMediaCommand.run({ tag: 'video bilibili', id }))
   }
 
-  /** v0.0.6：插入公式（LaTeX）——milkdown 官方 math 插件的 math_block 节点（KaTeX 渲染） */
+  /** v0.0.6：插入公式——打开公式弹窗（插入模式，确认后由 MilkdownEditor 插入 math_block） */
   const askMath = (): void => {
-    if (loading) return
-    const latex = window.prompt('插入公式（LaTeX，如 E=mc^2）')
-    if (!latex?.trim()) return
-    const editor = get()
-    if (!editor) return
-    editor.action((ctx) => {
-      const view = ctx.get(editorViewCtx)
-      const nodeType = view.state.schema.nodes.math_block
-      if (!nodeType) return
-      view.dispatch(view.state.tr.replaceSelectionWith(nodeType.create({ value: latex.trim() })))
-      view.focus()
-    })
+    useEditorStore.getState().openMathModal('', null)
   }
 
   interface Btn {
@@ -104,15 +94,14 @@ export function MilkdownToolbar(): React.JSX.Element {
       { title: '有序列表', icon: <ListOrdered size={14} />, action: () => run(() => wrapInOrderedListCommand.run()) },
       { title: '代码块', icon: <Code2 size={14} />, action: () => run(() => createCodeBlockCommand.run()) },
       { title: '分割线', icon: <Minus size={14} />, action: () => run(() => insertHrCommand.run()) },
-      { title: '清除格式', icon: <RemoveFormatting size={14} />, action: () => run(() => turnIntoTextCommand.run()) },
-      // v0.0.6：插入公式（LaTeX，KaTeX 渲染）
-      { title: '公式', icon: <Sigma size={14} />, action: askMath }
+      { title: '清除格式', icon: <RemoveFormatting size={14} />, action: () => run(() => turnIntoTextCommand.run()) }
     ],
     [
-      // v0.0.6：插入媒体——图片/音乐/视频归为一组（荒启标签语法）
+      // v0.0.6：插入媒体——图片/音乐/视频/公式归为一组（荒启标签语法；公式走 KaTeX）
       { title: '插入图片', icon: <Image size={14} />, action: () => void askImage() },
       { title: '插入音乐', icon: <Music size={14} />, action: askMusic },
-      { title: '插入视频', icon: <Video size={14} />, action: askVideo }
+      { title: '插入视频', icon: <Video size={14} />, action: askVideo },
+      { title: '公式', icon: <Sigma size={14} />, action: askMath }
     ],
     [
       {
