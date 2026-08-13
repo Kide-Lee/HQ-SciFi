@@ -12,8 +12,9 @@
 
 ## 功能特性
 
-- **写作**：本地 Markdown 编辑（CodeMirror 6，自动保存 + Ctrl+S），草稿 / 待审核 / 已发布 / 已拒绝四态管理，一键与荒启草稿箱同步、发布；写作首页本地存档以文章卡片展示（文件夹组织 + 面包屑导航 + 按编辑时间 / 字数排序），删除移入系统回收站（可恢复），正文配图随同步下载到本地 `.image` 目录并在推送时自动上传
+- **写作**：本地编辑双模式——**可视化**（milkdown 所见即所得，工具栏支持粗体/楷体/标题/列表/引用/公式/音乐/视频/图片）与**源码**（CodeMirror 6），自动保存 + Ctrl+S；草稿 / 待审核 / 已发布 / 已拒绝四态管理，一键与荒启草稿箱同步、发布（发布表单：类型 / 标签 / 活动 / 公开阅读，字数 3000–33000 限制）；**远端文章可直接「编辑」「转存为草稿」拉到本地编辑**；写作首页本地存档以文章卡片展示（文件夹组织 + 面包屑导航 + 按编辑时间 / 字数排序），删除移入系统回收站（可恢复），正文配图随同步下载到本地 `.image` 目录并在推送时自动上传
 - **阅读**：推荐（精选 / AI 模型 / 首页置顶与内容流）、连载（推荐合集 / 推荐连载）、练笔活动（近期活动 / 活动树展开文章）、作品库五大栏目；正文安全净化渲染；列表排序支持评分 / 点赞 / 评论 / 阅读 / 字数 / 时间 / 回复，全部可倒序（↑/↓），并列排名同名次
+- **搜索 / 替换**：任意界面 **Ctrl+F** 调出右栏搜索（Word 导航窗格版式）——文章页正文高亮跳转、编辑器支持批量 / 逐个 / 正则替换、写作首页与栏目列表搜标题 / 摘要直达
 - **评审**：接入官方五维评审体系（设定 / 文笔 / 人物 / 情节 / 思想性）；「我的评审 / 所有评审」双视图，可随时编辑自己的评审；所有评审按时间 / 评分 / 开心 / 有用 / 认真排序 + 倒序；评审栏与正文可拖动分栏（默认 1:2）、字号与正文一致、编辑框随内容自动增高、实时平均分预示、评者头像
 - **活动**：活动按钮红点提示未完成评审任务；进行中 / 评审中活动带状态标记，且其文章不进入评分榜、不显示评分与排名
 - **界面与交互**：无边框自绘顶栏（页面标题居中 / 窗口控件 / 返回列表，顶栏与左栏空白处可拖动窗口）；左栏可折叠、宽度可调（目录 / 文件树展开收起带动画）；阅读页右栏「目录 / 评论 / 评审」一体 tab，评论与评审双向联动（同一评审的评论聚合、跳转对应评审、回复评审），评审评论内嵌于评审卡片、态度反应 emoji 化；互动按钮悬浮文章右下角（投币 / 点赞 / 收藏 / 分享 + 置顶）；文章卡片高度统一、封面加载失败占位兜底、摘要区居中 / 无摘要提示
@@ -33,11 +34,13 @@
 
 | 平台 | 文件 |
 | --- | --- |
-| Windows | [hq-scifi.Setup.0.0.5.exe](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.5/hq-scifi.Setup.0.0.5.exe) |
-| Linux | [hq-scifi-0.0.5.AppImage](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.5/hq-scifi-0.0.5.AppImage)（无需安装，直接运行） |
-| Linux | [hq-scifi_0.0.5_amd64.deb](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.5/hq-scifi_0.0.5_amd64.deb)（Debian/Ubuntu 系） |
+| Windows | [hq-scifi.Setup.0.0.6.exe](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.6/hq-scifi.Setup.0.0.6.exe) |
+| Linux | [hq-scifi-0.0.6.AppImage](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.6/hq-scifi-0.0.6.AppImage)（无需安装，直接运行） |
+| Linux | [hq-scifi_0.0.6_amd64.deb](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.6/hq-scifi_0.0.6_amd64.deb)（Debian/Ubuntu 系） |
+| macOS | [hq-scifi-0.0.6-arm64.dmg](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.6/hq-scifi-0.0.6-arm64.dmg)（Apple Silicon，M 系列） |
+| macOS | [hq-scifi-0.0.6-x64.dmg](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.6/hq-scifi-0.0.6-x64.dmg)（Intel） |
 
-> **v0.0.5**：写作体验大改——写作首页本地存档（文件夹组织 + 面包屑导航 + 按编辑时间/字数排序 + 摘要区居中 / 无摘要提示、删除移入系统回收站）、左栏递归文件树、文章配图随同步下载到本地并在发布时自动上传（`.image` 隐藏目录）；评审与评论卡片两行头部布局、评审态度 emoji 反应、评审评论并入评审卡片内嵌评论区；右栏收起展开动画、正文音乐不因边栏操作中断等；**v0.0.4**：无边框窗口与自绘顶栏（页面标题居中 / 窗口控件 / 返回列表）、左栏图标与折叠调宽、阅读页右栏 tab 化（目录 / 评论 / 评审）与评论-评审双向联动、互动悬浮按钮、写作首页本地存档、文章卡片统一高度、图片加载失败兜底等；**v0.0.3**：v0.0.2 样式改进交付（排序倒序 / 字数 / 并列排名、栏目首页、活动树与红点、评审「我的 / 所有评审」与编辑、拖动分栏、活动卡片统计等）；**v0.0.2**：修复 Windows 版无法打开界面的问题（Linux 交叉打包时原生模块 `better-sqlite3` 误打包为 Linux 版二进制，现自动注入 Windows 版 prebuild）。更新日志见 [doc/CHANGELOG.md](doc/CHANGELOG.md) 与 [Releases](https://github.com/Kide-Lee/HQ-SciFi/releases)。
+> **v0.0.6**：编辑器升级为**可视化编辑（milkdown 所见即所得）+ 源码**双模式，编辑栏重构（发布表单 / 元数据 frontmatter / 字数限制 / 楷体 / 插入公式·音乐·视频·图片）；右栏全局化并新增**全局搜索 / 替换**（Ctrl+F，Word 导航窗格版式）；远端文章可直接「**编辑**」「**转存为草稿**」拉到本地（写作闭环补齐）；搜索高亮与骨架屏等交互打磨；**新增 macOS 支持**（dmg + zip，x64 + arm64）。**v0.0.5**：写作体验大改——写作首页本地存档（文件夹组织 + 面包屑导航 + 按编辑时间/字数排序 + 摘要区居中 / 无摘要提示、删除移入系统回收站）、左栏递归文件树、文章配图随同步下载到本地并在发布时自动上传（`.image` 隐藏目录）；评审与评论卡片两行头部布局、评审态度 emoji 反应、评审评论并入评审卡片内嵌评论区；右栏收起展开动画、正文音乐不因边栏操作中断等；**v0.0.4**：无边框窗口与自绘顶栏（页面标题居中 / 窗口控件 / 返回列表）、左栏图标与折叠调宽、阅读页右栏 tab 化（目录 / 评论 / 评审）与评论-评审双向联动、互动悬浮按钮、写作首页本地存档、文章卡片统一高度、图片加载失败兜底等；**v0.0.3**：v0.0.2 样式改进交付（排序倒序 / 字数 / 并列排名、栏目首页、活动树与红点、评审「我的 / 所有评审」与编辑、拖动分栏、活动卡片统计等）；**v0.0.2**：修复 Windows 版无法打开界面的问题（Linux 交叉打包时原生模块 `better-sqlite3` 误打包为 Linux 版二进制，现自动注入 Windows 版 prebuild）。更新日志见 [doc/CHANGELOG.md](doc/CHANGELOG.md) 与 [Releases](https://github.com/Kide-Lee/HQ-SciFi/releases)。
 
 ### 从源码构建
 
@@ -60,8 +63,8 @@ npm run build:mac    # 打包 macOS（dmg + zip，x64 + arm64，dist/）
 
 ## 使用
 
-1. 启动客户端，使用荒启账号登录（账号密码 / 手机验证码），登录后自动恢复会话、免重复登录
-2. **写作**：左侧「写作」→ 新建草稿 → 编辑（自动保存）→ 「同步到草稿」或「发布」（发布后进入官方审核流程，审核通过即公开）
+1. 启动客户端，使用荒启账号登录（账号密码），登录后自动恢复会话、免重复登录
+2. **写作**：左侧「写作」→ 新建草稿 → 编辑（自动保存）→ 「同步到草稿」或「发布」（发布表单填写类型 / 标签后提交，发布后进入官方审核流程，审核通过即公开）
 3. **阅读**：通过左侧栏目（推荐 / 连载 / 活动 / 作品库）浏览文章，点击卡片进入阅读
 4. **评审**：打开他人文章 → 「✎ 评审这篇文章」→ 填写五维评分与评语 → 提交
 
@@ -78,7 +81,7 @@ npm run build:mac    # 打包 macOS（dmg + zip，x64 + arm64，dist/）
 
 ## 技术栈
 
-Electron 34 · React 19 · TypeScript · Vite 7（electron-vite 5）· CodeMirror 6 · Zustand · better-sqlite3 · lucide-react（图标）· electron-builder 26
+Electron 34 · React 19 · TypeScript · Vite 7（electron-vite 5）· Milkdown 7（ProseMirror 可视化编辑）· CodeMirror 6 · Zustand · better-sqlite3 · lucide-react（图标）· electron-builder 26
 
 ## 免责声明
 
