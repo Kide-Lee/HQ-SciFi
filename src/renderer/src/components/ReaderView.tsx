@@ -100,7 +100,7 @@ function BelongTags({ detail }: { detail: ArticleDetail }): React.JSX.Element | 
   )
 }
 
-/** 阅读视图：远端文章 HTML 正文 + 元信息；评审面板挂在右侧（v0.0.2 可拖动分栏，默认评审:正文 ≈ 1:2） */
+/** 阅读视图：远端文章 HTML 正文 + 元信息；右栏（目录/评论/评审/搜索）挂在右侧（v0.0.7：可拖动分栏由通用 RightPanel 内置） */
 export function ReaderView(): React.JSX.Element {
   const detail = useReaderStore((s) => s.detail)
   const detailLoading = useReaderStore((s) => s.detailLoading)
@@ -111,39 +111,6 @@ export function ReaderView(): React.JSX.Element {
   // v0.0.3：右栏（目录/评论/评审/搜索）展开与 tab 由 ui store 管理（顶栏「展开右栏」按钮切换；v0.0.6+ 全局单份）
   const panelOpen = useUiStore((s) => s.panelOpen)
   const panelTab = useUiStore((s) => s.panelTab)
-
-  // v0.0.2：评审栏宽度比例（评审:总宽），默认 1/3（正文:评审 = 2:1），localStorage 持久化
-  const [splitRatio, setSplitRatio] = useState<number>(() => {
-    const v = Number(localStorage.getItem('reader-split-ratio'))
-    return v >= 0.2 && v <= 0.6 ? v : 1 / 3
-  })
-  // v0.0.6：拖动分栏中（禁用右栏宽度过渡，保证实时跟手）
-  const [panResizing, setPanResizing] = useState(false)
-  const layoutRef = useRef<HTMLDivElement | null>(null)
-
-  useEffect(() => {
-    localStorage.setItem('reader-split-ratio', String(splitRatio))
-  }, [splitRatio])
-
-  // 拖动分栏
-  function onDividerDown(e: React.MouseEvent): void {
-    e.preventDefault()
-    setPanResizing(true)
-    const onMove = (ev: MouseEvent): void => {
-      const layout = layoutRef.current
-      if (!layout) return
-      const rect = layout.getBoundingClientRect()
-      if (rect.width <= 0) return
-      setSplitRatio(Math.min(0.6, Math.max(0.2, (rect.right - ev.clientX) / rect.width)))
-    }
-    const onUp = (): void => {
-      setPanResizing(false)
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
-    }
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
-  }
 
   const safeHtml = useMemo(() => (detail ? expandMediaTags(sanitizeHtml(detail.text)) : ''), [detail])
   // v0.0.6：稳定引用（详见 article dangerouslySetInnerHTML 注释）——右栏/边栏操作 re-render 时
@@ -295,7 +262,7 @@ export function ReaderView(): React.JSX.Element {
 
   return (
     <main className="main-area">
-      <div className="reader-layout" ref={layoutRef}>
+      <div className="reader-layout">
         <div className="reader-main">
           <header className="reader-header">
             {/* v0.0.2：左侧内容区（标题 + meta + 归属标签） */}
@@ -362,18 +329,8 @@ export function ReaderView(): React.JSX.Element {
           {/* v0.0.3：互动悬浮按钮组（投币/点赞/收藏/分享 + 置顶，右下角）；返回列表已移到顶栏 */}
           <ReaderInteractions detail={detail} />
         </div>
-        {panelOpen && (
-          <div className="reader-divider" onMouseDown={onDividerDown} title="拖动调整正文与右栏比例" />
-        )}
-        {/* v0.0.6：右栏常驻渲染（通用 RightPanel），宽度由 collapsed 控制（0 ↔ 分栏比例），收起/展开带过渡动画 */}
-        <RightPanel
-          tabs={tabs}
-          activeTab={panelTab}
-          onTabChange={setPanelTab}
-          open={panelOpen}
-          splitRatio={splitRatio}
-          dragging={panResizing}
-        />
+        {/* v0.0.6：右栏常驻渲染（通用 RightPanel）；v0.0.7 可拖动分隔条已内置（展开时显示） */}
+        <RightPanel tabs={tabs} activeTab={panelTab} onTabChange={setPanelTab} open={panelOpen} />
       </div>
     </main>
   )
