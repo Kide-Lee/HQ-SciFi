@@ -10,7 +10,7 @@ import { ReaderInteractions } from './ReaderInteractions'
 import { RightPanel, type RightTab } from './RightPanel'
 import { SearchPanel } from './SearchPanel'
 import { buildRegex } from '../lib/searchText'
-import { jumpToMatchIn } from '../lib/searchJump'
+import { clearSearchMarks, jumpToSearchMark, setActiveSearchMark, wrapSearchMatches } from '../lib/searchJump'
 import { ArrowDown, ArrowUp, MessageCircle, PenLine, X } from 'lucide-react'
 import type { ArticleDetail, CommentItem, MetaRef, ReviewItem, ReviewPayload } from '../../../shared/types'
 
@@ -111,6 +111,10 @@ export function ReaderView(): React.JSX.Element {
   // v0.0.3：右栏（目录/评论/评审/搜索）展开与 tab 由 ui store 管理（顶栏「展开右栏」按钮切换；v0.0.6+ 全局单份）
   const panelOpen = useUiStore((s) => s.panelOpen)
   const panelTab = useUiStore((s) => s.panelTab)
+  // v0.0.7+：搜索词/正则/活动序号（与 SearchPanel 共享，驱动正文高亮）
+  const searchQuery = useUiStore((s) => s.searchQuery)
+  const searchRegex = useUiStore((s) => s.searchRegex)
+  const searchActive = useUiStore((s) => s.searchActive)
 
   const safeHtml = useMemo(() => (detail ? expandMediaTags(sanitizeHtml(detail.text)) : ''), [detail])
   // v0.0.6：稳定引用（详见 article dangerouslySetInnerHTML 注释）——右栏/边栏操作 re-render 时
@@ -150,6 +154,27 @@ export function ReaderView(): React.JSX.Element {
     setToc(items)
   }, [safeHtml, detail?.cid])
 
+  // v0.0.7+：正文搜索正则（与 SearchPanel 同源；无效正则时 null → 不匹配不高亮）
+  const searchRe = useMemo(() => buildRegex(searchQuery, searchRegex), [searchQuery, searchRegex])
+
+  // v0.0.7+：正文搜索高亮——词/正则/正文变化时清除旧标记、包裹全部匹配为
+  // <mark class="search-highlight">，并按当前活动序号强调对应匹配与所在段落。
+  // 注意：article 的 dangerouslySetInnerHTML 传稳定引用，React 不会重写 innerHTML，
+  // 这里直接改 DOM 的高亮标记可跨渲染保留（正文音乐 iframe 不受影响）。
+  useEffect(() => {
+    const body = bodyRef.current
+    if (!body) return
+    clearSearchMarks(body)
+    if (searchRe) wrapSearchMatches(body, searchRe)
+    setActiveSearchMark(body, useUiStore.getState().searchActive)
+  }, [safeHtml, searchRe])
+
+  // v0.0.7+：活动匹配变化（上一处/下一处/点击结果）→ 移动强调标记与段落高亮
+  useEffect(() => {
+    const body = bodyRef.current
+    if (body) setActiveSearchMark(body, searchActive)
+  }, [searchActive, safeHtml, searchRe])
+
   function jumpTo(idx: number): void {
     const body = bodyRef.current
     const scroller = body?.closest('.reader-main')
@@ -187,10 +212,10 @@ export function ReaderView(): React.JSX.Element {
   const commentsTotal = useReaderStore((s) => s.commentsTotal)
   const reviewsCount = useReaderStore((s) => s.reviews.length)
   const hasToc = toc.length > 0
-  // v0.0.6+：正文搜索跳转（与 SearchPanel 同一正则，按索引定位正文 DOM）
+  // v0.0.7+：正文搜索跳转——滚动到第 idx 个高亮匹配（与结果列表同序；无标记时回退偏移映射）
   const jumpToSearch = (idx: number): void => {
     const u = useUiStore.getState()
-    jumpToMatchIn(bodyRef.current, buildRegex(u.searchQuery, u.searchRegex), idx)
+    jumpToSearchMark(bodyRef.current, idx, buildRegex(u.searchQuery, u.searchRegex))
   }
   const tabs: Array<RightTab<'toc' | 'comments' | 'review' | 'search'>> = [
     ...(hasToc

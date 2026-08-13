@@ -34,3 +34,8 @@ export function contextOf(text: string, start: number, end: number): string {
   const to = Math.min(text.length, end + 22)
   return `${from > 0 ? '…' : ''}${text.slice(from, to).replace(/\s+/g, ' ')}${to < text.length ? '…' : ''}`
 }
+
+/** 序号取模回绕（上一处/下一处越界时循环；total 为 0 时返回 0） */
+export function wrapIndex(i: number, total: number): number {
+  return total === 0 ? 0 : ((i % total) + total) % total
+}

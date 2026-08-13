@@ -8,8 +8,11 @@ import { formatSize, formatTs, expandMediaTags } from '../lib/sanitize'
 import { renderMdPreview } from '../lib/mdPreview'
 import { RightPanel, type RightTab } from './RightPanel'
 import { SearchPanel } from './SearchPanel'
-import { buildRegex } from '../lib/searchText'
-import { jumpToMatchIn } from '../lib/searchJump'
+import { EditorPreview } from './EditorPreview'
+import { editorSearchParams, refreshEditorSearch, scrollToActiveSearch } from '../lib/editorSearch'
+import { sourceSearchParams, refreshSourceSearch, scrollToSourceMatch } from '../lib/sourceSearch'
+import type { EditorView } from '@milkdown/prose/view'
+import type { EditorView as CMEditorView } from '@codemirror/view'
 import type { LocalNode } from '../../../shared/types'
 import { MilkdownEditor } from './MilkdownEditor'
 import { SplitEditor } from './SplitEditor'
@@ -52,6 +55,39 @@ export function EditorPane(): React.JSX.Element {
   const panelOpen = useUiStore((s) => s.panelOpen)
   const panelTab = useUiStore((s) => s.panelTab)
   const setPanelTab = useUiStore((s) => s.setPanelTab)
+  // v0.0.7+：搜索词/正则/活动序号（与 SearchPanel 共享，驱动 WYSIWYG 装饰与源码高亮）
+  const searchQuery = useUiStore((s) => s.searchQuery)
+  const searchRegex = useUiStore((s) => s.searchRegex)
+  const searchActive = useUiStore((s) => s.searchActive)
+  // v0.0.7+：WYSIWYG 的 ProseMirror view 句柄（搜索装饰刷新/滚动用；切换模式即失效）
+  const pmViewRef = useRef<EditorView | null>(null)
+  // v0.0.7+：源码模式的 CodeMirror view 句柄（源码搜索高亮/滚动用；切换模式即失效）
+  const cmViewRef = useRef<CMEditorView | null>(null)
+  useEffect(() => {
+    if (mode !== 'wysiwyg') pmViewRef.current = null
+    if (mode !== 'split') cmViewRef.current = null
+  }, [mode])
+
+  // v0.0.7+：搜索词/正则变化 → 同步参数并刷新 WYSIWYG 装饰与源码高亮
+  useEffect(() => {
+    const active = useUiStore.getState().searchActive
+    editorSearchParams.query = searchQuery
+    editorSearchParams.regex = searchRegex
+    editorSearchParams.active = active
+    sourceSearchParams.query = searchQuery
+    sourceSearchParams.regex = searchRegex
+    sourceSearchParams.active = active
+    if (mode === 'wysiwyg' && pmViewRef.current) refreshEditorSearch(pmViewRef.current)
+    if (mode === 'split' && cmViewRef.current) refreshSourceSearch(cmViewRef.current)
+  }, [searchQuery, searchRegex, mode])
+
+  // v0.0.7+：活动序号变化 → 刷新高亮（滚动定位由 jumpToSearch 负责，避免输入时意外滚动）
+  useEffect(() => {
+    editorSearchParams.active = searchActive
+    sourceSearchParams.active = searchActive
+    if (mode === 'wysiwyg' && pmViewRef.current) refreshEditorSearch(pmViewRef.current)
+    if (mode === 'split' && cmViewRef.current) refreshSourceSearch(cmViewRef.current)
+  }, [searchActive, mode])
   // v0.0.6：新建文件夹输入框状态
   const [showNewDir, setShowNewDir] = useState(false)
   const [newDirName, setNewDirName] = useState('')
@@ -193,18 +229,20 @@ export function EditorPane(): React.JSX.Element {
   // v0.0.6：编辑器右栏 tabs——预览（仅源码模式）/ 目录（正文有标题时）/ 搜索（基础 tab）；
   // 单 tab 无 tab 栏、零 tab 不渲染（RightPanel 内置），顶栏按钮据此联动
   const applyExternalContent = useEditorStore((s) => s.applyExternalContent)
-  /** v0.0.6+：编辑器搜索跳转——SV 模式切预览 tab 后在预览 DOM 定位；WYSIWYG 在 milkdown DOM 定位 */
+  /** v0.0.7+：编辑器搜索跳转——SV 模式滚动源码编辑器中的匹配（不再切预览）；
+   *  WYSIWYG 刷新装饰并滚动活动匹配 */
   const jumpToSearch = (idx: number): void => {
-    const u = useUiStore.getState()
-    const re = buildRegex(u.searchQuery, u.searchRegex)
     if (mode === 'split') {
-      setPanelTab('preview')
-      setTimeout(() => {
-        jumpToMatchIn(document.querySelector('.editor-pane .reader-panel .editor-preview-body'), re, idx)
-      }, 150)
+      if (!cmViewRef.current) return
+      sourceSearchParams.active = idx
+      refreshSourceSearch(cmViewRef.current)
+      scrollToSourceMatch(cmViewRef.current)
       return
     }
-    jumpToMatchIn(document.querySelector('.editor-pane .milkdown-theme-nord'), re, idx)
+    if (!pmViewRef.current) return
+    editorSearchParams.active = idx
+    refreshEditorSearch(pmViewRef.current)
+    scrollToActiveSearch(pmViewRef.current)
   }
   const editorTabs: Array<RightTab<'preview' | 'toc' | 'search'>> = [
     ...(mode === 'split'
@@ -212,14 +250,7 @@ export function EditorPane(): React.JSX.Element {
           {
             key: 'preview' as const,
             label: '预览',
-            content: (
-              <div className="reader-panel-scroll">
-                <div
-                  className="reader-body editor-preview-body"
-                  dangerouslySetInnerHTML={{ __html: previewHtml }}
-                />
-              </div>
-            )
+            content: <EditorPreview html={previewHtml} />
           }
         ]
       : []),
@@ -326,9 +357,25 @@ export function EditorPane(): React.JSX.Element {
         <div className="editor-main">
           {currentPath ? (
             mode === 'wysiwyg' ? (
-              <MilkdownEditor docKey={currentPath} content={content} onChange={update} />
+              <MilkdownEditor
+                docKey={currentPath}
+                content={content}
+                onChange={update}
+                onViewReady={(view) => {
+                  // 防陈旧实例：视图已脱离文档（卸载/StrictMode 重挂）则丢弃
+                  if (view.dom.isConnected) pmViewRef.current = view
+                }}
+              />
             ) : (
-              <SplitEditor docKey={currentPath} content={content} onChange={update} />
+              <SplitEditor
+                docKey={currentPath}
+                content={content}
+                onChange={update}
+                onViewReady={(view) => {
+                  // 防陈旧实例：视图已脱离文档（卸载/StrictMode 重挂）则丢弃
+                  if (view.dom.isConnected) cmViewRef.current = view
+                }}
+              />
             )
           ) : (
             /* v0.0.6：写作首页——本地存档目录导航 + 文章卡片 */

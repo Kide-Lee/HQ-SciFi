@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowDown, ArrowUp, Replace, Search, X } from 'lucide-react'
 import { useUiStore } from '../stores/ui'
-import { buildRegex, contextOf, findMatches } from '../lib/searchText'
+import { buildRegex, contextOf, findMatches, wrapIndex } from '../lib/searchText'
 
 /**
  * v0.0.6+：右栏基础功能「搜索」（Ctrl+F 调出），版式类似 Word 导航窗格-查找与替换。
@@ -31,11 +31,6 @@ interface SearchPanelProps {
   onReplace?: (newText: string) => void
 }
 
-/** 当前匹配项在列表中的序号（1-based），跳转/逐个替换用 */
-function matchNo(i: number, total: number): number {
-  return total === 0 ? 0 : ((i % total) + total) % total
-}
-
 export function SearchPanel({
   text,
   items,
@@ -48,12 +43,14 @@ export function SearchPanel({
   const setQuery = useUiStore((s) => s.setSearchQuery)
   const regex = useUiStore((s) => s.searchRegex)
   const setRegex = useUiStore((s) => s.setSearchRegex)
+  // v0.0.7+：活动匹配序号入全局 ui store——与视图的正文高亮共享（上一处/下一处/点击结果联动）
+  const searchActive = useUiStore((s) => s.searchActive)
+  const setSearchActive = useUiStore((s) => s.setSearchActive)
   const [replaceText, setReplaceText] = useState('')
-  const [activeRaw, setActiveRaw] = useState(0)
   const inputRef = useRef<HTMLInputElement | null>(null)
 
-  // 词变化时回到第一个匹配
-  useEffect(() => setActiveRaw(0), [query, regex, text, items])
+  // 词/数据源变化时回到第一个匹配
+  useEffect(() => setSearchActive(0), [query, regex, text, items, setSearchActive])
 
   // 聚焦查找框（Ctrl+F 调出时）
   useEffect(() => {
@@ -75,17 +72,19 @@ export function SearchPanel({
   }, [items, re])
 
   const total = text !== undefined ? textMatches.length : itemMatches.length
-  const active = matchNo(activeRaw, total)
+  const active = wrapIndex(searchActive, total)
 
-  /** 上一个 / 下一个 */
+  /** v0.0.7+：上一个/下一个——更新活动序号并像点击结果一样触发定位（onJump） */
   function step(delta: number): void {
     if (total === 0) return
-    setActiveRaw((i) => i + delta)
+    const next = wrapIndex(searchActive + delta, total)
+    setSearchActive(next)
+    onJump?.(next)
   }
 
   /** 跳转当前匹配 */
   function go(idx: number): void {
-    setActiveRaw(idx)
+    setSearchActive(idx)
     onJump?.(idx)
   }
 
@@ -100,7 +99,7 @@ export function SearchPanel({
     // 逐个：替换第 active 个匹配（从后往前替换避免索引漂移）
     const matches = findMatches(text, new RegExp(re.source, 'gi'))
     if (matches.length === 0) return
-    const target = matches[matchNo(active, matches.length)]
+    const target = matches[wrapIndex(active, matches.length)]
     if (!target) return
     const next = text.slice(0, target.start) + replaceText + text.slice(target.end)
     onReplace(next)
@@ -150,29 +149,34 @@ export function SearchPanel({
         </div>
       )}
 
-      {/* 操作行 */}
-      <div className="search-actions">
-        <button className="search-nav" onClick={() => step(-1)} title="上一个匹配（Shift+Enter）">
-          <ArrowUp size={13} /> 上一处
-        </button>
-        <button className="search-nav" onClick={() => step(1)} title="下一个匹配（Enter）">
-          <ArrowDown size={13} /> 下一处
-        </button>
-        {replaceable && (
-          <>
-            <button className="search-nav" onClick={() => doReplace(false)} title="替换当前匹配" disabled={total === 0}>
-              替换
-            </button>
-            <button className="search-nav" onClick={() => doReplace(true)} title="全部替换" disabled={total === 0}>
-              全部替换
-            </button>
-          </>
-        )}
-      </div>
+      {/* 替换操作行（仅编辑器） */}
+      {replaceable && (
+        <div className="search-actions">
+          <button className="search-nav" onClick={() => doReplace(false)} title="替换当前匹配" disabled={total === 0}>
+            替换
+          </button>
+          <button className="search-nav" onClick={() => doReplace(true)} title="全部替换" disabled={total === 0}>
+            全部替换
+          </button>
+        </div>
+      )}
 
+      {/* v0.0.7+：匹配计数行——文本居左，上一处/下一处（仅图标）居右；多于 1 处匹配时才显示按钮 */}
       <div className="search-count">
-        {query ? `${total} 处匹配` : '输入关键词查找'}
-        {total > 0 && <span className="search-active-no">（第 {active + 1} 处）</span>}
+        <span className="search-count-text">
+          {query ? `${total} 处匹配` : '输入关键词查找'}
+          {total > 0 && <span className="search-active-no">（第 {active + 1} 处）</span>}
+        </span>
+        {total > 1 && (
+          <span className="search-count-nav">
+            <button className="search-count-btn" onClick={() => step(-1)} title="上一个匹配（Shift+Enter）">
+              <ArrowUp size={14} />
+            </button>
+            <button className="search-count-btn" onClick={() => step(1)} title="下一个匹配（Enter）">
+              <ArrowDown size={14} />
+            </button>
+          </span>
+        )}
       </div>
 
       {/* 结果列表 */}

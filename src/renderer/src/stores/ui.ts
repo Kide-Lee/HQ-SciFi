@@ -63,6 +63,8 @@ interface UiState {
   /** v0.0.6+：搜索面板状态（Ctrl+F 调出；词与正则开关全局持久，切换视图不丢） */
   searchQuery: string
   searchRegex: boolean
+  /** v0.0.7+：当前活动匹配序号（0-based；SearchPanel 计数/结果列表与正文高亮共享） */
+  searchActive: number
   setSection: (section: TopSection) => void
   setSelectedId: (id: string | null) => void
   /** 打开栏目列表（作品库分类等） */
@@ -76,6 +78,7 @@ interface UiState {
   openPanelTab: (tab: string) => void
   setSearchQuery: (q: string) => void
   setSearchRegex: (v: boolean) => void
+  setSearchActive: (idx: number) => void
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -88,6 +91,7 @@ export const useUiStore = create<UiState>((set) => ({
   panelTab: 'search',
   searchQuery: '',
   searchRegex: false,
+  searchActive: 0,
   setSection: (section) => set({ section, selectedId: null, listContext: null }),
   setSelectedId: (selectedId) => set({ selectedId }),
   openList: (ctx) => set({ selectedId: ctx.title, listContext: ctx }),
@@ -103,5 +107,6 @@ export const useUiStore = create<UiState>((set) => ({
   setPanelTab: (panelTab) => set({ panelTab }),
   openPanelTab: (panelTab) => set({ panelOpen: true, panelTab }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
-  setSearchRegex: (searchRegex) => set({ searchRegex })
+  setSearchRegex: (searchRegex) => set({ searchRegex }),
+  setSearchActive: (searchActive) => set({ searchActive })
 }))

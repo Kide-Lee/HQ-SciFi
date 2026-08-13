@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { Milkdown, MilkdownProvider, useEditor, useInstance } from '@milkdown/react'
 import { Editor, rootCtx, defaultValueCtx, parserCtx, editorViewCtx } from '@milkdown/kit/core'
+import type { EditorView } from '@milkdown/prose/view'
 import { commonmark } from '@milkdown/kit/preset/commonmark'
 import { gfm } from '@milkdown/kit/preset/gfm'
 import { history } from '@milkdown/kit/plugin/history'
@@ -12,6 +13,7 @@ import { EditorBar } from './EditorBar'
 import { kaitiSchema, toggleKaitiCommand } from '../lib/kaitiMark'
 import { mediaNode, insertMediaCommand } from '../lib/mediaNode'
 import { mathClickPlugin } from '../lib/mathClick'
+import { editorSearchPlugin } from '../lib/editorSearch'
 import { useEditorStore } from '../stores/editor'
 import { MathModal } from './MathModal'
 import '@milkdown/theme-nord/style.css'
@@ -24,26 +26,30 @@ interface MilkdownEditorProps {
   content: string
   /** markdown 内容变化回调（输入即触发，由上层落盘/同步） */
   onChange: (md: string) => void
+  /** v0.0.7+：编辑器视图就绪回调（搜索高亮装饰刷新/滚动用） */
+  onViewReady?: (view: EditorView) => void
 }
 
 /**
  * 可视化（WYSIWYG）编辑模式：milkdown v7（ProseMirror 内核），
  * 输入 Markdown 语法即时渲染为富文本。内容变化经 listener 同步为 md 字符串。
  */
-export function MilkdownEditor({ docKey, content, onChange }: MilkdownEditorProps): React.JSX.Element {
+export function MilkdownEditor({ docKey, content, onChange, onViewReady }: MilkdownEditorProps): React.JSX.Element {
   return (
     <MilkdownProvider>
-      <Inner docKey={docKey} content={content} onChange={onChange} />
+      <Inner docKey={docKey} content={content} onChange={onChange} onViewReady={onViewReady} />
     </MilkdownProvider>
   )
 }
 
-function Inner({ docKey, content, onChange }: MilkdownEditorProps): React.JSX.Element {
+function Inner({ docKey, content, onChange, onViewReady }: MilkdownEditorProps): React.JSX.Element {
   // 用 ref 持有最新值：编辑器仅在 docKey 变化时重建，输入期间 content 更新不触发重建（避免丢光标）
   const contentRef = useRef(content)
   contentRef.current = content
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
+  const onViewReadyRef = useRef(onViewReady)
+  onViewReadyRef.current = onViewReady
 
   useEditor(
     (container) =>
@@ -64,14 +70,25 @@ function Inner({ docKey, content, onChange }: MilkdownEditorProps): React.JSX.El
         .use(mediaNode)
         .use(insertMediaCommand)
         .use(history)
-        .use(listener),
+        .use(listener)
+        // v0.0.7+：搜索高亮装饰（正文全部匹配 + 活动匹配/段落强调）
+        .use(editorSearchPlugin),
     [docKey]
   )
+
+  // v0.0.7+：实例就绪后把 EditorView 交给上层（搜索高亮装饰刷新/滚动）
+  const [instLoading, getInstance] = useInstance()
+  useEffect(() => {
+    if (instLoading) return
+    const editor = getInstance()
+    if (!editor) return
+    editor.action((ctx) => onViewReadyRef.current?.(ctx.get(editorViewCtx)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [instLoading, getInstance])
 
   // v0.0.6+：搜索替换注入——订阅 externalContent（seq 变化）替换整个 doc；
   // 替换经 listener 回流 onChange → store.content 与编辑器保持一致并防抖落盘
   const externalContent = useEditorStore((s) => s.externalContent)
-  const [instLoading, getInstance] = useInstance()
   useEffect(() => {
     const ext = externalContent
     if (!ext || instLoading) return
