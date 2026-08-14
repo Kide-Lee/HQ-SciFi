@@ -1,18 +1,19 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Copy, Minus, Square, X } from 'lucide-react'
 import { useAuthStore } from '../stores/auth'
+import { useUiStore } from '../stores/ui'
 import { AgreementModal } from './AgreementModal'
+import { AGREEMENT_KEY } from '../lib/agreement'
 import type { AgreementData } from '../../../shared/types'
 
 type ModalKind = 'own' | 'hq' | null
 
-/** localStorage key：已同意本应用协议版本（与协议文件版本比对，更新后需重新勾选） */
-const AGREEMENT_KEY = 'hqsf-agreement-version'
 /** localStorage key：已同意荒启平台协议 */
 const HQ_AGREEMENT_KEY = 'hqsf-hq-agreement-accepted'
 
 /**
  * 登录视图：账号密码登录（M1）。
+ * v0.0.6 起为覆盖层模态（未登录可直接浏览/写作，点右上角 ✕ 关闭）；
  * 登录前须勾选两份协议（每份先点协议名「进去看一眼」，看完才能勾选）；
  * 两份都勾上才允许点击登录按钮。已签署过的（版本匹配/有标记）自动勾选。
  */
@@ -20,6 +21,7 @@ export function LoginView(): React.JSX.Element {
   const busy = useAuthStore((s) => s.busy)
   const error = useAuthStore((s) => s.error)
   const loginPassword = useAuthStore((s) => s.loginPassword)
+  const closeLogin = useUiStore((s) => s.closeLogin)
 
   const [name, setName] = useState('')
   const [password, setPassword] = useState('')
@@ -121,6 +123,9 @@ export function LoginView(): React.JSX.Element {
         </div>
       )}
       <div className="login-card">
+        <button className="login-close" onClick={closeLogin} title="先浏览，稍后登录">
+          <X size={16} />
+        </button>
         <div className="login-brand">
           <h1>黄芪饮片</h1>
           <p className="muted">本地写作 · 一键同步 · 随时发布</p>

@@ -264,47 +264,74 @@ export async function listMyReviews(
 }
 
 /**
+ * 文章不可读的业务错误（未公开/不存在/未登录被拒等服务端明确拒绝），
+ * 区别于网络故障等传输错误。v0.0.6 起 ipc 层据此决定是否把失败包装成
+ * 「阅读全文需要登录」——网络故障不误标。
+ */
+export class ArticleUnavailableError extends Error {
+  constructor(msg?: string) {
+    super(`拉取文章失败: ${msg || '未公开或不存在'}`)
+    this.name = 'ArticleUnavailableError'
+  }
+}
+
+/**
  * 拉取文章全文原始对象（POST 编辑形态优先——作者可读自己的草稿完整正文；
  * GET 阅读形态回退——公开文章）。contentsInfo 响应不遵循 {code,msg,data} 约定：
  * 成功返回裸文章对象（以 title 字段判断），失败返回 {msg:'…'}。
  * 供阅读详情（fetchRemoteArticle）与同步引擎（sync.ts 的 fetchFullText）共用。
+ * token 可空（匿名读公开文章）：POST 是作者私有草稿专用形态，匿名者不可能是作者，
+ * 直接跳过（少一次无谓请求，也避免「POST 返回未登录 + GET 网络失败」把公开文章误标为需登录）。
  */
-export async function fetchRemoteObject(token: string, cid: string): Promise<Record<string, unknown>> {
+export async function fetchRemoteObject(token: string | null, cid: string): Promise<Record<string, unknown>> {
   const attempts: Array<() => Promise<Record<string, unknown>>> = [
-    () =>
-      apiRequest<Record<string, unknown>>(endpoint('contentsInfo').path, {
-        method: 'POST',
-        body: { key: cid, token },
-        raw: true
-      }),
+    ...(token
+      ? [
+          () =>
+            apiRequest<Record<string, unknown>>(endpoint('contentsInfo').path, {
+              method: 'POST',
+              body: { key: cid, token },
+              raw: true
+            })
+        ]
+      : []),
     () =>
       apiRequest<Record<string, unknown>>(endpoint('contentsInfo').path, {
         method: 'GET',
-        query: { key: cid, isMd: 0, token },
+        query: { key: cid, isMd: 0, ...(token ? { token } : {}) },
         raw: true
       })
   ]
   let lastError = '未知错误'
+  // 是否收到过服务端响应（哪怕不带 title）：收到过 → 服务端已确认文章不可读（业务拒绝）；
+  // 全程只有传输层异常（net.fetch 失败/非 JSON）→ 网络故障，无法判定，交由调用方区分
+  let sawServerResponse = false
   for (const attempt of attempts) {
     try {
       const obj = await attempt()
       if (obj && typeof obj.title === 'string') return obj
+      sawServerResponse = true
       lastError = typeof obj?.msg === 'string' ? obj.msg : JSON.stringify(obj).slice(0, 200)
     } catch (err) {
       lastError = (err as Error).message
     }
   }
+  if (sawServerResponse) {
+    throw new ArticleUnavailableError(lastError)
+  }
   throw new Error(`contentsInfo 拉取失败（POST/GET 均试）: ${lastError}`)
 }
 
 /**
- * 拉取文章详情（完整 HTML 正文；需登录）。POST 编辑形态优先，因此作者自己的
+ * 拉取文章详情（完整 HTML 正文）。POST 编辑形态优先，因此作者自己的
  * 草稿也可在阅读视图打开（「按文章处理」）；结果本地缓存（1 天未使用即丢弃）。
+ * v0.0.6：token 可空——未登录也允许尝试匿名读公开文章（服务端放行即可读，
+ * 被拒由 ipc 层包装成「阅读全文需要登录」提示）。
  * uid 用于区分「本人文章」：isopen=0（未公开/被隐藏）仅对非本人文章报错，
- * 本人草稿（未公开）必须可读。
+ * 本人草稿（未公开）必须可读；缓存键并入登录态（匿名/登录各自缓存）。
  */
 export async function fetchRemoteArticle(
-  token: string,
+  token: string | null,
   cid: string,
   uid?: number | string
 ): Promise<ArticleDetail> {
@@ -325,7 +352,7 @@ export async function fetchRemoteArticle(
   // 走到此处说明本次缓存未命中；deleteReadCache 是幂等兜底。
   if ((obj.isopen === 0 || obj.isopen === '0') && String(uid ?? '') !== authorId) {
     deleteReadCache(cacheKey)
-    throw new Error(`拉取文章失败: ${str(obj?.msg) || '未公开或不存在'}`)
+    throw new ArticleUnavailableError(str(obj?.msg))
   }
   const detail: ArticleDetail = {
     cid,

@@ -17,6 +17,7 @@ import type { ArticleMeta } from '../shared/frontmatter'
 import {
   addComment,
   addUserLog,
+  ArticleUnavailableError,
   fetchRemoteArticle,
   getMarkStatus,
   listCategories,
@@ -330,12 +331,19 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('hqsf:get-remote-article', async (_e, cid: string) => {
     const token = getStoredToken()
-    if (!token) return fail(new Error('未登录，无法阅读全文'))
     const rawUid = getSession()?.userinfo?.uid ?? getSession()?.userinfo?.id
     const uid = rawUid == null ? undefined : typeof rawUid === 'number' ? rawUid : String(rawUid)
     try {
+      // v0.0.6：token 可空——未登录也允许尝试匿名读公开文章
       return ok(await fetchRemoteArticle(token, String(cid), uid))
     } catch (err) {
+      // v0.0.6：仅当服务端确认文章不可读（未公开/不存在）时才提示登录；
+      // 网络故障等传输错误按原样报错，避免误标「需要登录」；
+      // 剥离 ArticleUnavailableError 自带的「拉取文章失败: 」前缀，避免与「阅读全文需要登录（…）」重复
+      if (!token && err instanceof ArticleUnavailableError) {
+        const inner = (err as Error).message.replace(/^拉取文章失败:\s*/, '')
+        return fail(new Error(`阅读全文需要登录（${inner}）`))
+      }
       return fail(err)
     }
   })

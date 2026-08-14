@@ -60,6 +60,10 @@ interface UiState {
   panelOpen: boolean
   /** 右栏当前 tab（key 由各视图 tabs 定义：文章页 toc/comments/review/search、编辑器 preview/toc/search 等） */
   panelTab: string
+  /**
+   * v0.0.6：登录模态是否打开（未登录也可浏览/写作，登录作为覆盖层从用户卡唤起）
+   */
+  loginOpen: boolean
   /** v0.0.6+：搜索面板状态（Ctrl+F 调出；词与正则开关全局持久，切换视图不丢） */
   searchQuery: string
   searchRegex: boolean
@@ -79,6 +83,8 @@ interface UiState {
   setSearchQuery: (q: string) => void
   setSearchRegex: (v: boolean) => void
   setSearchActive: (idx: number) => void
+  openLogin: () => void
+  closeLogin: () => void
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -89,6 +95,7 @@ export const useUiStore = create<UiState>((set) => ({
   sidebarCollapsed: localStorage.getItem('hqsf-sidebar-collapsed') === '1',
   panelOpen: false,
   panelTab: 'search',
+  loginOpen: false,
   searchQuery: '',
   searchRegex: false,
   searchActive: 0,
@@ -108,5 +115,7 @@ export const useUiStore = create<UiState>((set) => ({
   openPanelTab: (panelTab) => set({ panelOpen: true, panelTab }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
   setSearchRegex: (searchRegex) => set({ searchRegex }),
-  setSearchActive: (searchActive) => set({ searchActive })
+  setSearchActive: (searchActive) => set({ searchActive }),
+  openLogin: () => set({ loginOpen: true }),
+  closeLogin: () => set({ loginOpen: false })
 }))
