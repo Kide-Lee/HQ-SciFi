@@ -34,14 +34,13 @@
 
 | 平台 | 文件 |
 | --- | --- |
+| Windows | [hq-scifi.Setup.0.0.7.exe](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.7/hq-scifi.Setup.0.0.7.exe) |
 | Linux | [hq-scifi-0.0.7.AppImage](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.7/hq-scifi-0.0.7.AppImage)（无需安装，直接运行） |
 | Linux | [hq-scifi_0.0.7_amd64.deb](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.7/hq-scifi_0.0.7_amd64.deb)（Debian/Ubuntu 系） |
 | macOS | [hq-scifi-0.0.7-arm64.dmg](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.7/hq-scifi-0.0.7-arm64.dmg)（Apple Silicon，M 系列） |
 | macOS | [hq-scifi-0.0.7-x64.dmg](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.7/hq-scifi-0.0.7-x64.dmg)（Intel） |
 
 > **v0.0.7**：**未登录也能直接使用**——本地写作 / 浏览栏目 / 匿名阅读公开文章不再被登录页挡住，登录改为覆盖层模态（左栏用户卡「点击登录」唤起）；**首启协议门**——首次启动（或协议更新）须阅读并勾选同意《黄芪饮片用户协议》才能进入；**启动时自动校验登录态**，token 失效自动丢弃并退回未登录（离线不误登出）；修复顶层评论发布必败（评论请求契约对齐）。**v0.0.6**：编辑器升级为**可视化编辑（milkdown 所见即所得）+ 源码**双模式，编辑栏重构（发布表单 / 元数据 frontmatter / 字数限制 / 楷体 / 插入公式·音乐·视频·图片）；右栏全局化并新增**全局搜索 / 替换**（Ctrl+F，Word 导航窗格版式）；远端文章可直接「**编辑**」「**转存为草稿**」拉到本地（写作闭环补齐）；搜索高亮与骨架屏等交互打磨；**新增 macOS 支持**（dmg + zip，x64 + arm64）。**v0.0.5**：写作体验大改——写作首页本地存档（文件夹组织 + 面包屑导航 + 按编辑时间/字数排序 + 摘要区居中 / 无摘要提示、删除移入系统回收站）、左栏递归文件树、文章配图随同步下载到本地并在发布时自动上传（`.image` 隐藏目录）；评审与评论卡片两行头部布局、评审态度 emoji 反应、评审评论并入评审卡片内嵌评论区；右栏收起展开动画、正文音乐不因边栏操作中断等；**v0.0.4**：无边框窗口与自绘顶栏（页面标题居中 / 窗口控件 / 返回列表）、左栏图标与折叠调宽、阅读页右栏 tab 化（目录 / 评论 / 评审）与评论-评审双向联动、互动悬浮按钮、写作首页本地存档、文章卡片统一高度、图片加载失败兜底等；**v0.0.3**：v0.0.2 样式改进交付（排序倒序 / 字数 / 并列排名、栏目首页、活动树与红点、评审「我的 / 所有评审」与编辑、拖动分栏、活动卡片统计等）；**v0.0.2**：修复 Windows 版无法打开界面的问题（Linux 交叉打包时原生模块 `better-sqlite3` 误打包为 Linux 版二进制，现自动注入 Windows 版 prebuild）。更新日志见 [doc/CHANGELOG.md](doc/CHANGELOG.md) 与 [Releases](https://github.com/Kide-Lee/HQ-SciFi/releases)。
-
-> **v0.0.7 暂未提供 Windows 安装包**（Linux 沙箱交叉打包受 wine 环境限制，未能产出 NSIS 安装器）。Windows 用户可继续使用 [v0.0.6 安装包](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v0.0.6/hq-scifi.Setup.0.0.6.exe)，或等待后续版本在正常构建环境补发。
 
 ### 从源码构建
 
