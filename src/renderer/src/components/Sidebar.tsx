@@ -8,6 +8,7 @@ import {
   FolderOpen,
   Layers,
   PenLine,
+  RefreshCw,
   Settings,
   Sparkles
 } from 'lucide-react'
@@ -543,9 +544,14 @@ export function Sidebar(): React.JSX.Element {
                 className="tree-tool-btn"
                 disabled={pulling}
                 onClick={() => void pull()}
-                title="从云端下载草稿与状态"
+                title={pulling ? '正在从云端下载草稿与状态…' : '从云端下载草稿与状态'}
               >
-                <CloudDownload size={14} className={`sync-icon${pulling ? ' spin' : ''}`} />
+                {/* v0.0.8.6：同步中图标切换为旋转的「同步」图标，结束恢复「云端下载」 */}
+                {pulling ? (
+                  <RefreshCw size={14} className="sync-icon spin" />
+                ) : (
+                  <CloudDownload size={14} className="sync-icon" />
+                )}
               </button>
             </div>
             {lastPull && (
