@@ -22,6 +22,7 @@ import {
   getMarkStatus,
   listCategories,
   listComments,
+  listRecentComments,
   listGptModels,
   listMetas,
   listRemoteArticles,
@@ -473,6 +474,18 @@ export function registerIpcHandlers(): void {
     if (!key) return fail(new Error('缺少文章 ID'))
     try {
       return ok(await listComments(token, key, opts))
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  // v0.0.8：全局最新评论流（不带 cid，首页「最新讨论」用）
+  ipcMain.handle('hqsf:list-recent-comments', async (_e, opts: { limit?: number; page?: number; order?: string } = {}) => {
+    const blocked = trusted(_e)
+    if (blocked) return fail(blocked)
+    const token = getStoredToken()
+    try {
+      return ok(await listRecentComments(token, opts))
     } catch (err) {
       return fail(err)
     }

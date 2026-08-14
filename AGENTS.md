@@ -22,7 +22,7 @@ Electron 桌面客户端，为 [荒启科幻](https://www.huangqisf.com/) 提供
 ## Architecture
 
 - `src/main/` — 主进程：
-  - `window.ts` 安全窗口（`contextIsolation:true` + `sandbox:true`）；`ipc.ts` 白名单 IPC（22 个 handler，全部 `{ok,data}|{ok,error}` 约定）
+  - `window.ts` 安全窗口（`contextIsolation:true` + `sandbox:true`）；`ipc.ts` 白名单 IPC（44 个 handler，全部 `{ok,data}|{ok,error}` 约定）
   - `net/api.ts` 荒启 API 请求层（`net.fetch`，统一 `{code,msg,data,total}`，`code:1` 成功）；`net/apiconfig.ts` 配置驱动——baseUrl 与全部接口 path/method 从 `api.config.json` 读取（启动时加载，缺失抛 `ApiConfigError` 报错退出），代码不硬编码接口路径
   - `db.ts` better-sqlite3 索引（articles/meta 表；存元数据，正文是磁盘 md 文件）
   - `session.ts` safeStorage 加密 token 落盘（basic_text 后端降级标记 insecure）；`auth.ts` 登录/会话（token 不下发渲染层）

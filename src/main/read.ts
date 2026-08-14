@@ -404,7 +404,11 @@ function toReviewItem(item: Record<string, unknown>): ReviewItem {
     /** v0.0.5：关联该评审的评论数（reviewList 返回 replyNum；此前转换丢弃导致按钮不显示） */
     replyNum: num(item.replyNum),
     userJson: (item.userJson as Record<string, unknown> | undefined) ?? undefined,
-    articleInfo: (item.articleInfo as Record<string, unknown> | undefined) ?? undefined,
+    // v0.0.8：全局评审流（无 cid 过滤）时文章信息在 contentJson 字段，一并映射
+    articleInfo:
+      (item.articleInfo as Record<string, unknown> | undefined) ??
+      (item.contentJson as Record<string, unknown> | undefined) ??
+      undefined,
     created: normTs(item.created)
   }
 }
@@ -525,11 +529,14 @@ export async function listCategories(token: string | null): Promise<CategoryMeta
 /** 评论条目规整（commentsList data 项；coid 为评论 id，parent 为上级评论 coid） */
 function toCommentItem(item: Record<string, unknown>): CommentItem {
   const userJson = (item.userJson as Record<string, unknown> | undefined) ?? {}
+  const contentsInfo = (item.contentsInfo as Record<string, unknown> | undefined) ?? {}
   return {
     coid: str(item.coid ?? item.id ?? ''),
-    cid: str(item.cid ?? ''),
+    cid: str(item.cid ?? contentsInfo.cid ?? ''),
     parent: str(item.parent ?? 0),
     text: str(item.text),
+    // v0.0.8：全局评论流的文章标题（contenTitle / contentsInfo.title）
+    articleTitle: str(item.contenTitle ?? contentsInfo.title) || undefined,
     author: str(item.author ?? userJson.name ?? '匿名'),
     authorId: str(item.authorId ?? userJson.uid ?? 0),
     // 实测（2026-08）：荒启定制版 commentsList 无顶层 avatar，头像在 userJson.avatar
@@ -556,6 +563,31 @@ export async function listComments(
     limit: opts.limit ?? PAGE_SIZE,
     page: opts.page ?? 1,
     ...(opts.order ? { order: opts.order } : {})
+  }
+  if (token) query.token = token
+  const resp = await apiRequest<ListData>(endpoint('commentsList').path, {
+    method: 'GET',
+    query
+  })
+  return {
+    items: (resp.data ?? []).map(toCommentItem),
+    total: num(resp.total) || (resp.data ?? []).length
+  }
+}
+
+/**
+ * v0.0.8：全局最新评论流（hqComments/commentsList 不带 cid 过滤，首页「最新讨论」用）。
+ * 条目含 reviewid（0=普通评论 / >0=评审讨论）与文章标题，按 created 倒序。
+ */
+export async function listRecentComments(
+  token: string | null,
+  opts: { limit?: number; page?: number; order?: string } = {}
+): Promise<{ items: CommentItem[]; total: number }> {
+  const query: Record<string, unknown> = {
+    searchParams: JSON.stringify({}),
+    limit: opts.limit ?? 8,
+    page: opts.page ?? 1,
+    ...(opts.order ? { order: opts.order } : { order: 'created' })
   }
   if (token) query.token = token
   const resp = await apiRequest<ListData>(endpoint('commentsList').path, {

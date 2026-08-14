@@ -45,6 +45,9 @@ interface ReaderState {
   // ---- 评审 ----
   reviews: ReviewItem[]
   reviewsLoading: boolean
+  /** v0.0.8.6：评审列表分页（深链定位目标评审可能在第 2+ 页） */
+  reviewsPage: number
+  reviewsHasMore: boolean
   /** 评审列表排序（v0.0.2：所有评审支持排序+倒序） */
   reviewOrder: string
   /** 评审排序方向：false=降序（服务端默认） true=升序 */
@@ -115,7 +118,10 @@ interface ReaderState {
   editRemoteArticle: (cid: string) => Promise<ApiResult<EditRemoteResult>>
   /** 远端文章转存为草稿（服务端处理）；成功后刷新四态索引（侧栏「草稿」即时更新） */
   convertToDraft: (cid: string) => Promise<ApiResult<ConvertDraftResult>>
-  loadReviews: (cid: string) => Promise<void>
+  /**
+   * 拉取评审列表（v0.0.8.6：支持分页追加——深链目标评审可能在第 2+ 页）
+   */
+  loadReviews: (cid: string, opts?: { append?: boolean }) => Promise<void>
   setReviewOrder: (order: string) => void
   toggleReviewOrderAsc: () => void
   submit: (payload: ReviewPayload) => Promise<boolean>
@@ -123,7 +129,8 @@ interface ReaderState {
   clearSubmitMessage: () => void
 
   // ---- 评论动作 ----
-  loadComments: (cid: string, opts?: { append?: boolean }) => Promise<void>
+  /** 拉取评论列表（limit 支持深链定位时一次取更多，默认 20） */
+  loadComments: (cid: string, opts?: { append?: boolean; limit?: number }) => Promise<void>
   /** 发表/回复评论（reviewid 为关联评审 id）；成功后重拉列表并提示，返回是否成功 */
   submitComment: (payload: { cid: string; text: string; parent?: number | string; reviewid?: number | string }) => Promise<boolean>
   clearCommentMessage: () => void
@@ -133,6 +140,16 @@ interface ReaderState {
   /** 切换当前排序方向（所有排序字段共用一个 ↑/↓） */
   toggleOrderAsc: () => void
   clearList: () => void
+
+  // ---- v0.0.8：首页「最新评审/最新讨论」深链目标 ----
+  /**
+   * 跳转定位目标：从首页信息流点击后设置，打开文章并切到对应右栏 tab 后，
+   * 由评审/评论面板消费（滚动定位到目标评审卡片/评论；评审评论还需展开所属评审的评论区）。
+   * 消费完成或目标文章与当前阅读文章不符时 clearTarget。
+   */
+  target: { cid: string; reviewId?: string; commentId?: string } | null
+  setTarget: (t: { cid: string; reviewId?: string; commentId?: string } | null) => void
+  clearTarget: () => void
 }
 
 export const useReaderStore = create<ReaderState>((set, get) => ({
@@ -143,6 +160,8 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
 
   reviews: [],
   reviewsLoading: false,
+  reviewsPage: 1,
+  reviewsHasMore: true,
   reviewOrder: 'created',
   reviewOrderAsc: false,
   submitting: false,
@@ -173,7 +192,7 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
 
   openArticle: async (cid) => {
     if (get().readingCid === cid && get().detail) return
-    set({ readingCid: cid, detail: null, detailError: null, detailLoading: true, reviews: [], comments: [] })
+    set({ readingCid: cid, detail: null, detailError: null, detailLoading: true, reviews: [], reviewsPage: 1, reviewsHasMore: true, comments: [] })
     try {
       const res = await window.hqsf.getRemoteArticle(cid)
       if (res.ok) {
@@ -189,7 +208,7 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
   },
 
   closeArticle: () => {
-    set({ readingCid: null, detail: null, detailError: null, reviews: [], comments: [], commentMessage: null })
+    set({ readingCid: null, detail: null, detailError: null, reviews: [], reviewsPage: 1, reviewsHasMore: true, comments: [], commentMessage: null })
     // 关闭阅读态后，侧栏选中回到编辑器当前打开的文档（若无则清除），避免高亮残留
     useUiStore.getState().setSelectedId(useEditorStore.getState().currentPath)
   },
@@ -229,15 +248,23 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
     return res
   },
 
-  loadReviews: async (cid) => {
+  loadReviews: async (cid, opts = {}) => {
+    const append = opts.append ?? false
+    const page = append ? get().reviewsPage + 1 : 1
+    const limit = 20
     set({ reviewsLoading: true })
     try {
       // v0.0.2：评审列表按 reviewOrder/reviewOrderAsc 排序（order=-field 为升序）
       const order = get().reviewOrderAsc ? `-${get().reviewOrder}` : get().reviewOrder
-      const res = await window.hqsf.listReviews({ cid, order })
-      set({ reviews: res.ok ? res.data.items : [], reviewsLoading: false })
+      const res = await window.hqsf.listReviews({ cid, order, page, limit })
+      set({
+        reviews: res.ok ? (append ? [...get().reviews, ...res.data.items] : res.data.items) : [],
+        reviewsPage: res.ok ? page : 1,
+        reviewsHasMore: res.ok ? res.data.items.length >= limit : false,
+        reviewsLoading: false
+      })
     } catch (err) {
-      set({ reviews: [], reviewsLoading: false })
+      set({ reviews: [], reviewsPage: 1, reviewsHasMore: false, reviewsLoading: false })
     }
   },
 
@@ -286,7 +313,7 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
 
   loadComments: async (cid, opts = {}) => {
     const append = opts.append ?? false
-    const limit = 20
+    const limit = opts.limit ?? 20
     const page = append ? Math.floor(get().comments.length / limit) + 1 : 1
     set({ commentsLoading: true })
     try {
@@ -396,6 +423,11 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
 
   clearList: () =>
     set({ list: [], listTotal: 0, listPage: 1, listError: null, listHasMore: true }),
+
+  // v0.0.8：深链目标
+  target: null,
+  setTarget: (target) => set({ target }),
+  clearTarget: () => set({ target: null }),
 
   loadReviewTasks: async () => {
     // 幂等：已成功拉取过则不再重复请求（无任务时为空对象，用独立 loaded 标志）

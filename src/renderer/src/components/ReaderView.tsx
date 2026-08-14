@@ -4,16 +4,16 @@ import { useAuthStore } from '../stores/auth'
 import { useUiStore } from '../stores/ui'
 import { useDocsStore } from '../stores/docs'
 import { activityPhase, type ActivityPhase } from '../lib/activity'
-import { cachedImageUrl, formatSize, formatTs, expandMediaTags, sanitizeHtml, scoreColor } from '../lib/sanitize'
+import { cachedImageUrl, formatSize, formatTs, expandMediaTags, sanitizeHtml, scoreColor, userAvatarUrl, userDisplayName } from '../lib/sanitize'
 import { ErrorBanner } from './ErrorBanner'
-import { CommentSection, CommentCard, ridOf } from './ReaderComments'
+import { CommentSection, CommentCard, ridOf, flatSubs } from './ReaderComments'
 import { ReaderInteractions } from './ReaderInteractions'
 import { RightPanel, type RightTab } from './RightPanel'
 import { SearchPanel } from './SearchPanel'
 import { SkeletonReader } from './Skeletons'
 import { buildRegex } from '../lib/searchText'
 import { clearSearchMarks, jumpToSearchMark, setActiveSearchMark, wrapSearchMatches } from '../lib/searchJump'
-import { ArrowDown, ArrowUp, FileDown, MessageCircle, PenLine, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Eye, EyeOff, FileDown, MessageCircle, PenLine, X } from 'lucide-react'
 import type { ArticleDetail, ArticleType, CommentItem, MetaRef, ReviewItem, ReviewPayload } from '../../../shared/types'
 
 /** 活动状态缓存（mid → phase；从文章跳转活动列表时用，避免重复请求） */
@@ -21,17 +21,13 @@ let activePhaseCache: Record<string, ActivityPhase> | null = null
 
 /** 从详情/用户信息里提取作者展示名（与侧栏同样的多字段容错） */
 function authorName(detail: ArticleDetail): string {
-  const u = detail.userJson ?? {}
-  const name =
-    u.nickname ?? u.nick ?? u.nickName ?? u.userName ?? u.name ?? (u.uid != null ? `UID ${String(u.uid)}` : '')
-  return String(name || '佚名')
+  return userDisplayName(detail.userJson, '佚名')
 }
 
 /** 从详情/用户信息里提取作者头像 URL（http(s) 走缓存协议） */
 function authorAvatar(detail: ArticleDetail): string | undefined {
-  const u = detail.userJson ?? {}
-  const raw = String(u.avatar ?? u.headImg ?? u.headImgUrl ?? u.avatarUrl ?? '')
-  return raw && /^https?:\/\//i.test(raw) ? cachedImageUrl(raw) : undefined
+  const url = userAvatarUrl(detail.userJson)
+  return url ? cachedImageUrl(url) : undefined
 }
 
 /**
@@ -78,7 +74,9 @@ function BelongTags({ detail }: { detail: ArticleDetail }): React.JSX.Element | 
       }
       void window.hqsf.listMetas('active').then((res) => {
         if (!res.ok) {
-          openList({ title: item.ref.name!, mid: item.ref.mid })
+          // v0.0.8：查询失败无法确认活动状态 → 按保守处理：仍打开列表，但强制隐藏评分榜
+          //（进行中/评审中的活动文章无评分，任何情况下都不能出现在评分榜里）
+          openList({ title: item.ref.name!, mid: item.ref.mid, hideScoreboard: true })
           return
         }
         const cache: Record<string, ActivityPhase> = {}
@@ -572,7 +570,7 @@ function ReviewForm({
             <span className="review-form-score">{Number(form[d.scoreKey])}</span>
           </div>
           <AutoGrowTextarea
-            placeholder={`${d.hint}（≥10 字）`}
+            placeholder={d.hint}
             value={String(form[d.key])}
             onChange={(v) => setDim(d.key, v)}
           />
@@ -581,16 +579,16 @@ function ReviewForm({
       <div className="review-form-dim">
         <div className="review-form-row">
           <span className="review-form-label">综合评价</span>
+          {/* v0.0.2：实时平均分预示（与「综合评价」同行、右对齐） */}
+          <div className="review-avg-preview">
+            预计评分：<span className="review-avg-value">{avgPreview.toFixed(1)}</span>
+          </div>
         </div>
         <AutoGrowTextarea
           placeholder="对作品的整体评价（选填）"
           value={form.zonghe}
           onChange={(v) => setDim('zonghe', v)}
         />
-      </div>
-      {/* v0.0.2：实时平均分预示 */}
-      <div className="review-avg-preview">
-        预计评分：<span className="review-avg-value">{avgPreview.toFixed(1)}</span>
       </div>
       {formError && <div className="review-form-error">{formError}</div>}
       <div className="review-form-actions">
@@ -623,7 +621,13 @@ function AutoGrowTextarea({
     const el = ref.current
     if (!el) return
     el.style.height = 'auto'
-    el.style.height = `${el.scrollHeight}px`
+    // 占位符换行也会撑大 scrollHeight（窄栏下尤其明显），测量前临时清掉，
+    // 只按真实内容生长，保证各编辑框高度一致（v0.0.8）
+    const ph = el.placeholder
+    el.placeholder = ''
+    const h = el.scrollHeight
+    el.placeholder = ph
+    el.style.height = `${h}px`
   }, [value])
   return (
     <textarea
@@ -651,6 +655,15 @@ function ReviewItemCard({
   // v0.0.5：评审评论内嵌于卡片，默认收起（点击「评论 N」展开/收起；「回复评审」展开并聚焦回复框）
   const [commentsOpen, setCommentsOpen] = useState(false)
   const [replyIntent, setReplyIntent] = useState(false)
+  // v0.0.8：隐藏评分开关（我的评审展示页，方便截图分享不泄露评分）
+  const [hideScores, setHideScores] = useState(false)
+  // v0.0.8：深链目标——目标评审（带评论定位）的评论区自动展开
+  const target = useReaderStore((s) => s.target)
+  useEffect(() => {
+    if (target?.reviewId && String(review.id) === String(target.reviewId) && target.commentId) {
+      setCommentsOpen(true)
+    }
+  }, [target, review.id])
   const u = review.userJson ?? {}
   const rName = String(u.nickname ?? u.nick ?? u.nickName ?? u.name ?? `UID ${String(u.uid ?? review.uid ?? '')}`)
   const avatarRaw = String(u.avatar ?? u.headImg ?? u.headImgUrl ?? u.avatarUrl ?? '')
@@ -667,7 +680,7 @@ function ReviewItemCard({
   // v0.0.5：关联该评审的评论数（0 时隐藏「查看评审评论」按钮）
   const commentCount = Number(review.replyNum) || 0
   return (
-    <div className={`review-item ${isMine ? 'mine' : ''}`} data-review-id={String(review.id)}>
+    <div className={`review-item ${hideScores ? 'hide-scores' : ''}`} data-review-id={String(review.id)}>
       <div className="review-item-head">
         {avatar ? (
           <img className="review-item-avatar" src={avatar} alt="" referrerPolicy="no-referrer" />
@@ -737,33 +750,47 @@ function ReviewItemCard({
             </button>
           )
         })}
-        {isMine && onEdit && (
-          <button className="attitude-btn review-edit-btn" onClick={onEdit} title="编辑我的评审">
-            <PenLine size={12} /> 编辑
+        {/* v0.0.8：右侧操作组（隐藏评分/编辑/评论）——我的评审与其他评审共用同一容器样式靠右 */}
+        <div className="review-actions-right">
+          {isMine && (
+            /* v0.0.8：隐藏评分开关——纯图标（与编辑/评论按钮一致），hover 提示用途 */
+            <button
+              className="attitude-btn review-comments-btn review-hide-score-btn"
+              onClick={() => setHideScores((v) => !v)}
+              title={hideScores ? '显示评分' : '隐藏评分（方便截图分享，不泄露自己的评分）'}
+            >
+              {hideScores ? <Eye size={13} /> : <EyeOff size={13} />}
+            </button>
+          )}
+          {isMine && onEdit && (
+            /* v0.0.8：纯图标按钮，与旁边的评论按钮样式一致（文字去掉，靠 title 提示） */
+            <button className="attitude-btn review-comments-btn review-edit-btn" onClick={onEdit} title="编辑我的评审">
+              <PenLine size={13} />
+            </button>
+          )}
+          {/* v0.0.6：评论评审（合并原「回复评审」+「查看评审评论」）——
+              展开/收起卡片内评论区并聚焦回复框，显示评论数量 */}
+          <button
+            className={`attitude-btn review-comments-btn ${commentsOpen ? 'active' : ''}`}
+            onClick={() =>
+              setCommentsOpen((v) => {
+                const next = !v
+                if (next) setReplyIntent(true)
+                return next
+              })
+            }
+            title={
+              commentsOpen
+                ? '收起评审评论'
+                : commentCount > 0
+                  ? `查看/回复这条评审的评论（${commentCount} 条）`
+                  : '评论这条评审'
+            }
+          >
+            <MessageCircle size={13} />
+            {commentCount > 0 ? <span className="review-comments-count">{commentCount}</span> : null}
           </button>
-        )}
-        {/* v0.0.6：评论评审（合并原「回复评审」+「查看评审评论」）——
-            展开/收起卡片内评论区并聚焦回复框，显示评论数量 */}
-        <button
-          className={`attitude-btn review-comments-btn ${commentsOpen ? 'active' : ''}`}
-          onClick={() =>
-            setCommentsOpen((v) => {
-              const next = !v
-              if (next) setReplyIntent(true)
-              return next
-            })
-          }
-          title={
-            commentsOpen
-              ? '收起评审评论'
-              : commentCount > 0
-                ? `查看/回复这条评审的评论（${commentCount} 条）`
-                : '评论这条评审'
-          }
-        >
-          <MessageCircle size={13} />
-          {commentCount > 0 ? <span className="review-comments-count">{commentCount}</span> : null}
-        </button>
+        </div>
       </div>
       {/* v0.0.5：评审评论内嵌区（默认收起；包含回复框与评论列表） */}
       {commentsOpen && (
@@ -805,14 +832,24 @@ function ReviewInlineComments({
   const [replyTo, setReplyTo] = useState<CommentItem | null>(null)
   const [localErr, setLocalErr] = useState<string | null>(null)
   const replyBoxRef = useRef<HTMLTextAreaElement | null>(null)
+  // v0.0.8.5：已收起深层评审评论的第一层评论 coid 集合
+  const [collapsedSubs, setCollapsedSubs] = useState<Set<string>>(new Set())
+
+  function toggleCollapsed(coid: number | string): void {
+    setCollapsedSubs((prev) => {
+      const next = new Set(prev)
+      const key = String(coid)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
 
   // 该评审的顶层评论（子评论按 parent 归属，不依赖子评论自身的 reviewid）
   const reviewTop = useMemo(
     () => comments.filter((c) => ridOf(c) === rid && (String(c.parent) === '0' || c.parent == null)),
     [comments, rid]
   )
-  const childrenOf = (coid: number | string): CommentItem[] =>
-    comments.filter((c) => String(c.parent) === String(coid))
 
   // 通过「回复评审」按钮进入时聚焦回复框
   useEffect(() => {
@@ -877,23 +914,48 @@ function ReviewInlineComments({
       ) : (
         <div className="comment-login-hint">登录后可评论这条评审</div>
       )}
-      <div className="comment-list">
-        {reviewTop.length === 0 && <div className="muted comment-empty">还没有评论这条评审的评论</div>}
-        {reviewTop.map((c) => (
-          <div key={String(c.coid)} className="comment-item">
-            <CommentCard comment={c} onReply={() => setReplyTo(c)} />
-            {childrenOf(c.coid).length > 0 && (
-              <div className="comment-sub-list">
-                {childrenOf(c.coid).map((sub) => (
-                  <div key={String(sub.coid)} className="comment-item comment-sub">
-                    <CommentCard comment={sub} onReply={() => setReplyTo(sub)} />
-                  </div>
-                ))}
+      {/* v0.0.8：无评审评论时不渲染评论列表（空态提示一并去掉） */}
+      {reviewTop.length > 0 && (
+        <div className="comment-list">
+          {reviewTop.map((c) => {
+            // v0.0.8.4：二层及更深的评审评论全部扁平化到第二层（按对话顺序）
+            const subs = flatSubs(comments, c.coid)
+            const isCollapsed = collapsedSubs.has(String(c.coid))
+            return (
+              <div key={String(c.coid)} className="comment-item" data-coid={String(c.coid)}>
+                <CommentCard comment={c} onReply={() => setReplyTo(c)} />
+                {subs.length > 0 && (
+                  <>
+                    {/* v0.0.8.5：第一层评审评论上的收起/展开深层回复按钮 */}
+                    <button
+                      className="comment-sub-toggle"
+                      onClick={() => toggleCollapsed(c.coid)}
+                      title={isCollapsed ? '展开深层回复' : '收起深层回复'}
+                    >
+                      {isCollapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
+                      {isCollapsed ? `展开 ${subs.length} 条回复` : `收起 ${subs.length} 条回复`}
+                    </button>
+                    {!isCollapsed && (
+                      <div className="comment-sub-list">
+                        {subs.map((sub) => (
+                          <div key={String(sub.coid)} className="comment-item comment-sub" data-coid={String(sub.coid)}>
+                            <CommentCard
+                              comment={sub}
+                              onReply={() => setReplyTo(sub)}
+                              // 回复的是第一层评论 → 父就在上方，隐藏引用文本
+                              hideParentQuote={String(sub.parent) === String(c.coid)}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
-            )}
-          </div>
-        ))}
-      </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
@@ -913,10 +975,55 @@ function ReviewPanel(): React.JSX.Element {
   const detail = useReaderStore((s) => s.detail)
   const loadReviews = useReaderStore((s) => s.loadReviews)
   const session = useAuthStore((s) => s.session)
+  // v0.0.8：深链目标（首页「最新评审/最新讨论」跳转定位）+ 评论分页加载（目标评论可能在第 2+ 页）
+  const target = useReaderStore((s) => s.target)
+  const clearTarget = useReaderStore((s) => s.clearTarget)
+  const commentsLoading = useReaderStore((s) => s.commentsLoading)
+  const commentsHasMore = useReaderStore((s) => s.commentsHasMore)
+  const reviewsHasMore = useReaderStore((s) => s.reviewsHasMore)
+  const loadComments = useReaderStore((s) => s.loadComments)
 
   const [tab, setTab] = useState<'mine' | 'all'>('mine')
   const [editing, setEditing] = useState(false)
   const loggedIn = !!session
+
+  // v0.0.8：进行中/评审中活动的文章，其评审列表不提供「按评分」排序
+  const actMid = detail?.active?.[0]?.mid
+  const [actPhase, setActPhase] = useState<ActivityPhase | null>(null)
+  // v0.0.8.6：活动状态查询失败 → 保守隐藏「按评分」（与文章列表的 hideScoreboard 兜底一致）
+  const [phaseUnknown, setPhaseUnknown] = useState(false)
+  useEffect(() => {
+    let alive = true
+    setActPhase(null)
+    setPhaseUnknown(false)
+    if (actMid == null) return
+    const midKey = String(actMid)
+    if (activePhaseCache) {
+      setActPhase(activePhaseCache[midKey] ?? null)
+      return
+    }
+    void window.hqsf.listMetas('active').then((res) => {
+      if (!alive) return
+      if (!res.ok) {
+        setPhaseUnknown(true)
+        return
+      }
+      const cache: Record<string, ActivityPhase> = {}
+      for (const m of res.data) cache[String(m.mid)] = activityPhase(m)
+      activePhaseCache = cache
+      setActPhase(cache[midKey] ?? null)
+    })
+    return () => {
+      alive = false
+    }
+  }, [actMid])
+
+  const noScoreSort = (actPhase === 'ongoing' || actPhase === 'reviewing') || phaseUnknown
+  const reviewOrders = noScoreSort ? REVIEW_ORDERS.filter((o) => o.key !== 'score') : REVIEW_ORDERS
+  // 进入此类文章时，若残留「按评分」排序则切回「按时间」（setReviewOrder 会重拉列表）
+  useEffect(() => {
+    if (noScoreSort && reviewOrder === 'score') setReviewOrder('created')
+  }, [noScoreSort, reviewOrder, setReviewOrder])
 
   // v0.0.6：未登录时只显示「所有评审」（不提供「我的评审」/评审表单）
   useEffect(() => {
@@ -933,6 +1040,72 @@ function ReviewPanel(): React.JSX.Element {
   const mine = reviews.filter((r) => myUid !== '' && String(r.uid ?? (r.userJson as Record<string, unknown> | undefined)?.uid ?? '') === myUid)
   const myReview = mine[0]
   const others = reviews.filter((r) => !mine.includes(r))
+
+  // v0.0.8：深链目标带 reviewId 时切到「所有评审」tab——评审卡片列表在该 tab 下，
+  // 默认「我的评审」tab 只展示发表/编辑表单，无法滚动定位到目标评审
+  useEffect(() => {
+    if (target?.reviewId && target.cid === detail?.cid && tab !== 'all') setTab('all')
+  }, [target, detail?.cid, tab])
+
+  // v0.0.8：消费深链目标——目标文章不符则丢弃；评审评论需等评论区展开渲染后再定位。
+  // 评论按 coid 升序分页加载，目标评论可能是最新一条（第 2+ 页）：未命中且还有下一页时继续追加加载。
+  // 不带 deps：评审卡片展开评论区（子组件局部 state）后本 effect 随重渲染再次尝试。
+  useEffect(() => {
+    if (!target) return
+    if (target.cid !== detail?.cid) {
+      clearTarget()
+      return
+    }
+    const panel = document.querySelector('.review-panel')
+    if (!panel) return
+    let found = false
+    if (target.reviewId) {
+      const card = panel.querySelector(`[data-review-id="${CSS.escape(target.reviewId)}"]`)
+      if (card) {
+        if (target.commentId) {
+          const el = card.querySelector(`[data-coid="${CSS.escape(target.commentId)}"]`)
+          if (el) {
+            el.scrollIntoView({ block: 'center' })
+            clearTarget()
+            found = true
+          }
+        } else {
+          card.scrollIntoView({ block: 'center' })
+          clearTarget()
+          found = true
+        }
+      }
+    } else if (target.commentId) {
+      const el = panel.querySelector(`[data-coid="${CSS.escape(target.commentId)}"]`)
+      if (el) {
+        el.scrollIntoView({ block: 'center' })
+        clearTarget()
+        found = true
+      }
+    }
+    // v0.0.8.6：目标评审不在已加载列表（评审可能在第 2+ 页）→ 追加加载；加载完仍无 → 放弃
+    if (!found && target.reviewId) {
+      const cardFound = !!panel.querySelector(`[data-review-id="${CSS.escape(target.reviewId)}"]`)
+      if (!cardFound && !reviewsLoading && reviewsHasMore && detail?.cid) {
+        void loadReviews(detail.cid, { append: true })
+      } else if (!cardFound && !reviewsLoading && !reviewsHasMore) {
+        clearTarget()
+      }
+    }
+    if (!found && target.commentId) {
+      // 目标评审卡片已渲染但目标评论不在已加载页 → 追加加载评论；
+      // 评论区尚未展开（深链自动展开在下一渲染）→ 先等待，不放弃
+      const card = target.reviewId ? panel.querySelector(`[data-review-id="${CSS.escape(target.reviewId)}"]`) : null
+      const cardReady = !target.reviewId || !!card
+      if (cardReady && !commentsLoading && commentsHasMore && detail?.cid) {
+        void loadComments(detail.cid, { append: true, limit: 100 })
+      } else if (cardReady && !commentsLoading && !commentsHasMore) {
+        const inlineEl = card ? (card.querySelector('.review-inline-comments') as HTMLElement | null) : null
+        const expanded = !!inlineEl && inlineEl.offsetParent != null
+        if (expanded || !target.reviewId) clearTarget() // 已展开仍找不到（罕见）→ 放弃定位
+      }
+    }
+  })
 
   return (
     <aside className="review-panel">
@@ -1010,7 +1183,7 @@ function ReviewPanel(): React.JSX.Element {
           {/* 所有评审：排序控件 + 其他用户评审 */}
           <div className="review-toolbar">
             <div className="review-orders">
-              {REVIEW_ORDERS.map((o) => (
+              {reviewOrders.map((o) => (
                 <button
                   key={o.key}
                   className={`review-order-btn ${reviewOrder === o.key ? 'active' : ''}`}

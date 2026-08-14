@@ -133,6 +133,10 @@ const api = {
   listComments: (cid: string, opts?: { limit?: number; page?: number; order?: string }): Promise<
     ApiResult<{ items: CommentItem[]; total: number }>
   > => ipcRenderer.invoke('hqsf:list-comments', cid, opts),
+  /** v0.0.8：全局最新评论流（不带 cid，首页「最新讨论」用） */
+  listRecentComments: (opts?: { limit?: number; page?: number; order?: string }): Promise<
+    ApiResult<{ items: CommentItem[]; total: number }>
+  > => ipcRenderer.invoke('hqsf:list-recent-comments', opts),
   /** 发表评论（parent 为回复的上级评论 coid；reviewid 为关联评审 id，可省略） */
   addComment: (payload: { cid: string; text: string; parent?: number | string; reviewid?: number | string }): Promise<
     ApiResult<CommentSubmitResult>

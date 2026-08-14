@@ -120,6 +120,10 @@ export interface HqsfApi {
   listComments: (cid: string, opts?: { limit?: number; page?: number; order?: string }) => Promise<
     ApiResult<{ items: CommentItem[]; total: number }>
   >
+  /** v0.0.8：全局最新评论流（不带 cid，首页「最新讨论」用） */
+  listRecentComments: (opts?: { limit?: number; page?: number; order?: string }) => Promise<
+    ApiResult<{ items: CommentItem[]; total: number }>
+  >
   addComment: (payload: { cid: string; text: string; parent?: number | string; reviewid?: number | string }) => Promise<
     ApiResult<CommentSubmitResult>
   >
