@@ -81,6 +81,10 @@
       "path": "hqUserlog/isMark",
       "method": "GET"
     },
+    "markList": {
+      "path": "hqUserlog/markList",
+      "method": "GET"
+    },
     "removeLog": {
       "path": "hqUserlog/removeLog",
       "method": "GET"

@@ -61,6 +61,7 @@ export const REQUIRED_ENDPOINTS = [
   'commentsAdd',
   'addLog',
   'isMark',
+  'markList',
   'removeLog',
   // 内容安全（编辑器）
   'userTextBlockStatus'
@@ -90,6 +91,7 @@ const ENDPOINT_DESC: Record<EndpointName, string> = {
   commentsAdd: '发表评论',
   addLog: '用户互动日志（点赞/收藏/投币）',
   isMark: '查询收藏状态',
+  markList: '收藏列表（会话有效性探测用，无副作用）',
   removeLog: '取消收藏',
   userTextBlockStatus: '违禁词检测（付费，5 能量币/次）'
 }
