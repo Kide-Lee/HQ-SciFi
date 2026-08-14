@@ -1,4 +1,4 @@
-import { apiRequest, endpoint } from './net/api'
+import { apiRequest, endpoint, ApiError } from './net/api'
 import { loadSession, saveSession, clearSession, isStrongEncryption } from './session'
 import type { LoginResult, UserSession } from '../shared/types'
 
@@ -59,21 +59,32 @@ export function getSession(): UserSession | null {
 
 /**
  * 校验当前会话 token 是否仍有效。
+ *
  * 服务端对无效 token 在列表类接口（contentsList）会静默降级（强制只查已发布、不报错），
- * 因此用登录必需接口 hqUserlog/isMark 探测：无效 token 会被 @LoginRequired 拦截并明确报错。
+ * 因此用登录必需接口探测。2026-08-14 修复：
+ * 1. 探测接口从 isMark 换成 markList —— isMark 对 type=content 会先按 cid 查文章，
+ *    传入探测用 cid=0 时即使 token 有效也返回 code 0「文章不存在」，导致探测恒失败；
+ *    markList 仅按 token 取当前用户收藏列表，无副作用且有效 token 恒返回 code 1。
+ * 2. 区分「服务端明确拒绝」（ApiError：token 失效/被拦截，可判定）与「网络异常」
+ *    （fetch 失败，无法判定）。此前 catch 一律视为网络异常，token 失效时 valid/reachable
+ *    双双为 false，渲染层按「无法联网判定」保留会话 → 用户停留在已登录界面但所有
+ *    需登录操作（评论/点赞/收藏/评审）都报「用户未登录或Token验证失败」。
+ *
  * 返回 { valid, reachable }：reachable=false 表示网络异常（无法判定，调用方不应强制登出）。
  */
 export async function verifySessionToken(): Promise<{ valid: boolean; reachable: boolean }> {
   const s = loadSession()
   if (!s?.token) return { valid: false, reachable: true }
   try {
-    const resp = await apiRequest<Record<string, unknown>>(endpoint('isMark').path, {
+    const resp = await apiRequest<Record<string, unknown>>(endpoint('markList').path, {
       method: 'GET',
-      query: { cid: '0', type: 'content', token: s.token }
+      query: { limit: 1, page: 1, token: s.token }
     })
     return { valid: resp.code === 1, reachable: true }
-  } catch {
-    return { valid: false, reachable: false }
+  } catch (err) {
+    // ApiError = 服务端已响应且返回非 1 的 code（如 @LoginRequired 拦截），可明确判定失效；
+    // 其余（网络失败/超时）不可判定，交由调用方保留会话。
+    return { valid: false, reachable: !(err instanceof ApiError) }
   }
 }
 
