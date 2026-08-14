@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { X } from 'lucide-react'
+import { ChevronDown, ChevronUp, X } from 'lucide-react'
 import { useReaderStore } from '../stores/reader'
 import { useAuthStore } from '../stores/auth'
 import { cachedImageUrl, formatTs } from '../lib/sanitize'
@@ -21,6 +21,29 @@ export function ridOf(c: CommentItem): string {
   return String(v)
 }
 
+/**
+ * v0.0.8.4：楼中楼扁平化——顶层评论的全部后代（二层及更深，无论多深）
+ * 按深度优先顺序（父先于子，同层按出现序）全部归入第二层展示。
+ */
+export function flatSubs(comments: CommentItem[], topCoid: number | string): CommentItem[] {
+  const byParent = new Map<string, CommentItem[]>()
+  for (const c of comments) {
+    const key = String(c.parent)
+    const arr = byParent.get(key)
+    if (arr) arr.push(c)
+    else byParent.set(key, [c])
+  }
+  const out: CommentItem[] = []
+  const walk = (coid: number | string): void => {
+    for (const c of byParent.get(String(coid)) ?? []) {
+      out.push(c)
+      walk(c.coid)
+    }
+  }
+  walk(topCoid)
+  return out
+}
+
 export function CommentSection({ cid }: { cid: string }): React.JSX.Element {
   const comments = useReaderStore((s) => s.comments)
   const commentsLoading = useReaderStore((s) => s.commentsLoading)
@@ -30,6 +53,9 @@ export function CommentSection({ cid }: { cid: string }): React.JSX.Element {
   const loadComments = useReaderStore((s) => s.loadComments)
   const submitComment = useReaderStore((s) => s.submitComment)
   const clearCommentMessage = useReaderStore((s) => s.clearCommentMessage)
+  // v0.0.8：深链目标（首页「最新讨论」普通评论跳转定位）
+  const target = useReaderStore((s) => s.target)
+  const clearTarget = useReaderStore((s) => s.clearTarget)
 
   const session = useAuthStore((s) => s.session)
   const loggedIn = !!session
@@ -37,6 +63,36 @@ export function CommentSection({ cid }: { cid: string }): React.JSX.Element {
   const [draft, setDraft] = useState('')
   const [replyTo, setReplyTo] = useState<CommentItem | null>(null)
   const [localErr, setLocalErr] = useState<string | null>(null)
+  // v0.0.8.5：已收起深层评论的第一层评论 coid 集合
+  const [collapsedSubs, setCollapsedSubs] = useState<Set<string>>(new Set())
+
+  function toggleCollapsed(coid: number | string): void {
+    setCollapsedSubs((prev) => {
+      const next = new Set(prev)
+      const key = String(coid)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  // v0.0.8：消费深链目标——滚动定位到目标评论（评论按 coid 升序分页加载，
+  // 目标可能是最新评论（第 2+ 页），未命中且还有下一页时继续追加加载）
+  useEffect(() => {
+    if (!target?.commentId || target?.reviewId) return
+    if (target.cid !== cid) {
+      clearTarget()
+      return
+    }
+    const el = document.querySelector(`.reader-panel [data-coid="${CSS.escape(target.commentId)}"]`)
+    if (el) {
+      el.scrollIntoView({ block: 'center' })
+      clearTarget()
+    } else if (!commentsLoading) {
+      if (commentsHasMore) void loadComments(cid, { append: true, limit: 100 })
+      else clearTarget() // 已无更多页仍未找到，放弃定位
+    }
+  })
 
   // v0.0.5：仅普通评论（未关联评审）顶层；评审评论由评审卡片内展示。
   // 评审评论的子评论（parent 指向评审顶层评论）不属于普通树。
@@ -44,9 +100,6 @@ export function CommentSection({ cid }: { cid: string }): React.JSX.Element {
     () => comments.filter((c) => ridOf(c) === '' && (String(c.parent) === '0' || c.parent == null)),
     [comments]
   )
-
-  const childrenOf = (coid: number | string): CommentItem[] =>
-    comments.filter((c) => String(c.parent) === String(coid))
 
   async function handleSubmit(e: React.FormEvent): Promise<void> {
     e.preventDefault()
@@ -100,20 +153,43 @@ export function CommentSection({ cid }: { cid: string }): React.JSX.Element {
           <div className="muted comment-empty">还没有评论，来抢沙发吧</div>
         )}
 
-        {top.map((c) => (
-          <div key={String(c.coid)} className="comment-item">
-            <CommentCard comment={c} onReply={() => setReplyTo(c)} />
-            {childrenOf(c.coid).length > 0 && (
-              <div className="comment-sub-list">
-                {childrenOf(c.coid).map((sub) => (
-                  <div key={String(sub.coid)} className="comment-item comment-sub">
-                    <CommentCard comment={sub} onReply={() => setReplyTo(sub)} />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
+        {top.map((c) => {
+          // v0.0.8.4：二层及更深的评论全部扁平化到第二层（按对话顺序）
+          const subs = flatSubs(comments, c.coid)
+          const isCollapsed = collapsedSubs.has(String(c.coid))
+          return (
+            <div key={String(c.coid)} className="comment-item" data-coid={String(c.coid)}>
+              <CommentCard comment={c} onReply={() => setReplyTo(c)} />
+              {subs.length > 0 && (
+                <>
+                  {/* v0.0.8.5：第一层评论上的收起/展开深层回复按钮 */}
+                  <button
+                    className="comment-sub-toggle"
+                    onClick={() => toggleCollapsed(c.coid)}
+                    title={isCollapsed ? '展开深层回复' : '收起深层回复'}
+                  >
+                    {isCollapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
+                    {isCollapsed ? `展开 ${subs.length} 条回复` : `收起 ${subs.length} 条回复`}
+                  </button>
+                  {!isCollapsed && (
+                    <div className="comment-sub-list">
+                      {subs.map((sub) => (
+                        <div key={String(sub.coid)} className="comment-item comment-sub" data-coid={String(sub.coid)}>
+                          <CommentCard
+                            comment={sub}
+                            onReply={() => setReplyTo(sub)}
+                            // 回复的是第一层评论 → 父就在上方，隐藏引用文本
+                            hideParentQuote={String(sub.parent) === String(c.coid)}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )
+        })}
 
         {commentsHasMore && (
           <button className="comment-more" onClick={() => void loadComments(cid, { append: true })}>
@@ -158,10 +234,13 @@ export function CommentSection({ cid }: { cid: string }): React.JSX.Element {
 /** 单条评论（头像 + 昵称 + 时间 + 内容 + 回复按钮）；父评论摘要（parentComments）一并展示（v0.0.3：引用单行省略） */
 export function CommentCard({
   comment,
-  onReply
+  onReply,
+  hideParentQuote = false
 }: {
   comment: CommentItem
   onReply: () => void
+  /** v0.0.8.5：隐藏被回复父评论的引用（深层评论回复第一层评论时，父就在上方，引用冗余） */
+  hideParentQuote?: boolean
 }): React.JSX.Element {
   const avatar = comment.avatar && /^https?:\/\//i.test(comment.avatar) ? cachedImageUrl(comment.avatar) : undefined
   const pc = comment.parentComments
@@ -184,8 +263,9 @@ export function CommentCard({
           回复
         </button>
       </div>
-      {/* 楼中楼：展示被回复的父评论摘要（服务端返回 parentComments；单行省略） */}
-      {pc && pc.text ? (
+      {/* 楼中楼：展示被回复的父评论摘要（服务端返回 parentComments；单行省略）。
+          v0.0.8.5：深层评论回复第一层评论时父就在上方，隐藏引用 */}
+      {!hideParentQuote && pc && pc.text ? (
         <div className="comment-parent-quote" title={pc.text}>
           <span className="comment-parent-author">{pc.author ? `@${pc.author}：` : ''}</span>
           {pc.text}

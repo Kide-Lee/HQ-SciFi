@@ -249,3 +249,17 @@ export function scoreColor(score: string | number | undefined): string | null {
   const hue = Math.min(300, Math.max(0, (n / 10) * 300))
   return `hsl(${hue}, 62%, 42%)`
 }
+
+/** 从 userJson 提取用户展示名（多字段容错；无昵称回退 UID，再回退 fallback）。v0.0.8.6 抽取共用 */
+export function userDisplayName(u: Record<string, unknown> | undefined, fallback = '匿名'): string {
+  const name = String(u?.nickname ?? u?.nick ?? u?.nickName ?? u?.userName ?? u?.name ?? '').trim()
+  if (name) return name
+  if (u?.uid != null && String(u.uid) !== '') return `UID ${String(u.uid)}`
+  return fallback
+}
+
+/** 从 userJson 提取头像 URL（仅 http(s)；返回原始 URL，由调用方走 cachedImageUrl） */
+export function userAvatarUrl(u: Record<string, unknown> | undefined): string | undefined {
+  const raw = String(u?.avatar ?? u?.headImg ?? u?.headImgUrl ?? u?.avatarUrl ?? '')
+  return raw && /^https?:\/\//i.test(raw) ? raw : undefined
+}

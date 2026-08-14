@@ -2495,9 +2495,25 @@ body {
   word-break: break-word;
 }
 .comment-sub-list {
-  margin-left: 34px;
   border-left: 2px solid #f0f1f5;
   padding-left: 12px;
+}
+/* v0.0.8.5：第一层评论上的收起/展开深层回复按钮（与父评论左对齐） */
+.comment-sub-toggle {
+  margin-top: 2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 0;
+}
+.comment-sub-toggle:hover {
+  color: var(--accent);
 }
 .comment-more {
   margin: 14px auto 0;
@@ -2678,10 +2694,6 @@ body {
   padding: 10px 12px;
 }
 
-.review-item.mine {
-  border-color: var(--accent);
-}
-
 /* v0.0.5：头像 + meta（名字/时间）+ 评分两行布局 */
 .review-item-head {
   display: flex;
@@ -2789,15 +2801,24 @@ body {
 }
 
 /* v0.0.5：评审卡片内嵌评论区（默认收起；点「评论 N」展开） */
+/* v0.0.8：去掉灰底/虚线分隔/圆角等修饰，让评论直接融入评审卡片 */
+/* v0.0.8：顶部间距与评论区底部间距一致（最后一条评论 10px + 卡片底内边距 10px = 20px） */
 .review-inline-comments {
-  margin-top: 10px;
-  padding: 10px 12px 2px;
-  border-top: 1px dashed var(--border);
-  background: #f8f9fb;
-  border-radius: 0 0 8px 8px;
+  margin-top: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 0;
 }
+/* v0.0.8：回复框融入卡片（去掉独立发表条的底色与顶部分隔线） */
 .review-inline-comments .comment-form {
   margin-bottom: 8px;
+  padding: 2px 0 8px;
+  border-top: none;
+  background: transparent;
+}
+.review-inline-comments .comment-list {
+  padding: 0;
 }
 .review-inline-comments .comment-item:last-child {
   border-bottom: none;
@@ -2879,7 +2900,8 @@ body {
 }
 
 .review-form-label {
-  width: 52px;
+  /* 宽度需容纳 4 字标签（如「综合评价」）在评审栏 15px 字号下不换行：4×15px=60px，留 4px 余量 */
+  width: 64px;
   flex-shrink: 0;
   font-size: 12px;
   color: #444a54;
@@ -2925,6 +2947,8 @@ body {
 }
 
 .review-submit {
+  /* v0.0.8：提交按钮靠右（退回展示保持在左） */
+  margin-left: auto;
   padding: 9px 14px;
   border: none;
   border-radius: 6px;
@@ -3369,6 +3393,174 @@ body {
   flex-direction: column;
   gap: 10px;
 }
+
+/* v0.0.8.2：最新评审 / 最新讨论上下堆叠（各占整行）；栏目内部卡片两栏（见 .home-feed-list） */
+.home-feed-columns {
+  display: block;
+}
+
+/* v0.0.8：首页「最新评审 / 最新讨论」信息流卡片——用户为主体：
+   头像 + 昵称/时间在上，内容居中（评审=综合评价），文章归属置底。
+   v0.0.8.1：卡片为容器（主点击区 + 操作行 + 就地编辑框），hover 同首页文章卡片。
+   v0.0.8.2：卡片两栏网格；页宽过窄时回退单栏。
+   v0.0.8.3：同行卡片强制等高（网格默认拉伸）；卡片最大高度 + 溢出裁切（描述两行截断）；
+   编辑框展开时（.editing）解除高度限制 */
+.home-feed-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+@media (max-width: 900px) {
+  .home-feed-list {
+    grid-template-columns: 1fr;
+  }
+}
+.home-feed-card {
+  max-height: 132px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  padding: 10px 12px;
+  transition: border-color 0.15s;
+}
+.home-feed-card.editing {
+  max-height: none;
+  overflow: visible;
+}
+.home-feed-card:hover {
+  border-color: var(--accent);
+}
+/* 卡片主点击区（用户行 + 内容 + 文章归属），点击跳转 */
+.home-feed-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--text);
+  cursor: pointer;
+}
+/* 用户行：头像 + 昵称/时间（左），评分/标签徽标（右） */
+.home-feed-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.home-feed-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--accent-soft);
+}
+.home-feed-avatar-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.home-feed-user-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.home-feed-username {
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.home-feed-time {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.home-feed-score {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 700;
+  color: #b25e09;
+  flex-shrink: 0;
+}
+.home-feed-tag {
+  margin-left: auto;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+/* 内容：评审=综合评价 / 讨论=评论原文，最多两行（v0.0.8.3：固定两行高度使卡片全等高） */
+.home-feed-content {
+  min-height: 40px;
+  font-size: 13px;
+  line-height: 1.55;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
+}
+.home-feed-content-empty {
+  color: var(--text-muted);
+}
+/* 文章归属（与操作按钮同行的左侧文字），置底弱化 */
+.home-feed-article {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* v0.0.8.1：信息流卡片操作行——态度按钮靠左，评论/回复按钮靠右（与文章页评审卡片一致） */
+.home-feed-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+/* 评论按钮 / 回复按钮：同款纯图标胶囊（review-comments-btn 提供样式），靠右 */
+.home-feed-comment-btn,
+.home-feed-reply-btn {
+  margin-left: auto;
+}
+
+/* v0.0.8.1：就地回复编辑框——样式对齐文章页评审卡片的回复框（无底色无分隔条） */
+.home-feed-editor {
+  margin-top: 6px;
+}
+.home-feed-editor .comment-form {
+  margin-bottom: 0;
+  padding: 2px 0 0;
+  border-top: none;
+  background: transparent;
+}
+.home-feed-editor-login {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 4px 0;
+}
+.home-feed-editor-ok {
+  font-size: 12px;
+  color: #2e9e5b;
+  margin-right: auto;
+}
 .home-meta-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -3612,11 +3804,19 @@ body {
   flex-shrink: 0;
 }
 
-/* 我的评审编辑按钮 */
-.review-edit-btn {
+/* v0.0.8：评审卡片右侧操作组（隐藏评分/编辑/评论）——
+   我的评审与其他评审统一用同一容器规则靠右，不再按卡片身份分别设置 */
+.review-actions-right {
   margin-left: auto;
-  color: var(--accent);
-  border-color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+/* v0.0.8：隐藏评分状态下，卡片头部总分与各维度分数不可见（占位保留，布局不跳动） */
+.review-item.hide-scores .review-item-score,
+.review-item.hide-scores .review-dim-score {
+  visibility: hidden;
 }
 
 /* auto-grow 编辑框：随内容自动变高、不显示滚动条、不可手动调高 */
@@ -3631,15 +3831,18 @@ body {
   line-height: 1.6;
   resize: none;
   overflow: hidden;
-  min-height: 34px;
+  /* v0.0.8：空态统一为两行高（60px = 2×24 行高 + 12 padding），
+     避免五维与「综合评价」编辑框高度不一致 */
+  min-height: 60px;
 }
 .review-grow-textarea:focus {
   outline: none;
   border-color: var(--accent);
 }
 
-/* 实时平均分预示 */
+/* 实时平均分预示（与「综合评价」同行时右对齐） */
 .review-avg-preview {
+  margin-left: auto;
   display: flex;
   align-items: center;
   gap: 4px;

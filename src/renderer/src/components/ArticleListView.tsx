@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import { ARTICLE_ORDERS, useReaderStore } from '../stores/reader'
-import { cachedImageUrl, formatSize, formatTs, scoreColor } from '../lib/sanitize'
+import { cachedImageUrl, formatSize, formatTs, scoreColor, userAvatarUrl, userDisplayName } from '../lib/sanitize'
 import { ErrorBanner } from './ErrorBanner'
 import { CoverImage } from './CoverImage'
 import { SkeletonArticleCard } from './Skeletons'
@@ -19,6 +19,7 @@ export function ArticleListView({
   searchParams,
   choice = false,
   activityPhase,
+  hideScoreboard,
   activityMeta
 }: {
   title: string
@@ -28,6 +29,11 @@ export function ArticleListView({
   choice?: boolean
   /** 活动状态（v0.0.2）：进行中/评审中隐藏评分榜排序、评分与排名 */
   activityPhase?: 'ongoing' | 'reviewing' | 'ended'
+  /**
+   * v0.0.8：强制隐藏评分榜（无法确认活动状态时保守使用，如活动状态查询失败）；
+   * 与 activityPhase 是「或」关系
+   */
+  hideScoreboard?: boolean
   /** 活动 meta（v0.0.2：列表页顶部展示活动介绍） */
   activityMeta?: {
     mid: number | string
@@ -66,11 +72,15 @@ export function ArticleListView({
 
   // 榜单排序（评分/点赞/评论/阅读）显示排名；按时间/字数/回复是浏览排序不显示
   const RANK_ORDERS = new Set(['score', 'likes', 'commentsNum', 'views'])
-  // v0.0.2：进行中/评审中活动文章无评分 → 隐藏「评分榜」排序、评分与排名
-  const hideScoreboard = activityPhase === 'ongoing' || activityPhase === 'reviewing'
-  const orders = hideScoreboard ? ARTICLE_ORDERS.filter((o) => o.key !== 'score') : ARTICLE_ORDERS
-  const isRanked = !hideScoreboard && RANK_ORDERS.has(listOrder)
+  // v0.0.2：进行中/评审中活动文章无评分 → 隐藏「评分榜」排序、评分与排名；
+  // v0.0.8：hideScoreboard 强制兜底（活动状态未知的入口），两者取或
+  const scoreboardHidden = (activityPhase === 'ongoing' || activityPhase === 'reviewing') || hideScoreboard === true
+  const orders = scoreboardHidden ? ARTICLE_ORDERS.filter((o) => o.key !== 'score') : ARTICLE_ORDERS
+  const isRanked = !scoreboardHidden && RANK_ORDERS.has(listOrder)
   const hasMore = listHasMore && list.length > 0
+  // v0.0.8：评分榜下过滤掉无评分文章（score 恒 '-.-' = 进行中/评审中活动文章），
+  // 保证这类文章无论在哪个入口进入的列表都不会出现在评分榜里
+  const shownList = listOrder === 'score' ? list.filter((a) => a.score && a.score !== '-.-') : list
 
   /**
    * 并列排名：按排序键值分组，相同键值同 rank（竞赛式跳号 1,2,2,4）。
@@ -117,7 +127,7 @@ export function ArticleListView({
   useEffect(() => {
     clearList()
     // v0.0.2：进入进行中/评审中活动列表时强制回到时间排序（评分榜被隔离，残留的 score 排序无意义）
-    if (hideScoreboard && listOrder === 'score') {
+    if (scoreboardHidden && listOrder === 'score') {
       setOrder('created')
       return
     }
@@ -212,7 +222,11 @@ export function ArticleListView({
         {!listLoading && list.length === 0 && !listError && (
           <div className="list-empty muted">（该栏目暂无文章）</div>
         )}
-        {list.map((a) => (
+        {/* v0.0.8.6：评分榜下无评分文章被过滤 → 列表有数据但展示为空时的说明 */}
+        {!listLoading && list.length > 0 && shownList.length === 0 && (
+          <div className="list-empty muted">（评分榜暂无有评分的文章）</div>
+        )}
+        {shownList.map((a) => (
           <ArticleCard
             key={a.cid}
             article={a}
@@ -220,7 +234,7 @@ export function ArticleListView({
             active={readingCid === a.cid}
             taskStatus={reviewTaskByCid[a.cid]}
             reviewed={myReviewedCids[a.cid] === true}
-            hideScore={hideScoreboard}
+            hideScore={scoreboardHidden}
             onOpen={() => void openArticle(a.cid)}
           />
         ))}
@@ -229,7 +243,7 @@ export function ArticleListView({
       {/* 加载哨兵：滚近底部自动加载下一页 */}
       <div className="list-more" ref={sentinelRef}>
         {list.length > 0 && !listHasMore ? (
-          <span className="muted">已加载全部 {list.length} 篇</span>
+          <span className="muted">已加载全部 {listOrder === 'score' ? shownList.length : list.length} 篇</span>
         ) : listLoading && list.length > 0 ? (
           <span className="muted">加载中 …</span>
         ) : null}
@@ -261,12 +275,10 @@ export function ArticleCard({
   onOpen: () => void
 }): React.JSX.Element {
   const author = article.authorInfo as Record<string, unknown> | undefined
-  const authorName = String(
-    author?.nickname ?? author?.nick ?? author?.nickName ?? author?.name ?? (article.authorId ? `UID ${article.authorId}` : '佚名')
-  )
+  const authorName = userDisplayName(author, article.authorId ? `UID ${article.authorId}` : '佚名')
   // 作者头像（authorInfo.avatar；仅 http(s) 走缓存协议）
-  const avatarRaw = String(author?.avatar ?? author?.headImg ?? author?.avatarUrl ?? '')
-  const avatar = avatarRaw && /^https?:\/\//i.test(avatarRaw) ? cachedImageUrl(avatarRaw) : undefined
+  const avatarUrlRaw = userAvatarUrl(author)
+  const avatar = avatarUrlRaw ? cachedImageUrl(avatarUrlRaw) : undefined
   // 封面：images[0] 优先（官方列表字段），cover 兜底；仅 http(s) 图片进缓存协议
   const coverRaw = (article.images && article.images[0]) || article.cover
   const cover = coverRaw && /^https?:\/\//i.test(coverRaw) ? cachedImageUrl(coverRaw) : undefined

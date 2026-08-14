@@ -327,6 +327,8 @@ export interface CommentItem {
   parent: number | string
   /** 评论内容（纯文本） */
   text: string
+  /** v0.0.8：所属文章标题（全局评论流 commentsList 的 contenTitle / contentsInfo.title） */
+  articleTitle?: string
   /** 作者昵称 */
   author: string
   /** 作者 uid（0 = 匿名访客） */

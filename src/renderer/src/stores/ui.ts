@@ -28,6 +28,11 @@ export interface ListContext {
    * 列表需隐藏「评分榜」排序、评分与排名
    */
   activityPhase?: ActivityPhase
+  /**
+   * v0.0.8：强制隐藏「评分榜」（不显示活动状态徽章时使用）——
+   * 活动状态查询失败等无法确认 phase 的入口，按保守处理隔离评分榜
+   */
+  hideScoreboard?: boolean
   /** 活动的完整 meta（v0.0.2：列表页顶部展示活动介绍用） */
   meta?: {
     mid: number | string

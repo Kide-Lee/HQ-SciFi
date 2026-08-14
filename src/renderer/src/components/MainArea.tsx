@@ -117,6 +117,7 @@ export function MainArea(): React.JSX.Element {
             searchParams={listContext?.searchParams}
             choice={listContext?.choice}
             activityPhase={listContext?.activityPhase}
+            hideScoreboard={listContext?.hideScoreboard}
             activityMeta={listContext?.meta}
           />
         )}
