@@ -73,6 +73,24 @@ function findDirNode(nodes: LocalNode[], dir: string): LocalNode | null {
   return null
 }
 
+/**
+ * v0.0.7：活动文章排序——待评审（评审任务 status=0）置顶，其余维持标题排序。
+ * 渲染期执行而非加载期：评审任务可能晚于文章列表返回（loadReviewTasks 幂等异步），
+ * 任务到达后经 store 订阅驱动本组件重渲染，排序随之自动生效。
+ */
+function sortActivityArticles(
+  articles: RemoteArticle[],
+  reviewTaskByCid: Record<string, number>
+): RemoteArticle[] {
+  const pendingRank = (cid: string): number => (reviewTaskByCid[cid] === 0 ? 0 : 1)
+  return [...articles].sort((a, b) => {
+    const ra = pendingRank(a.cid)
+    const rb = pendingRank(b.cid)
+    if (ra !== rb) return ra - rb
+    return a.title.localeCompare(b.title, 'zh-Hans-CN')
+  })
+}
+
 export function Sidebar(): React.JSX.Element {
   const section = useUiStore((s) => s.section)
   const selectedId = useUiStore((s) => s.selectedId)
@@ -100,6 +118,9 @@ export function Sidebar(): React.JSX.Element {
   const readingCid = useReaderStore((s) => s.readingCid)
   const reviewTaskByCid = useReaderStore((s) => s.reviewTaskByCid)
   const loadReviewTasks = useReaderStore((s) => s.loadReviewTasks)
+  // v0.0.7：「已评审」徽章数据——本人评审过该文章（登录/挂载时一次拉全）
+  const myReviewedCids = useReaderStore((s) => s.myReviewedCids)
+  const loadMyReviewed = useReaderStore((s) => s.loadMyReviewed)
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
@@ -170,7 +191,9 @@ export function Sidebar(): React.JSX.Element {
   // v0.0.2：登录后全局拉取一次评审任务（活动红点计数 / 文章卡片 / 活动树标记共用；幂等）
   useEffect(() => {
     void loadReviewTasks()
-  }, [loadReviewTasks])
+    // v0.0.7：同时拉取本人评审集合（「已评审」徽章数据源；幂等）
+    void loadMyReviewed()
+  }, [loadReviewTasks, loadMyReviewed])
 
   // v0.0.2：从文章标签跳转后，左栏定位到该文章标题（展开活动组 + 懒加载文章；
   // 高亮由 revealTarget.cid 判定，不依赖 selectedId——openList 会覆盖 selectedId）
@@ -545,16 +568,23 @@ export function Sidebar(): React.JSX.Element {
                 {expanded.has(key) && (
                   <div className="tree-group-body">
                     {groups[key].length === 0 && <div className="tree-empty muted">（暂无）</div>}
-                    {groups[key].map((row) => (
-                      <button
-                        key={row.cid}
-                        className={`tree-node ${selectedId === `remote:${row.cid}` ? 'active' : ''}`}
-                        onClick={() => handleOpenRemote(row)}
-                        title={row.filePath || `${label}（无本地文件）`}
-                      >
-                        {row.title}
-                      </button>
-                    ))}
+                    {groups[key].map((row) => {
+                      // v0.0.7：我的作品徽章——待评审（评审任务）/ 已评审（任务完成或本人评审过）
+                      const ts = reviewTaskByCid[row.cid]
+                      const reviewed = myReviewedCids[row.cid] === true
+                      return (
+                        <button
+                          key={row.cid}
+                          className={`tree-node ${selectedId === `remote:${row.cid}` ? 'active' : ''}`}
+                          onClick={() => handleOpenRemote(row)}
+                          title={row.filePath || `${label}（无本地文件）`}
+                        >
+                          <span className="tree-node-text">{row.title}</span>
+                          {ts === 0 && <span className="tree-task-badge todo">待评审</span>}
+                          {(ts === 1 || reviewed) && <span className="tree-task-badge done">已评审</span>}
+                        </button>
+                      )
+                    })}
                   </div>
                 )}
               </div>
@@ -611,12 +641,12 @@ export function Sidebar(): React.JSX.Element {
             {activeMetas.length === 0 && !metasError && (
               <div className="tree-empty muted">（加载中 …）</div>
             )}
-            {/* v0.0.2：活动树——可展开，子项为该活动文章（按标题排序）；进行中/评审中标记；阅读高亮；任务徽章 */}
+            {/* v0.0.7：活动树——可展开，子项为该活动文章（待评审置顶，组内按标题）；进行中/评审中标记；阅读高亮；任务徽章 */}
             {activeMetas.map((m) => {
               const midKey = String(m.mid)
               const phase = activityPhase(m)
               const phaseLabel = ACTIVITY_PHASE_LABEL[phase]
-              const articles = activityArticles[midKey] ?? []
+              const articles = sortActivityArticles(activityArticles[midKey] ?? [], reviewTaskByCid)
               const loading = activityLoading.has(midKey)
               return (
                 <div className="tree-group" key={m.mid}>
@@ -641,6 +671,7 @@ export function Sidebar(): React.JSX.Element {
                       )}
                       {articles.map((row) => {
                         const ts = reviewTaskByCid[row.cid]
+                        const reviewed = myReviewedCids[row.cid] === true
                         const isActive =
                           readingCid === row.cid ||
                           selectedId === `active-article:${row.cid}` ||
@@ -658,7 +689,7 @@ export function Sidebar(): React.JSX.Element {
                           >
                             <span className="tree-node-text">{row.title}</span>
                             {ts === 0 && <span className="tree-task-badge todo">待评审</span>}
-                            {ts === 1 && <span className="tree-task-badge done">已评审</span>}
+                            {(ts === 1 || reviewed) && <span className="tree-task-badge done">已评审</span>}
                           </button>
                         )
                       })}

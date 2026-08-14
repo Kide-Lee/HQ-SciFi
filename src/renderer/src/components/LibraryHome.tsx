@@ -18,6 +18,8 @@ export function LibraryHome(): React.JSX.Element {
   const openArticle = useReaderStore((s) => s.openArticle)
   const readingCid = useReaderStore((s) => s.readingCid)
   const reviewTaskByCid = useReaderStore((s) => s.reviewTaskByCid)
+  // v0.0.7：「已评审」徽章数据——本人评审过该文章（登录/挂载时一次拉全）
+  const myReviewedCids = useReaderStore((s) => s.myReviewedCids)
 
   const [cats, setCats] = useState<
     Array<{ mid: number | string; name: string; description?: string; imgurl?: string }>
@@ -118,6 +120,7 @@ export function LibraryHome(): React.JSX.Element {
                   article={a}
                   active={readingCid === a.cid}
                   taskStatus={reviewTaskByCid[a.cid]}
+                  reviewed={myReviewedCids[a.cid] === true}
                   onOpen={() => void openArticle(a.cid)}
                 />
               ))}

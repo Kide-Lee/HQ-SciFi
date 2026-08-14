@@ -26,6 +26,7 @@ import {
   listRemoteArticles,
   listReviews,
   listReviewTasks,
+  listMyReviews,
   removeUserLog,
   setReviewAttitude,
   submitReview,
@@ -441,6 +442,20 @@ export function registerIpcHandlers(): void {
     }
   })
 
+  // v0.0.7：当前账号写过的全部评审（「已评审」徽章数据；uid 从会话取，渲染层不可伪造）
+  ipcMain.handle('hqsf:list-my-reviews', async () => {
+    const token = getStoredToken()
+    const rawUid = getSession()?.userinfo?.uid ?? getSession()?.userinfo?.id
+    const uidNum = Number(rawUid)
+    const uid = Number.isFinite(uidNum) && uidNum > 0 ? uidNum : String(rawUid ?? '')
+    if (!uid) return ok({ cids: [] })
+    try {
+      return ok(await listMyReviews(token, uid))
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
   // ---- 评论（hqComments/） ----
   ipcMain.handle('hqsf:list-comments', async (_e, cid: string, opts: { limit?: number; page?: number; order?: string } = {}) => {
     const blocked = trusted(_e)
@@ -497,6 +512,12 @@ export function registerIpcHandlers(): void {
       if (!Number.isInteger(num) || num <= 0 || num > 10000) {
         return fail(new Error('投币数量需为 1-10000 的整数'))
       }
+      return ok(await addUserLog(token, type, { cid, num }))
+    }
+    // v0.0.7：点赞支持取消——num:1 点赞 / num:-1 取消点赞（官方 H5「推荐/不推荐」）
+    if (type === 'likes') {
+      const num = Number(params?.num)
+      if (num !== 1 && num !== -1) return fail(new Error('点赞参数错误（num 需为 1 或 -1）'))
       return ok(await addUserLog(token, type, { cid, num }))
     }
     return ok(await addUserLog(token, type, { cid }))

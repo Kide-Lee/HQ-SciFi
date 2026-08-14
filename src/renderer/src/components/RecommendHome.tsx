@@ -14,6 +14,8 @@ export function RecommendHome(): React.JSX.Element {
   const readingCid = useReaderStore((s) => s.readingCid)
   const reviewTaskByCid = useReaderStore((s) => s.reviewTaskByCid)
   const loadReviewTasks = useReaderStore((s) => s.loadReviewTasks)
+  // v0.0.7：「已评审」徽章数据——本人评审过该文章（登录/挂载时一次拉全）
+  const myReviewedCids = useReaderStore((s) => s.myReviewedCids)
 
   const [top, setTop] = useState<RemoteArticle[]>([])
   const [latest, setLatest] = useState<RemoteArticle[]>([])
@@ -92,6 +94,7 @@ export function RecommendHome(): React.JSX.Element {
                     article={a}
                     active={readingCid === a.cid}
                     taskStatus={reviewTaskByCid[a.cid]}
+                    reviewed={myReviewedCids[a.cid] === true}
                     onOpen={() => void openArticle(a.cid)}
                   />
                 ))}
@@ -109,6 +112,7 @@ export function RecommendHome(): React.JSX.Element {
                   article={a}
                   active={readingCid === a.cid}
                   taskStatus={reviewTaskByCid[a.cid]}
+                  reviewed={myReviewedCids[a.cid] === true}
                   onOpen={() => void openArticle(a.cid)}
                 />
               ))}

@@ -97,6 +97,14 @@ interface ReaderState {
   /** 拉取当前账号评审任务（幂等：已拉过则跳过；失败静默，不影响列表） */
   loadReviewTasks: () => Promise<void>
 
+  // ---- 评审记录（v0.0.7：「已评审」= 本人评审过该文章，不限评审任务） ----
+  /** cid → 本人已写过该文章的评审；loadMyReviewed 填充（登录/挂载时一次拉全） */
+  myReviewedCids: Record<string, boolean>
+  /** 已成功拉取过本人评审集合（幂等；失败不置位允许重试） */
+  myReviewedLoaded: boolean
+  /** 拉取当前账号写过的全部评审（reviewList 按会话 uid 分页枚举） */
+  loadMyReviewed: () => Promise<void>
+
   openArticle: (cid: string) => Promise<void>
   closeArticle: () => void
   /**
@@ -160,6 +168,8 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
 
   reviewTaskByCid: {},
   reviewTasksLoaded: false,
+  myReviewedCids: {},
+  myReviewedLoaded: false,
 
   openArticle: async (cid) => {
     if (get().readingCid === cid && get().detail) return
@@ -253,6 +263,12 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
       set({ submitMessage: payload.id != null && payload.id !== '' ? '评审已更新，等待审核' : '评审已提交，感谢你的评价' })
       const cid = get().readingCid
       if (cid) void get().loadReviews(cid)
+      // v0.0.7：评审提交后刷新评审任务（服务端权威状态）——侧栏「待评审置顶/徽章」随之归位；
+      // 若服务端仍判定待评审（如走审核），则保持原状，不会误报已完成
+      set({ reviewTasksLoaded: false })
+      void get().loadReviewTasks()
+      // v0.0.7：提交即视为「已评审」（本人）——即使列表接口滞后，徽章/置顶立即正确
+      if (cid) set({ myReviewedCids: { ...get().myReviewedCids, [cid]: true } })
       return true
     }
     set({ submitMessage: `提交失败: ${res.ok ? res.data.error : res.error}` })
@@ -393,6 +409,23 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
       }
     } catch {
       // 任务拉取失败静默：不影响文章列表浏览
+    }
+  },
+
+  loadMyReviewed: async () => {
+    // 幂等：已成功拉取过则不再重复请求（无评审时为空对象，用独立 loaded 标志）
+    if (get().myReviewedLoaded) return
+    try {
+      const res = await window.hqsf.listMyReviews()
+      if (res.ok) {
+        const map: Record<string, boolean> = {}
+        for (const c of res.data.cids) map[c] = true
+        // 合并而非整体替换：快照在途时若用户已提交评审（submit 即时标记），
+        // 替换会丢掉该标记；myReviewedCids 会话内只增不减，合并恒安全
+        set({ myReviewedCids: { ...get().myReviewedCids, ...map }, myReviewedLoaded: true })
+      }
+    } catch {
+      // 拉取失败静默：不影响浏览
     }
   }
 }))

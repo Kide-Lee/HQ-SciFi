@@ -183,6 +183,8 @@ body {
   height: 100%;
   cursor: col-resize;
   z-index: 20;
+  /* v0.0.7：分隔条脱离父级 .sidebar 的 drag 区域，否则真实鼠标按下会被系统当作拖窗口 */
+  -webkit-app-region: no-drag;
 }
 
 .sidebar-resizer:hover {
@@ -308,6 +310,10 @@ body {
   overflow-y: auto;
   padding: 4px 12px 8px;
   border-top: 1px solid var(--border);
+  /* v0.0.7：滚动容器显式脱离父级 .sidebar 的 drag 区域——
+     否则滚动条（含拖动滑块/点击轨道）的真实鼠标事件被系统拦截成拖动窗口，
+     表现为「左栏滚动条无法用鼠标拖动」；按钮/输入已有 no-drag，此处补滚动容器 */
+  -webkit-app-region: no-drag;
 }
 
 .tree-node {

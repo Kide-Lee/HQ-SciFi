@@ -74,17 +74,28 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: async () => {
     await window.hqsf.logout()
-    // 换账号时清空评审任务标记与拉取状态，避免残留/不重拉
-    useReaderStore.setState({ reviewTaskByCid: {}, reviewTasksLoaded: false })
+    // 换账号时清空评审任务/本人评审标记与拉取状态，避免残留/不重拉
+    useReaderStore.setState({
+      reviewTaskByCid: {},
+      reviewTasksLoaded: false,
+      myReviewedCids: {},
+      myReviewedLoaded: false
+    })
     set({ session: null, error: null })
   }
 }))
 
 /**
- * 登录成功后的收尾——重置并重拉评审任务
- * （换账号登录时避免上一账号残留的任务徽章/loaded 状态）
+ * 登录成功后的收尾——重置并重拉评审任务与本人评审集合
+ * （换账号登录时避免上一账号残留的徽章/loaded 状态）
  */
 function afterLogin(): void {
-  useReaderStore.setState({ reviewTaskByCid: {}, reviewTasksLoaded: false })
+  useReaderStore.setState({
+    reviewTaskByCid: {},
+    reviewTasksLoaded: false,
+    myReviewedCids: {},
+    myReviewedLoaded: false
+  })
   void useReaderStore.getState().loadReviewTasks()
+  void useReaderStore.getState().loadMyReviewed()
 }

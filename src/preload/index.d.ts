@@ -115,6 +115,8 @@ export interface HqsfApi {
   checkForbidden: (title: string, text: string) => Promise<ApiResult<{ code: number; msg: string }>>
   listGptModels: () => Promise<ApiResult<GptModel[]>>
   listReviewTasks: () => Promise<ApiResult<ReviewTaskItem[]>>
+  /** v0.0.7：当前账号写过的全部评审（「已评审」徽章数据源，按会话 uid） */
+  listMyReviews: () => Promise<ApiResult<{ cids: string[] }>>
   listComments: (cid: string, opts?: { limit?: number; page?: number; order?: string }) => Promise<
     ApiResult<{ items: CommentItem[]; total: number }>
   >

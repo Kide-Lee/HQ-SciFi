@@ -125,6 +125,8 @@ const api = {
   listGptModels: (): Promise<ApiResult<GptModel[]>> => ipcRenderer.invoke('hqsf:list-gpt-models'),
   /** 当前账号的评审任务（待评审/已完成文章列表） */
   listReviewTasks: (): Promise<ApiResult<ReviewTaskItem[]>> => ipcRenderer.invoke('hqsf:list-review-tasks'),
+  /** v0.0.7：当前账号写过的全部评审（「已评审」徽章数据源，按会话 uid） */
+  listMyReviews: (): Promise<ApiResult<{ cids: string[] }>> => ipcRenderer.invoke('hqsf:list-my-reviews'),
 
   // ---- 评论（阅读视图评论区） ----
   /** 文章评论列表（hqComments/commentsList） */

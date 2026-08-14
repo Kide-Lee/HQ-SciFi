@@ -52,6 +52,8 @@ export function ArticleListView({
   const readingCid = useReaderStore((s) => s.readingCid)
   const reviewTaskByCid = useReaderStore((s) => s.reviewTaskByCid)
   const loadReviewTasks = useReaderStore((s) => s.loadReviewTasks)
+  // v0.0.7：「已评审」徽章数据——本人评审过该文章（登录/挂载时一次拉全）
+  const myReviewedCids = useReaderStore((s) => s.myReviewedCids)
 
   const sentinelRef = useRef<HTMLDivElement | null>(null)
   /** 防重入：加载进行中不重复触发（IntersectionObserver 回调无 state 闭包问题） */
@@ -217,6 +219,7 @@ export function ArticleListView({
             rank={rankOf?.get(a.cid)}
             active={readingCid === a.cid}
             taskStatus={reviewTaskByCid[a.cid]}
+            reviewed={myReviewedCids[a.cid] === true}
             hideScore={hideScoreboard}
             onOpen={() => void openArticle(a.cid)}
           />
@@ -241,6 +244,7 @@ export function ArticleCard({
   rank,
   active,
   taskStatus,
+  reviewed = false,
   hideScore = false,
   onOpen
 }: {
@@ -250,6 +254,8 @@ export function ArticleCard({
   active: boolean
   /** 评审任务状态：0 待评审（强调高亮）/ 1 已完成（弱标记）/ 未定义 = 非任务文章 */
   taskStatus?: number
+  /** v0.0.7：本人已评审过该文章——非任务文章也可显示「已评审」 */
+  reviewed?: boolean
   /** 隐藏评分栏位（进行中/评审中活动文章无评分，v0.0.2） */
   hideScore?: boolean
   onOpen: () => void
@@ -267,7 +273,8 @@ export function ArticleCard({
   const hasScore = !!article.score && article.score !== '-.-'
   const scoreColorValue = scoreColor(article.score)
   const isTaskTodo = taskStatus === 0
-  const isTaskDone = taskStatus !== undefined && taskStatus !== 0
+  // v0.0.7：已评审 = 评审任务已完成 或 本人已评审过该文章（徽章不限任务）
+  const isTaskDone = (taskStatus !== undefined && taskStatus !== 0) || reviewed
   return (
     <button
       className={`article-card ${active ? 'active' : ''} ${isTaskTodo ? 'task-todo' : ''} ${isTaskDone ? 'task-done' : ''}`}
@@ -281,7 +288,14 @@ export function ArticleCard({
       <div className="article-card-body">
         <div className="article-card-title">
           {isTaskTodo && <span className="task-badge task-badge-todo" title="评审任务：待评审">待评审</span>}
-          {isTaskDone && <span className="task-badge task-badge-done" title="评审任务：已评审">已评审</span>}
+          {isTaskDone && (
+            <span
+              className="task-badge task-badge-done"
+              title={taskStatus !== undefined && taskStatus !== 0 ? '评审任务：已评审' : '本人已评审'}
+            >
+              已评审
+            </span>
+          )}
           <span className="article-card-title-text">{article.title}</span>
           {rank != null && (
             <span className={`article-rank ${rank <= 3 ? `top-${rank}` : ''}`} title={`第 ${rank} 名`}>

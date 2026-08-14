@@ -2,6 +2,7 @@ import { apiRequest, endpoint } from './net/api'
 import { mdToHtml } from './md2html'
 import { deleteReadCache, getReadCache, setReadCache } from './db'
 import type {
+  ApiRequestOptions,
   ArticleDetail,
   ArticleListOptions,
   CommentItem,
@@ -226,6 +227,39 @@ export async function listReviewTasks(token: string | null, uid: number | string
       articleTitle: str(contentJson.title)
     }
   })
+}
+
+/**
+ * v0.0.7：拉取当前账号写过的全部评审（reviewList searchParams={uid}，分页）。
+ * 「已评审」徽章数据源：文章是否被本人评审过（不限评审任务）。
+ * uid 由会话推导，渲染层不可伪造；分页防呆上限 20 页（1000 条）。
+ */
+export async function listMyReviews(
+  token: string | null,
+  uid: number | string
+): Promise<{ cids: string[] }> {
+  const cids = new Set<string>()
+  const pageSize = 50
+  for (let page = 1; page <= 20; page++) {
+    const query: Record<string, unknown> = {
+      searchParams: JSON.stringify({ uid }),
+      limit: pageSize,
+      page
+    }
+    if (token) query.token = token
+    const resp = await apiRequest<ListData>(endpoint('reviewList').path, {
+      method: 'GET',
+      query
+    })
+    const items = resp.data ?? []
+    for (const it of items) {
+      const contentJson = (it.contentJson as Record<string, unknown> | undefined) ?? {}
+      const cid = str(it.cid ?? contentJson.cid ?? contentJson.id ?? '')
+      if (cid) cids.add(cid)
+    }
+    if (items.length < pageSize) break
+  }
+  return { cids: [...cids] }
 }
 
 /**
@@ -535,9 +569,10 @@ export async function addComment(
 // ---------- 用户互动（hqUserlog/：点赞 / 收藏 / 投币，api-research.md §8） ----------
 
 /**
- * 用户日志操作（hqUserlog/addLog，GET + params JSON）。
- * type：likes=点赞（每日每 IP+UA+cid 一次，服务端 likes+1）/ mark=收藏（重复收藏报错）/
- * reward=投币（扣用户 assets 积分，num>0 且 ≤ 余额，不能打赏自己，作者得积分）。
+ * 用户日志操作（hqUserlog/addLog）。
+ * type：likes=点赞（num:1 点赞 / num:-1 取消点赞，官方 H5「推荐/不推荐」即 ±1；
+ * 服务端按 IP+UA+cid 限频）/ mark=收藏（重复收藏报错）/ reward=投币（扣用户 assets 积分）。
+ * 官方 H5 实测：likes 走 POST + params JSON；mark/reward 走 GET + params JSON。
  */
 export async function addUserLog(
   token: string,
@@ -545,10 +580,13 @@ export async function addUserLog(
   params: Record<string, unknown>
 ): Promise<LogOpResult> {
   try {
-    const resp = await apiRequest(endpoint('addLog').path, {
-      method: 'GET',
-      query: { params: JSON.stringify({ type, ...params }), token }
-    })
+    const payload = { type, ...params }
+    // GET 分支忽略 body、POST 分支忽略 query（apiRequest 约定），按类型选对
+    const options: ApiRequestOptions =
+      type === 'likes'
+        ? { method: 'POST', body: { params: JSON.stringify(payload), token } }
+        : { method: 'GET', query: { params: JSON.stringify(payload), token } }
+    const resp = await apiRequest(endpoint('addLog').path, options)
     if (resp.code === 1) return { ok: true }
     return { ok: false, error: resp.msg || '操作失败' }
   } catch (err) {
