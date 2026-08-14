@@ -4,6 +4,24 @@ import { registerIpcHandlers } from './ipc'
 import { initDb } from './db'
 import { registerImageProtocol } from './imgcache'
 import { loadApiConfig } from './net/apiconfig'
+import { getStoredToken, verifySessionToken } from './auth'
+import { clearSession } from './session'
+
+/**
+ * v0.0.7：启动时校验一次 token——服务端确认失效（非网络异常）则立即丢弃本地会话，
+ * 退回未登录状态（此后渲染层 getSession 返回 null，不再展示已登录界面）。
+ * 网络异常/校验异常不误清（离线可继续本地写作）；不阻塞窗口创建，渲染层 restore
+ * 会做同样的校验兜底（此处保证磁盘上的失效 token 不被残留，独立于渲染层行为）。
+ */
+async function startupTokenCheck(): Promise<void> {
+  try {
+    if (!getStoredToken()) return
+    const { valid, reachable } = await verifySessionToken()
+    if (!valid && reachable) clearSession()
+  } catch {
+    /* 校验异常不阻塞启动、不误清会话 */
+  }
+}
 
 /** electron-vite dev 模式下由环境变量注入渲染层 URL */
 function rendererUrl(): string {
@@ -98,6 +116,8 @@ export function initApp(): void {
     registerImageProtocol()
     registerIpcHandlers()
     createWindow()
+    // v0.0.7：启动校验一次 token，失效则丢弃（并行执行，不阻塞窗口展示）
+    void startupTokenCheck()
 
     app.on('activate', () => {
       // macOS 惯例：点击 Dock 图标且无窗口时重建窗口

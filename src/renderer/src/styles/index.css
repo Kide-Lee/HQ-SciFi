@@ -204,6 +204,26 @@ body {
   border-radius: var(--radius);
 }
 
+/* v0.0.6：未登录用户卡 = 登录入口按钮（复用 .user-card 布局） */
+.user-card-login {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.user-card-login:hover {
+  background: var(--bg-hover);
+}
+
 .avatar {
   width: 40px;
   height: 40px;
@@ -402,8 +422,17 @@ body {
 }
 
 .sidebar.collapsed .user-meta,
-.sidebar.collapsed .logout-btn {
+.sidebar.collapsed .logout-btn,
+.sidebar.collapsed .user-card-login .user-meta {
   display: none;
+}
+
+/* v0.0.6 修复：折叠态未登录用户卡——按钮 width:100% 占满整行，
+   .user-card 的 justify-content 对按钮内部无效，需让按钮内容（头像）居中 */
+.sidebar.collapsed .user-card-login {
+  justify-content: center;
+  gap: 0;
+  padding: 4px 0;
 }
 
 .sidebar.collapsed .nav-item {
@@ -549,8 +578,10 @@ body {
 }
 
 .login-wrap {
-  height: 100%;
-  position: relative;
+  /* v0.0.6：登录从独占页改为覆盖层模态（未登录可直接浏览/写作） */
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -583,12 +614,65 @@ body {
 }
 
 .login-card {
+  position: relative;
   width: 360px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 32px 28px 24px;
   box-shadow: 0 8px 32px rgba(31, 35, 41, 0.08);
+}
+
+/* v0.0.6：模态右上角关闭按钮 */
+.login-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-close:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+/* v0.0.7：首启协议门——全屏页（与登录页同底色），协议全文滚动到底才能勾选同意 */
+.firstrun-wrap {
+  height: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(160deg, #eef1fe 0%, #f7f8fa 60%);
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.firstrun-check {
+  display: flex;
+  justify-content: center;
+  margin-top: 14px;
+}
+
+.firstrun-tip {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  margin: 6px 0 0;
+}
+
+.firstrun-accept {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
 }
 
 .login-brand h1 {
@@ -2236,6 +2320,16 @@ body {
   padding: 10px 16px;
   border-top: 1px solid var(--border);
   background: #fbfbfd;
+}
+/* v0.0.6：未登录时替代发表框的提示条（与 comment-form 同位置贴底） */
+.comment-login-hint {
+  flex-shrink: 0;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  background: #fbfbfd;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
 }
 .comment-input {
   width: 100%;
