@@ -1,6 +1,7 @@
 import { apiRequest, endpoint } from './net/api'
 import { mdToHtml } from './md2html'
 import { deleteReadCache, getReadCache, setReadCache } from './db'
+import { buildCommentRequest } from './comment-request'
 import type {
   ApiRequestOptions,
   ArticleDetail,
@@ -550,15 +551,11 @@ export async function addComment(
 ): Promise<CommentSubmitResult> {
   const text = String(payload.text ?? '').trim()
   if (text.length < 4) return { ok: false, error: '评论内容至少 4 个字' }
-  const params: Record<string, unknown> = { cid: String(payload.cid), text }
-  if (payload.parent != null && String(payload.parent) !== '0') params.parent = payload.parent
-  // v0.0.3：评论-评审关联（h5 前端「回复评审」即传 reviewid，实测字段存在于评论条目）
-  if (payload.reviewid != null && String(payload.reviewid) !== '0') params.reviewid = payload.reviewid
   try {
-    const resp = await apiRequest(endpoint('commentsAdd').path, {
-      method: 'GET',
-      query: { params: JSON.stringify(params), token }
-    })
+    const resp = await apiRequest(
+      endpoint('commentsAdd').path,
+      buildCommentRequest(token, { ...payload, cid: String(payload.cid), text })
+    )
     if (resp.code === 1) return { ok: true }
     return { ok: false, error: resp.msg || '评论发布失败' }
   } catch (err) {
