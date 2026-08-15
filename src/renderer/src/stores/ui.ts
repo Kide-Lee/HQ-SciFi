@@ -74,6 +74,8 @@ interface UiState {
   searchRegex: boolean
   /** v0.0.7+：当前活动匹配序号（0-based；SearchPanel 计数/结果列表与正文高亮共享） */
   searchActive: number
+  /** v0.0.8：用户页目标 uid（null=不在用户页）。进入时保留当前 section/listContext/readingCid，返回时原视图自然恢复 */
+  userPageUid: string | null
   setSection: (section: TopSection) => void
   setSelectedId: (id: string | null) => void
   /** 打开栏目列表（作品库分类等） */
@@ -90,6 +92,9 @@ interface UiState {
   setSearchActive: (idx: number) => void
   openLogin: () => void
   closeLogin: () => void
+  /** v0.0.8：打开用户页（target uid 为空/0 视为无效，由调用方拦截） */
+  openUserPage: (uid: string | number) => void
+  closeUserPage: () => void
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -104,6 +109,7 @@ export const useUiStore = create<UiState>((set) => ({
   searchQuery: '',
   searchRegex: false,
   searchActive: 0,
+  userPageUid: null,
   setSection: (section) => set({ section, selectedId: null, listContext: null }),
   setSelectedId: (selectedId) => set({ selectedId }),
   openList: (ctx) => set({ selectedId: ctx.title, listContext: ctx }),
@@ -122,5 +128,7 @@ export const useUiStore = create<UiState>((set) => ({
   setSearchRegex: (searchRegex) => set({ searchRegex }),
   setSearchActive: (searchActive) => set({ searchActive }),
   openLogin: () => set({ loginOpen: true }),
-  closeLogin: () => set({ loginOpen: false })
+  closeLogin: () => set({ loginOpen: false }),
+  openUserPage: (uid) => set({ userPageUid: String(uid) }),
+  closeUserPage: () => set({ userPageUid: null })
 }))

@@ -68,8 +68,10 @@ interface ReaderState {
   comments: CommentItem[]
   commentsTotal: number
   commentsLoading: boolean
-  /** 是否还有下一页（按「本页返回条数 == limit」判断，同 listHasMore 策略） */
+  /** 是否还有下一页（主进程返回 hasMore，已含脱敏补拉游标） */
   commentsHasMore: boolean
+  /** 下一页游标（主进程评论脱敏补拉后可能跨越多个服务端页） */
+  commentsNextPage: number
   /** 发表进行中 */
   commentSubmitting: boolean
   /** 发表结果提示（成功/失败文案） */
@@ -179,6 +181,7 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
   commentsTotal: 0,
   commentsLoading: false,
   commentsHasMore: true,
+  commentsNextPage: 1,
   commentSubmitting: false,
   commentMessage: null,
 
@@ -209,7 +212,8 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
       reviews: [],
       reviewsPage: 1,
       reviewsHasMore: true,
-      comments: []
+      comments: [],
+      commentsNextPage: 1
     })
     try {
       const res = await window.hqsf.getRemoteArticle(cid)
@@ -332,7 +336,7 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
   loadComments: async (cid, opts = {}) => {
     const append = opts.append ?? false
     const limit = opts.limit ?? 20
-    const page = append ? Math.floor(get().comments.length / limit) + 1 : 1
+    const page = append ? get().commentsNextPage : 1
     set({ commentsLoading: true })
     try {
       // 评论按 coid（自增 id）升序 = 最早在前；新评论靠后，回复楼中楼紧随
@@ -343,7 +347,8 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
           comments: append ? [...get().comments, ...items] : items,
           commentsTotal: res.data.total,
           commentsLoading: false,
-          commentsHasMore: items.length >= limit
+          commentsHasMore: res.data.hasMore,
+          commentsNextPage: res.data.nextPage
         })
       } else {
         set({ commentsLoading: false, commentsHasMore: false })

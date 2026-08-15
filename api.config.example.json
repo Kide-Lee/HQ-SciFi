@@ -9,6 +9,34 @@
       "path": "hqUsers/signOut",
       "method": "GET"
     },
+    "userInfo": {
+      "path": "hqUsers/userInfo",
+      "method": "GET"
+    },
+    "userData": {
+      "path": "hqUsers/userData",
+      "method": "GET"
+    },
+    "userStatus": {
+      "path": "hqUsers/userStatus",
+      "method": "GET"
+    },
+    "follow": {
+      "path": "hqUsers/follow",
+      "method": "GET"
+    },
+    "isFollow": {
+      "path": "hqUsers/isFollow",
+      "method": "GET"
+    },
+    "followList": {
+      "path": "hqUsers/followList",
+      "method": "GET"
+    },
+    "fanList": {
+      "path": "hqUsers/fanList",
+      "method": "GET"
+    },
     "contentsList": {
       "path": "hqContents/contentsList",
       "method": "GET"

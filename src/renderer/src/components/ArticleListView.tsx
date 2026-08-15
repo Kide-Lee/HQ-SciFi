@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import { ARTICLE_ORDERS, useReaderStore } from '../stores/reader'
+import { useUiStore } from '../stores/ui'
 import { isReviewDisabledArticle, isReviewDisabledCategoryTitle } from '../lib/category'
 import { cachedImageUrl, formatSize, formatTs, scoreColor, userAvatarUrl, userDisplayName } from '../lib/sanitize'
 import { ErrorBanner } from './ErrorBanner'
@@ -279,8 +280,12 @@ export function ArticleCard({
   hideScore?: boolean
   onOpen: () => void
 }): React.JSX.Element {
+  const openUserPage = useUiStore((s) => s.openUserPage)
   const author = article.authorInfo as Record<string, unknown> | undefined
   const authorName = userDisplayName(author, article.authorId ? `UID ${article.authorId}` : '佚名')
+  // v0.0.8：作者可点击进入用户页；匿名（uid=0/空 或 显示名「匿名用户」）不可点
+  const authorUid = String(article.authorId ?? (author?.uid as string | number | undefined) ?? '')
+  const authorClickable = authorUid !== '' && authorUid !== '0' && authorName !== '匿名用户' && authorName !== '匿名'
   // 作者头像（authorInfo.avatar；仅 http(s) 走缓存协议）
   const avatarUrlRaw = userAvatarUrl(author)
   const avatar = avatarUrlRaw ? cachedImageUrl(avatarUrlRaw) : undefined
@@ -291,6 +296,8 @@ export function ArticleCard({
   const scoreColorValue = scoreColor(article.score)
   // v0.0.9：科幻杂谈/官方公告/外文翻译分类不开启评审功能——任务/已评审徽章与评分都不展示
   const reviewDisabled = isReviewDisabledArticle(article)
+  // v0.0.8：进行中/评审中活动文章（主进程在 article.hideScore 标记）不展示评分
+  const hideScoreValue = hideScore || article.hideScore === true
   const isTaskTodo = !reviewDisabled && taskStatus === 0
   // v0.0.7：已评审 = 评审任务已完成 或 本人已评审过该文章（徽章不限任务）
   const isTaskDone = !reviewDisabled && ((taskStatus !== undefined && taskStatus !== 0) || reviewed)
@@ -329,7 +336,18 @@ export function ArticleCard({
           <div className="article-card-excerpt article-card-excerpt-none">{`(´･ω･\`) 无法提取到摘要呢`}</div>
         )}
         <div className="article-card-meta">
-          <span className="article-card-author">
+          <span
+            className={`article-card-author${authorClickable ? ' user-link' : ''}`}
+            title={authorClickable ? '查看用户主页' : undefined}
+            onClick={
+              authorClickable
+                ? (e) => {
+                    e.stopPropagation()
+                    openUserPage(authorUid)
+                  }
+                : undefined
+            }
+          >
             {avatar ? (
               <img className="author-avatar" src={avatar} alt="" loading="lazy" referrerPolicy="no-referrer" />
             ) : null}
@@ -343,7 +361,7 @@ export function ArticleCard({
             <span>{article.likes} 赞</span>
             <span>{article.commentsNum} 评论</span>
             {/* 评分栏位始终保留（无评分显示灰色占位），按红→紫色相着色；hideScore 或分类禁用评审时整体隐藏 */}
-            {!hideScore && !reviewDisabled && (
+            {!hideScoreValue && !reviewDisabled && (
               <span
                 className={`card-score ${hasScore ? '' : 'no-score'}`}
                 style={hasScore && scoreColorValue ? { color: scoreColorValue } : undefined}

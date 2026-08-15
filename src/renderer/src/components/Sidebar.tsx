@@ -3,6 +3,7 @@ import {
   BookOpen,
   CalendarDays,
   ChevronRight,
+  CircleDollarSign,
   CloudDownload,
   FilePlus,
   FolderOpen,
@@ -21,8 +22,29 @@ import { useReaderStore } from '../stores/reader'
 import { sortActivities, activityPhase, ACTIVITY_PHASE_LABEL } from '../lib/activity'
 import type { ArticleRow, LocalNode, MetaInfo, RemoteArticle } from '../../../shared/types'
 import { PromptModal } from './PromptModal'
+import { useUserStore } from '../stores/user'
+import type { UserPageTab } from '../../../shared/types'
 
 const SECTIONS: TopSection[] = ['writing', 'recommend', 'serial', 'activity', 'library']
+
+/** v0.0.8：用户页左栏 tab（本人多「动态/收藏」） */
+const USER_TABS_SELF: Array<{ key: UserPageTab; label: string }> = [
+  { key: 'home', label: '主页' },
+  { key: 'dynamic', label: '动态' },
+  { key: 'marks', label: '收藏' },
+  { key: 'fans', label: '粉丝' },
+  { key: 'articles', label: '文章' },
+  { key: 'reviews', label: '评审' },
+  { key: 'comments', label: '评论' }
+]
+
+const USER_TABS_OTHER: Array<{ key: UserPageTab; label: string }> = [
+  { key: 'home', label: '主页' },
+  { key: 'fans', label: '粉丝' },
+  { key: 'articles', label: '文章' },
+  { key: 'reviews', label: '评审' },
+  { key: 'comments', label: '评论' }
+]
 
 /** v0.0.3：左栏五个模块图标 */
 const SECTION_ICONS: Record<TopSection, LucideIcon> = {
@@ -102,8 +124,12 @@ export function Sidebar(): React.JSX.Element {
   const setRevealTarget = useUiStore((s) => s.setRevealTarget)
 
   const session = useAuthStore((s) => s.session)
-  const logout = useAuthStore((s) => s.logout)
   const openLogin = useUiStore((s) => s.openLogin)
+  const userPageUid = useUiStore((s) => s.userPageUid)
+  const openUserPage = useUiStore((s) => s.openUserPage)
+  const closeUserPage = useUiStore((s) => s.closeUserPage)
+  const userTab = useUserStore((s) => s.tab)
+  const setUserTab = useUserStore((s) => s.setTab)
   const articles = useDocsStore((s) => s.articles)
   const localTree = useDocsStore((s) => s.localTree)
   const refreshLocal = useDocsStore((s) => s.refreshLocal)
@@ -177,6 +203,11 @@ export function Sidebar(): React.JSX.Element {
   const [activityLoading, setActivityLoading] = useState<Set<string>>(new Set())
   /** metas 拉取失败标记（避免反复重试） */
   const [metasError, setMetasError] = useState<string | null>(null)
+  /** v0.0.8：左栏用户卡——本人介绍 / 签到状态 / 能量币 */
+  const [ownIntro, setOwnIntro] = useState<string | null>(null)
+  const [clocked, setClocked] = useState(false)
+  const [clocking, setClocking] = useState(false)
+  const [energy, setEnergy] = useState<number | null>(null)
 
   // 打开/新建本地文档时自动展开「本地存档」组，确保当前文件在树中可见
   useEffect(() => {
@@ -196,6 +227,32 @@ export function Sidebar(): React.JSX.Element {
     // v0.0.7：同时拉取本人评审集合（「已评审」徽章数据源；幂等）
     void loadMyReviewed()
   }, [loadReviewTasks, loadMyReviewed])
+
+  // v0.0.8：登录后拉取本人资料（介绍）与签到/能量币状态（用户卡展示用）
+  useEffect(() => {
+    const rawUid = session?.userinfo?.uid ?? session?.userinfo?.id
+    if (!session || rawUid == null) {
+      setOwnIntro(null)
+      setClocked(false)
+      setEnergy(null)
+      return
+    }
+    const uid = String(rawUid)
+    let alive = true
+    void window.hqsf.getUserProfile(uid).then((res) => {
+      if (alive && res.ok) setOwnIntro(res.data.introduce ?? null)
+    })
+    void window.hqsf.getUserStats(uid).then((res) => {
+      if (alive && res.ok && res.data) setClocked(res.data.isClock === 1)
+    })
+    void window.hqsf.getSelfStatus().then((res) => {
+      if (alive && res.ok && res.data) setEnergy(res.data.assets)
+    })
+    return () => {
+      alive = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.userinfo?.uid, session?.userinfo?.id])
 
   // v0.0.2：从文章标签跳转后，左栏定位到该文章标题（展开活动组 + 懒加载文章；
   // 高亮由 revealTarget.cid 判定，不依赖 selectedId——openList 会覆盖 selectedId）
@@ -444,6 +501,22 @@ export function Sidebar(): React.JSX.Element {
 
   const isWriting = section === 'writing'
 
+  /** v0.0.8：签到——成功后按钮消失，原位显示能量币 */
+  async function handleClock(): Promise<void> {
+    if (clocking) return
+    setClocking(true)
+    const res = await window.hqsf.clockIn()
+    setClocking(false)
+    if (res.ok && res.data.ok) {
+      const r = res.data
+      setClocked(true)
+      if (r.assets != null) setEnergy(r.assets)
+      alert(r.award != null ? `签到成功！获得 ${r.award} 能量币${r.addExp != null ? `、${r.addExp} 经验` : ''}` : '签到成功')
+    } else {
+      alert(res.ok ? res.data.error ?? '签到失败' : res.error)
+    }
+  }
+
   // v0.0.2：未完成评审任务数（活动按钮红点）
   const pendingTasks = Object.values(reviewTaskByCid).filter((s) => s === 0).length
 
@@ -455,34 +528,54 @@ export function Sidebar(): React.JSX.Element {
       {/* v0.0.3：右缘拖动分隔条（仅展开态） */}
       {!collapsed && <div className="sidebar-resizer" onMouseDown={onSidebarResizeDown} title="拖动调整左栏宽度" />}
       <div className="sidebar-top">
-        <div className="user-card">
-          {session ? (
-            <>
-              <div className="avatar">
-                {avatar ? (
-                  <img className="avatar-img" src={String(avatar)} alt="" referrerPolicy="no-referrer" />
-                ) : (
-                  nickname.slice(0, 1)
-                )}
-              </div>
-              <div className="user-meta">
-                <div className="nickname">{nickname}</div>
-                <div className="intro">{uid}</div>
-              </div>
-              <button className="logout-btn" title="退出登录" onClick={() => void logout()}>
-                退出
+        <div className="user-card-col">
+          <div className="user-card">
+            {session ? (
+              <>
+                <button
+                  className="avatar user-card-avatar-btn"
+                  onClick={() => {
+                    const v = uidValue
+                    if (v != null && String(v) !== '') openUserPage(String(v))
+                  }}
+                  title="查看我的主页"
+                >
+                  {avatar ? (
+                    <img className="avatar-img" src={String(avatar)} alt="" referrerPolicy="no-referrer" />
+                  ) : (
+                    nickname.slice(0, 1)
+                  )}
+                </button>
+                <div className="user-meta">
+                  <div className="nickname">{nickname}</div>
+                  <div className="intro">{uid}</div>
+                </div>
+                {/* v0.0.8：退出按钮移除；原位置显示签到按钮，签到完成后消失并显示能量币 */}
+                <div className="user-card-side">
+                  {clocked ? (
+                    <span className="user-energy" title="能量币">
+                      <CircleDollarSign size={13} /> {energy ?? 0}
+                    </span>
+                  ) : (
+                    <button className="sign-btn" disabled={clocking} onClick={() => void handleClock()} title="签到">
+                      {clocking ? '签到中' : '签到'}
+                    </button>
+                  )}
+                </div>
+              </>
+            ) : (
+              /* v0.0.6：未登录也可浏览/写作，用户卡变「点击登录」入口（登录为覆盖层模态） */
+              <button className="user-card-login" onClick={openLogin} title="登录后启用同步、发布与评审">
+                <div className="avatar">?</div>
+                <div className="user-meta">
+                  <div className="nickname">未登录</div>
+                  <div className="intro">点击登录，启用同步与发布</div>
+                </div>
               </button>
-            </>
-          ) : (
-            /* v0.0.6：未登录也可浏览/写作，用户卡变「点击登录」入口（登录为覆盖层模态） */
-            <button className="user-card-login" onClick={openLogin} title="登录后启用同步、发布与评审">
-              <div className="avatar">?</div>
-              <div className="user-meta">
-                <div className="nickname">未登录</div>
-                <div className="intro">点击登录，启用同步与发布</div>
-              </div>
-            </button>
-          )}
+            )}
+          </div>
+          {/* v0.0.8：个人介绍显示在左栏用户信息下方 */}
+          {session && ownIntro ? <div className="user-card-intro">{ownIntro}</div> : null}
         </div>
 
         <nav className="nav-sections">
@@ -494,6 +587,7 @@ export function Sidebar(): React.JSX.Element {
                 className={`nav-item ${section === key ? 'active' : ''}`}
                 onClick={() => {
                   closeArticle()
+                  closeUserPage()
                   // v0.0.6：点击「写作」回到写作首页（关闭当前打开的编辑器文档）
                   if (key === 'writing') void useEditorStore.getState().close()
                   setSection(key)
@@ -518,6 +612,20 @@ export function Sidebar(): React.JSX.Element {
       </div>
 
       <div className="tree-area">
+        {userPageUid ? (
+          <div className="tree-area-inner">
+            {(uidValue != null && String(uidValue) === userPageUid ? USER_TABS_SELF : USER_TABS_OTHER).map((t) => (
+              <button
+                key={t.key}
+                className={`tree-node ${userTab === t.key ? 'active' : ''}`}
+                onClick={() => setUserTab(t.key)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        ) : (
+        <>
         {isWriting ? (
           <div className="writing-tree">
             <div className="tree-toolbar">
@@ -732,6 +840,8 @@ export function Sidebar(): React.JSX.Element {
               {cat.name}
             </button>
           ))
+        )}
+        </>
         )}
       </div>
 

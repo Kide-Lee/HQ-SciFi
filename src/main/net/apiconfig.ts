@@ -41,6 +41,14 @@ export const REQUIRED_ENDPOINTS = [
   // 认证（auth.ts）
   'userLogin',
   'signOut',
+  // 用户系统（user.ts）
+  'userInfo',
+  'userData',
+  'userStatus',
+  'follow',
+  'isFollow',
+  'followList',
+  'fanList',
   // 写作同步（sync.ts）
   'contentsList',
   'contentsInfo',
@@ -73,6 +81,13 @@ export type EndpointName = (typeof REQUIRED_ENDPOINTS)[number]
 const ENDPOINT_DESC: Record<EndpointName, string> = {
   userLogin: '账号密码登录',
   signOut: '退出登录',
+  userInfo: '用户资料（按 uid 查公开资料）',
+  userData: '用户计数（粉丝/文章/评论/签到状态）',
+  userStatus: '当前用户状态（能量币/等级）',
+  follow: '关注/取关用户',
+  isFollow: '查询是否关注',
+  followList: '关注列表',
+  fanList: '粉丝列表',
   contentsList: '文章列表（按状态/作者拉取）',
   contentsInfo: '文章详情（全文）',
   contentsAdd: '新建文章/草稿',
