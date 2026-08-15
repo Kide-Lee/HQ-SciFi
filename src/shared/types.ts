@@ -339,6 +339,8 @@ export interface CommentItem {
   articleIsAnonymous?: boolean
   /** v0.0.10：评论者经验值（用于显示用户等级 Lv0~Lv7，对齐官网 getLever） */
   experience?: number
+  /** v0.0.10：评审讨论关联评审的评审者名（首页「讨论于《xxx》中yyy的评审」用） */
+  reviewAuthor?: string
   /** 作者昵称 */
   author: string
   /** 作者 uid（0 = 匿名访客） */

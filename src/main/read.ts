@@ -512,6 +512,55 @@ export async function listReviews(
   }
 }
 
+/** v0.0.10：按评审 id 查评审条目（reviewList searchParams={id} 实测支持），取评审者名 */
+async function fetchReviewAuthorName(token: string | null, reviewId: string): Promise<string | undefined> {
+  try {
+    const query: Record<string, unknown> = {
+      searchParams: JSON.stringify({ id: reviewId }),
+      limit: 2,
+      page: 1
+    }
+    if (token) query.token = token
+    const resp = await withTimeout(
+      apiRequest<ListData>(endpoint('reviewList').path, { method: 'GET', query }),
+      ANON_META_TIMEOUT_MS
+    )
+    const item = (resp.data ?? [])[0] as Record<string, unknown> | undefined
+    if (!item) return undefined
+    const userJson = (item.userJson as Record<string, unknown> | undefined) ?? {}
+    const name = str(userJson.name ?? userJson.nickname ?? item.author ?? '')
+    return name || undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** 评论关联的评审 id（0/空 = 普通评论） */
+function reviewIdOf(c: CommentItem): string {
+  const v = c.reviewid
+  if (v == null || String(v) === '0' || String(v) === '') return ''
+  return String(v)
+}
+
+/** v0.0.10：给首页最新讨论的前 4 条评论补全评审者名（评审讨论卡片展示「中yyy的评审」用） */
+async function fillReviewAuthors(token: string | null, items: CommentItem[]): Promise<CommentItem[]> {
+  const ids = [...new Set(items.slice(0, 4).map(reviewIdOf).filter((s) => s !== ''))]
+  if (ids.length === 0) return items
+  const names = new Map<string, string>()
+  await Promise.all(
+    ids.map(async (id) => {
+      const name = await fetchReviewAuthorName(token, id)
+      if (name) names.set(id, name)
+    })
+  )
+  if (names.size === 0) return items
+  return items.map((c) => {
+    const rid = reviewIdOf(c)
+    const name = rid ? names.get(rid) : undefined
+    return name ? { ...c, reviewAuthor: name } : c
+  })
+}
+
 /** 组装评审提交参数（addReview/editReview 共用；score 为逗号分隔分数串） */
 function reviewParams(p: ReviewPayload): Record<string, unknown> {
   const params: Record<string, unknown> = {
@@ -678,7 +727,9 @@ export async function listRecentComments(
   })
   const items = (resp.data ?? []).map(toCommentItem)
   // v0.0.9：全局评论流补全所属文章匿名/作者信息（首页「最新讨论」用）
-  const filled = await fillArticleAnonMeta(token, items)
+  let filled = await fillArticleAnonMeta(token, items)
+  // v0.0.10：补全评审讨论对应的评审者名（首页「讨论于《xxx》中yyy的评审」用）
+  filled = await fillReviewAuthors(token, filled)
   return {
     items: filled,
     total: num(resp.total) || (resp.data ?? []).length

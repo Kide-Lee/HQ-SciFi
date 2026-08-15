@@ -3508,15 +3508,6 @@ body {
   color: #b25e09;
   flex-shrink: 0;
 }
-.home-feed-tag {
-  margin-left: auto;
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  flex-shrink: 0;
-}
 /* 内容：评审=综合评价 / 讨论=评论原文，最多三行（v0.0.8.3：固定三行高度使卡片全等高）。
    外层 .home-feed-content 固定三行高度并垂直居中；内层 .home-feed-content-text 负责三行截断 */
 .home-feed-content {

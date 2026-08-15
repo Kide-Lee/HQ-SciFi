@@ -452,7 +452,6 @@ export function RecommendHome(): React.JSX.Element {
                             </span>
                             <span className="home-feed-time">{c.created ? formatTs(c.created) : ''}</span>
                           </span>
-                          {rid && <span className="home-feed-tag">评审讨论</span>}
                         </span>
                         <span className="home-feed-content">
                           <span className="home-feed-content-text">{c.text}</span>
@@ -460,7 +459,13 @@ export function RecommendHome(): React.JSX.Element {
                       </button>
                       {/* 文章归属与回复按钮同行，回复按钮与评论按钮同款（纯图标、靠右） */}
                       <span className="home-feed-actions">
-                        <span className="home-feed-article">讨论于《{c.articleTitle || `文章 ${String(c.cid ?? '')}`}》</span>
+                        <span className="home-feed-article">
+                          {rid
+                            ? `讨论于《${c.articleTitle || `文章 ${String(c.cid ?? '')}`}》${
+                                c.reviewAuthor ? `中${c.reviewAuthor}的评审` : '中的评审'
+                              }`
+                            : `讨论于《${c.articleTitle || `文章 ${String(c.cid ?? '')}`}》`}
+                        </span>
                         <button
                           className="attitude-btn review-comments-btn home-feed-reply-btn"
                           onClick={() => setEditor(editorOpen ? null : { kind: 'comment', id: String(c.coid) })}
