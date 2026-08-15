@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import { ARTICLE_ORDERS, useReaderStore } from '../stores/reader'
+import { isReviewDisabledArticle, isReviewDisabledCategoryTitle } from '../lib/category'
 import { cachedImageUrl, formatSize, formatTs, scoreColor, userAvatarUrl, userDisplayName } from '../lib/sanitize'
 import { ErrorBanner } from './ErrorBanner'
 import { CoverImage } from './CoverImage'
@@ -73,8 +74,12 @@ export function ArticleListView({
   // 榜单排序（评分/点赞/评论/阅读）显示排名；按时间/字数/回复是浏览排序不显示
   const RANK_ORDERS = new Set(['score', 'likes', 'commentsNum', 'views'])
   // v0.0.2：进行中/评审中活动文章无评分 → 隐藏「评分榜」排序、评分与排名；
-  // v0.0.8：hideScoreboard 强制兜底（活动状态未知的入口），两者取或
-  const scoreboardHidden = (activityPhase === 'ongoing' || activityPhase === 'reviewing') || hideScoreboard === true
+  // v0.0.8：hideScoreboard 强制兜底（活动状态未知的入口），两者取或；
+  // v0.0.9：科幻杂谈/官方公告/外文翻译分类不显示评分 → 同样隐藏评分榜
+  const scoreboardHidden =
+    (activityPhase === 'ongoing' || activityPhase === 'reviewing') ||
+    hideScoreboard === true ||
+    isReviewDisabledCategoryTitle(title)
   const orders = scoreboardHidden ? ARTICLE_ORDERS.filter((o) => o.key !== 'score') : ARTICLE_ORDERS
   const isRanked = !scoreboardHidden && RANK_ORDERS.has(listOrder)
   const hasMore = listHasMore && list.length > 0
@@ -284,9 +289,11 @@ export function ArticleCard({
   const cover = coverRaw && /^https?:\/\//i.test(coverRaw) ? cachedImageUrl(coverRaw) : undefined
   const hasScore = !!article.score && article.score !== '-.-'
   const scoreColorValue = scoreColor(article.score)
-  const isTaskTodo = taskStatus === 0
+  // v0.0.9：科幻杂谈/官方公告/外文翻译分类不开启评审功能——任务/已评审徽章与评分都不展示
+  const reviewDisabled = isReviewDisabledArticle(article)
+  const isTaskTodo = !reviewDisabled && taskStatus === 0
   // v0.0.7：已评审 = 评审任务已完成 或 本人已评审过该文章（徽章不限任务）
-  const isTaskDone = (taskStatus !== undefined && taskStatus !== 0) || reviewed
+  const isTaskDone = !reviewDisabled && ((taskStatus !== undefined && taskStatus !== 0) || reviewed)
   return (
     <button
       className={`article-card ${active ? 'active' : ''} ${isTaskTodo ? 'task-todo' : ''} ${isTaskDone ? 'task-done' : ''}`}
@@ -335,8 +342,8 @@ export function ArticleCard({
             <span>{article.views} 阅读</span>
             <span>{article.likes} 赞</span>
             <span>{article.commentsNum} 评论</span>
-            {/* 评分栏位始终保留（无评分显示灰色占位），按红→紫色相着色；hideScore 时整体隐藏 */}
-            {!hideScore && (
+            {/* 评分栏位始终保留（无评分显示灰色占位），按红→紫色相着色；hideScore 或分类禁用评审时整体隐藏 */}
+            {!hideScore && !reviewDisabled && (
               <span
                 className={`card-score ${hasScore ? '' : 'no-score'}`}
                 style={hasScore && scoreColorValue ? { color: scoreColorValue } : undefined}

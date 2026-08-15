@@ -4,6 +4,7 @@ import { useAuthStore } from '../stores/auth'
 import { useUiStore } from '../stores/ui'
 import { useDocsStore } from '../stores/docs'
 import { activityPhase, type ActivityPhase } from '../lib/activity'
+import { isReviewDisabledArticle } from '../lib/category'
 import { anonymousAuthorDisplayName, cachedImageUrl, formatSize, formatTs, expandMediaTags, sanitizeHtml, scoreColor, userAvatarUrl, userDisplayName } from '../lib/sanitize'
 import { ErrorBanner } from './ErrorBanner'
 import { CommentSection, CommentCard, ridOf, flatSubs } from './ReaderComments'
@@ -219,6 +220,14 @@ export function ReaderView(): React.JSX.Element {
   const row = articles.find((a) => a.cid === cid)
   const remoteType = row?.type ?? ((detail?.type as ArticleType | undefined) ?? undefined)
   const isDraftArticle = remoteType === 'post_draft'
+  // v0.0.9：科幻杂谈/官方公告/外文翻译分类——不开启评审、不显示评分
+  const reviewDisabled = detail ? isReviewDisabledArticle(detail) : false
+  const target = useReaderStore((s) => s.target)
+  const clearTarget = useReaderStore((s) => s.clearTarget)
+  // v0.0.9：首页「最新评审」深链跳到禁用评审分类文章时，右栏无评审 tab 可消费目标，直接清理避免残留
+  useEffect(() => {
+    if (reviewDisabled && target?.reviewId && target.cid === cid) clearTarget()
+  }, [reviewDisabled, target, cid, clearTarget])
 
   /** 短暂展示操作结果提示（4 秒自动消失） */
   function flashRemoteMsg(msg: string): void {
@@ -288,7 +297,8 @@ export function ReaderView(): React.JSX.Element {
         ]
       : []),
     { key: 'comments', label: '评论', badge: commentsTotal, content: <CommentSection cid={cid} /> },
-    ...(!isMine
+    // v0.0.9：禁用评审的分类文章不提供评审 tab（与本人文章规则并列）
+    ...(!isMine && !reviewDisabled
       ? [
           {
             key: 'review' as const,
@@ -356,9 +366,10 @@ export function ReaderView(): React.JSX.Element {
               {/* v0.0.2：文章归属（活动/分类/合集），点击跳转 */}
               <BelongTags detail={detail} />
             </div>
-            {/* v0.0.2：右侧操作区——上下排布（大号评分在上、评审按钮在下），与左侧整体等高 */}
+            {/* v0.0.2：右侧操作区——上下排布（大号评分在上、评审按钮在下），与左侧整体等高。
+                v0.0.9：禁用评审的分类文章不显示评分与评审按钮 */}
             <div className="reader-header-actions">
-              {detail.score && detail.score !== '-.-' ? (
+              {!reviewDisabled && detail.score && detail.score !== '-.-' ? (
                 <span
                   className="reader-score-big"
                   style={{ color: scoreColor(detail.score) ?? undefined }}
@@ -367,7 +378,7 @@ export function ReaderView(): React.JSX.Element {
                   评分 <b>{detail.score}</b>
                 </span>
               ) : null}
-              {!isMine && (
+              {!isMine && !reviewDisabled && (
                 <button
                   className="review-toggle"
                   onClick={() => {
