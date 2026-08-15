@@ -1,56 +1,56 @@
 {
-  "baseUrl": "https://api.huangqisf.com/",
+  "baseUrl": "https://example.com/api/",
   "endpoints": {
     "userLogin": {
-      "path": "hqUsers/userLogin",
+      "path": "users/userLogin",
       "method": "POST"
     },
     "signOut": {
-      "path": "hqUsers/signOut",
+      "path": "users/signOut",
       "method": "GET"
     },
     "userInfo": {
-      "path": "hqUsers/userInfo",
+      "path": "users/userInfo",
       "method": "GET"
     },
     "userData": {
-      "path": "hqUsers/userData",
+      "path": "users/userData",
       "method": "GET"
     },
     "userStatus": {
-      "path": "hqUsers/userStatus",
+      "path": "users/userStatus",
       "method": "GET"
     },
     "follow": {
-      "path": "hqUsers/follow",
+      "path": "users/follow",
       "method": "GET"
     },
     "isFollow": {
-      "path": "hqUsers/isFollow",
+      "path": "users/isFollow",
       "method": "GET"
     },
     "followList": {
-      "path": "hqUsers/followList",
+      "path": "users/followList",
       "method": "GET"
     },
     "fanList": {
-      "path": "hqUsers/fanList",
+      "path": "users/fanList",
       "method": "GET"
     },
     "contentsList": {
-      "path": "hqContents/contentsList",
+      "path": "contents/contentsList",
       "method": "GET"
     },
     "contentsInfo": {
-      "path": "hqContents/contentsInfo",
+      "path": "contents/contentsInfo",
       "method": "POST"
     },
     "contentsAdd": {
-      "path": "hqContents/contentsAdd",
+      "path": "contents/contentsAdd",
       "method": "POST"
     },
     "contentsUpdate": {
-      "path": "hqContents/contentsUpdate",
+      "path": "contents/contentsUpdate",
       "method": "POST"
     },
     "uploadFile": {
@@ -58,15 +58,15 @@
       "method": "POST"
     },
     "choiceList": {
-      "path": "hqContents/choiceList",
+      "path": "contents/choiceList",
       "method": "GET"
     },
     "selectContents": {
-      "path": "hqMetas/selectContents",
+      "path": "metas/selectContents",
       "method": "GET"
     },
     "metasList": {
-      "path": "hqMetas/metasList",
+      "path": "metas/metasList",
       "method": "GET"
     },
     "gptList": {
@@ -94,31 +94,31 @@
       "method": "POST"
     },
     "commentsList": {
-      "path": "hqComments/commentsList",
+      "path": "comments/commentsList",
       "method": "GET"
     },
     "commentsAdd": {
-      "path": "hqComments/commentsAdd",
+      "path": "comments/commentsAdd",
       "method": "GET"
     },
     "addLog": {
-      "path": "hqUserlog/addLog",
+      "path": "userlog/addLog",
       "method": "GET"
     },
     "isMark": {
-      "path": "hqUserlog/isMark",
+      "path": "userlog/isMark",
       "method": "GET"
     },
     "markList": {
-      "path": "hqUserlog/markList",
+      "path": "userlog/markList",
       "method": "GET"
     },
     "removeLog": {
-      "path": "hqUserlog/removeLog",
+      "path": "userlog/removeLog",
       "method": "GET"
     },
     "userTextBlockStatus": {
-      "path": "hqContents/userTextBlockStatus",
+      "path": "contents/userTextBlockStatus",
       "method": "POST"
     }
   }
