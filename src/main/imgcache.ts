@@ -46,6 +46,9 @@ const inflight = new Map<string, Promise<{ buf: Buffer; ct: string }>>()
 /** sweep 并发节流：一次只跑一个全量扫描（多图并发下载时避免 readdir/stat 放大） */
 let sweepRunning = false
 
+/** .tmp 下载临时文件保留时长（1 小时）：超时未完成/未清理的残留临时文件会被清扫 */
+const TMP_MAX_AGE_MS = 60 * 60 * 1000
+
 /** touch 节流：距上次 touch 超过该时长才再次 utimes（避免内存命中高频写盘） */
 const TOUCH_INTERVAL_MS = 5 * 60 * 1000
 /** 上次 touch 时间：hash → ts（节流用；随 sweepCache 清理已不在磁盘的条目） */
@@ -109,7 +112,7 @@ function memGet(hash: string): MemEntry | null {
 /**
  * 缓存清理：缓存不限时，仅在总字节超限时按 mtime（最后使用时间，命中会 touch）
  * 从旧到新删除图片直到水位以下。图片连同 .meta 一起删。
- * 图片文件是 sha1 文件名、无扩展名；.tmp 是下载临时文件，不参与统计也不清理。
+ * v0.0.10：.tmp 下载临时文件保留 1 小时，超时残留一并清理（下载中断/并发丢弃产生）。
  */
 async function sweepCache(dir: string): Promise<void> {
   // 已有扫描在跑则跳过本次（清理是尽力而为，稍后触发会再补）
@@ -121,10 +124,17 @@ async function sweepCache(dir: string): Promise<void> {
     const onDisk = new Set<string>()
     try {
       for (const name of await readdir(dir)) {
-        if (name.endsWith('.tmp') || name.endsWith('.meta')) continue
+        if (name.endsWith('.meta')) continue
         const file = join(dir, name)
         const st = await stat(file)
         if (!st.isFile()) continue
+        // 超时的 .tmp 残留直接删除（正常下载中的 .tmp 年龄远小于 1 小时，不会误删）
+        if (name.endsWith('.tmp')) {
+          if (Date.now() - st.mtimeMs > TMP_MAX_AGE_MS) {
+            await rm(file, { force: true }).catch(() => undefined)
+          }
+          continue
+        }
         entries.push({ file, mtimeMs: st.mtimeMs, size: st.size })
         onDisk.add(name)
         total += st.size

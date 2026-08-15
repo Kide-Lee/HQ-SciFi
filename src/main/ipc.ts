@@ -114,7 +114,9 @@ export function registerIpcHandlers(): void {
   })
 
   // ---- 认证与会话 ----
-  ipcMain.handle('hqsf:login-password', async (_e, name: string, password: string) => {
+  ipcMain.handle('hqsf:login-password', async (event, name: string, password: string) => {
+    const blocked = trusted(event)
+    if (blocked) return fail(blocked)
     try {
       const res = await loginWithPassword(name, password)
       // 登录成功 = 可能切换账号：清空上一账号的本地索引，防止旧账号文章串到新账号侧栏四态
@@ -131,7 +133,9 @@ export function registerIpcHandlers(): void {
    * v0.0.6：编辑器「插入图片」——弹系统文件选择框，选中图片上传荒启（upload/full）后返回 URL。
    * 取消选择返回 { ok: true, data: null }；未登录/上传失败返回 { ok: false, error }。
    */
-  ipcMain.handle('media:pick-upload-image', async () => {
+  ipcMain.handle('media:pick-upload-image', async (event) => {
+    const blocked = trusted(event)
+    if (blocked) return fail(blocked)
     const token = getStoredToken()
     if (!token) return fail('未登录，无法上传图片')
     const { canceled, filePaths } = await dialog.showOpenDialog({
@@ -158,7 +162,9 @@ export function registerIpcHandlers(): void {
     }
   })
 
-  ipcMain.handle('hqsf:logout', async () => {
+  ipcMain.handle('hqsf:logout', async (event) => {
+    const blocked = trusted(event)
+    if (blocked) return fail(blocked)
     try {
       await doLogout()
       return ok(null)
@@ -168,7 +174,9 @@ export function registerIpcHandlers(): void {
   })
 
   // ---- 同步（草稿箱 ↔ 本地） ----
-  ipcMain.handle('hqsf:sync-pull', async () => {
+  ipcMain.handle('hqsf:sync-pull', async (event) => {
+    const blocked = trusted(event)
+    if (blocked) return fail(blocked)
     const token = getStoredToken()
     const uid = String(getSession()?.userinfo?.uid ?? '')
     if (!token || !uid) return fail(new Error('未登录，无法同步'))
@@ -179,7 +187,9 @@ export function registerIpcHandlers(): void {
     }
   })
 
-  ipcMain.handle('hqsf:sync-push', async (_e, filePath: string, isDraft: boolean, meta?: ArticleMeta) => {
+  ipcMain.handle('hqsf:sync-push', async (event, filePath: string, isDraft: boolean, meta?: ArticleMeta) => {
+    const blocked = trusted(event)
+    if (blocked) return fail(blocked)
     const token = getStoredToken()
     if (!token) return fail(new Error('未登录，无法同步'))
     try {
@@ -359,7 +369,9 @@ export function registerIpcHandlers(): void {
     }
   })
 
-  ipcMain.handle('hqsf:submit-review', async (_e, payload: ReviewPayload) => {
+  ipcMain.handle('hqsf:submit-review', async (event, payload: ReviewPayload) => {
+    const blocked = trusted(event)
+    if (blocked) return fail(blocked)
     const token = getStoredToken()
     if (!token) return fail(new Error('未登录，无法评审'))
     // 主进程校验载荷，防止渲染层越权/非法输入（评审提交体校验规则与官方一致）
@@ -384,7 +396,9 @@ export function registerIpcHandlers(): void {
     }
   })
 
-  ipcMain.handle('hqsf:set-review-attitude', async (_e, reviewId: number | string, type: number) => {
+  ipcMain.handle('hqsf:set-review-attitude', async (event, reviewId: number | string, type: number) => {
+    const blocked = trusted(event)
+    if (blocked) return fail(blocked)
     const token = getStoredToken()
     if (!token) return fail(new Error('未登录'))
     try {
@@ -417,7 +431,9 @@ export function registerIpcHandlers(): void {
    * 违禁词检测（官方接口 hqContents/userTextBlockStatus，付费 5 能量币/次，腾讯云内容安全）。
    * 官方编辑器实现：POST { text: 标题+正文HTML, token } → code=1 时 msg 为检测结果。
    */
-  ipcMain.handle('hqsf:check-forbidden', async (_e, title: string, text: string) => {
+  ipcMain.handle('hqsf:check-forbidden', async (event, title: string, text: string) => {
+    const blocked = trusted(event)
+    if (blocked) return fail(blocked)
     try {
       const token = getStoredToken()
       if (!token) return fail('未登录')

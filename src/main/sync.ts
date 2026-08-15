@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join, relative, resolve } from 'node:path'
 import TurndownService from 'turndown'
 import { apiRequest, apiUrl, downloadBinary, endpoint, uploadMultipart, type ApiResponse } from './net/api'
@@ -16,6 +16,7 @@ import {
 import {
   getArticleByCid,
   getArticleByFilePath,
+  listArticles,
   upsertArticle
 } from './db'
 import { fetchRemoteObject } from './read'
@@ -327,7 +328,40 @@ export async function pullRemote(token: string, authorId: string): Promise<PullR
       }
     }
   }
+  // v0.0.10：清理已删除文章的配图目录（.image/<cid>），避免本地无限增长
+  cleanupOrphanImageDirs(root)
   return result
+}
+
+/**
+ * v0.0.10：清理孤儿文章配图目录。
+ * .image/<cid>/ 按文章 cid 存放配图；文章删除/索引清空后目录不再被引用，
+ * 同步拉取完成后清理一次（按 db 索引中仍然存在的 cid 判断），避免无限增长。
+ * 只删目录不碰文件：本地草稿的配图目录当前未启用，后续若启用需同步扩展白名单。
+ */
+function cleanupOrphanImageDirs(root: string): void {
+  const imageRoot = join(root, '.image')
+  if (!existsSync(imageRoot)) return
+  let names: string[] = []
+  try {
+    names = readdirSync(imageRoot)
+  } catch {
+    return
+  }
+  const knownCids = new Set(
+    listArticles()
+      .map((a) => a.cid)
+      .filter((cid) => !!cid)
+  )
+  for (const name of names) {
+    if (knownCids.has(name)) continue
+    const dir = join(imageRoot, name)
+    try {
+      if (statSync(dir).isDirectory()) rmSync(dir, { recursive: true, force: true })
+    } catch {
+      /* 单个目录删除失败跳过 */
+    }
+  }
 }
 
 /**

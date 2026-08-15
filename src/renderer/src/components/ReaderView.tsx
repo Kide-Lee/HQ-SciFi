@@ -4,7 +4,6 @@ import { useAuthStore } from '../stores/auth'
 import { useUiStore } from '../stores/ui'
 import { useDocsStore } from '../stores/docs'
 import { activityPhase, type ActivityPhase } from '../lib/activity'
-import { isReviewDisabledArticle } from '../lib/category'
 import { anonymousAuthorDisplayName, cachedImageUrl, formatSize, formatTs, expandMediaTags, sanitizeHtml, scoreColor, userAvatarUrl, userDisplayName } from '../lib/sanitize'
 import { ErrorBanner } from './ErrorBanner'
 import { CommentSection, CommentCard, ridOf, flatSubs } from './ReaderComments'
@@ -220,8 +219,9 @@ export function ReaderView(): React.JSX.Element {
   const row = articles.find((a) => a.cid === cid)
   const remoteType = row?.type ?? ((detail?.type as ArticleType | undefined) ?? undefined)
   const isDraftArticle = remoteType === 'post_draft'
-  // v0.0.9：科幻杂谈/官方公告/外文翻译分类——不开启评审、不显示评分
-  const reviewDisabled = detail ? isReviewDisabledArticle(detail) : false
+  // v0.0.9：科幻杂谈/官方公告/外文翻译分类——不开启评审、不显示评分。
+  // v0.0.10：统一由 reader store 在 openArticle 时计算，视图只消费
+  const reviewDisabled = useReaderStore((s) => s.reviewDisabled)
   const target = useReaderStore((s) => s.target)
   const clearTarget = useReaderStore((s) => s.clearTarget)
   // v0.0.9：首页「最新评审」深链跳到禁用评审分类文章时，右栏无评审 tab 可消费目标，直接清理避免残留
