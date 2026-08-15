@@ -128,3 +128,29 @@ export function SkeletonComment(): React.JSX.Element {
     </div>
   )
 }
+
+/** 首页信息流卡片骨架（.home-feed-card：32×32 头像 + 昵称/时间 + 3 行内容 + 文章归属/按钮行）。
+ *  v0.0.9：对齐 3 行内容与 143px 卡片高度的最新改动，加载时占位避免布局跳动 */
+export function SkeletonFeedCard(): React.JSX.Element {
+  return (
+    <div className="sk sk-card sk-feed-card" aria-hidden="true">
+      <div className="sk-feed-head">
+        <div className="sk sk-feed-avatar" />
+        <div className="sk-feed-meta">
+          <div className="sk sk-line sk-feed-name" />
+          <div className="sk sk-line sk-feed-time" />
+        </div>
+        <div className="sk sk-feed-badge" />
+      </div>
+      <div className="sk-feed-content">
+        <div className="sk sk-line sk-w100" />
+        <div className="sk sk-line sk-w92" />
+        <div className="sk sk-line sk-w68" />
+      </div>
+      <div className="sk-feed-foot">
+        <div className="sk sk-line sk-feed-article" />
+        <div className="sk sk-feed-btn" />
+      </div>
+    </div>
+  )
+}

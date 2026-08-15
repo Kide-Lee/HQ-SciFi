@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ChevronDown, ChevronUp, X } from 'lucide-react'
 import { useReaderStore } from '../stores/reader'
 import { useAuthStore } from '../stores/auth'
-import { cachedImageUrl, formatTs } from '../lib/sanitize'
+import { anonymousAuthorDisplayName, cachedImageUrl, formatTs } from '../lib/sanitize'
 import { SkeletonComment } from './Skeletons'
 import type { CommentItem } from '../../../shared/types'
 
@@ -53,6 +53,7 @@ export function CommentSection({ cid }: { cid: string }): React.JSX.Element {
   const loadComments = useReaderStore((s) => s.loadComments)
   const submitComment = useReaderStore((s) => s.submitComment)
   const clearCommentMessage = useReaderStore((s) => s.clearCommentMessage)
+  const detail = useReaderStore((s) => s.detail)
   // v0.0.8：深链目标（首页「最新讨论」普通评论跳转定位）
   const target = useReaderStore((s) => s.target)
   const clearTarget = useReaderStore((s) => s.clearTarget)
@@ -205,7 +206,11 @@ export function CommentSection({ cid }: { cid: string }): React.JSX.Element {
             className="comment-input"
             rows={3}
             value={draft}
-            placeholder={replyTo ? `回复 @${replyTo.author}` : '写下你的评论…'}
+            placeholder={
+              replyTo
+                ? `回复 @${anonymousAuthorDisplayName(detail, replyTo.authorId, replyTo.author || '匿名')}`
+                : '写下你的评论…'
+            }
             onChange={(e) => {
               setDraft(e.target.value)
               setLocalErr(null)
@@ -243,6 +248,9 @@ export function CommentCard({
   hideParentQuote?: boolean
 }): React.JSX.Element {
   const avatar = comment.avatar && /^https?:\/\//i.test(comment.avatar) ? cachedImageUrl(comment.avatar) : undefined
+  const detail = useReaderStore((s) => s.detail)
+  // v0.0.9：匿名作者的文章下，评论者就是作者本人时统一显示「匿名用户」
+  const author = anonymousAuthorDisplayName(detail, comment.authorId, comment.author || '匿名')
   const pc = comment.parentComments
   return (
     <div className="comment-card">
@@ -255,7 +263,7 @@ export function CommentCard({
         {/* v0.0.5：头像右侧 meta 分组——昵称一行，下方评论时间一行（与评审卡片一致） */}
         <div className="comment-meta">
           <div className="comment-meta-top">
-            <span className="comment-author">{comment.author || '匿名'}</span>
+            <span className="comment-author">{author}</span>
           </div>
           {comment.created ? <span className="comment-time">{formatTs(comment.created)}</span> : null}
         </div>
