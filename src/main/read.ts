@@ -42,6 +42,11 @@ function str(v: unknown): string {
   return v == null ? '' : String(v)
 }
 
+/** 宽松布尔（服务端 0/1、'0'/'1'、true/false 均可） */
+function boolish(v: unknown): boolean {
+  return v === true || v === 1 || v === '1' || v === 'true'
+}
+
 /** 时间戳规整：统一为秒 */
 function normTs(v: unknown): number {
   const n = Number(v ?? 0)
@@ -149,6 +154,44 @@ export async function listRemoteArticles(
     items: (resp.data ?? []).map((it, i) => toRemoteArticle(it, i)),
     total: num(resp.total) || (resp.data ?? []).length
   }
+}
+
+/**
+ * v0.0.9：全局信息流补全所属文章的 authorId / isAnonymous。
+ * 首页「最新评审 / 最新讨论」各展示前 4 条，只需补前 4 条的所属文章元数据；
+ * contentsList 支持 searchParams={cid} 精确过滤（公开接口，匿名也可用），
+ * 单篇查询失败不阻塞信息流整体返回。
+ */
+async function fillArticleAnonMeta<T extends { cid?: number | string; articleAuthorId?: string; articleIsAnonymous?: boolean }>(
+  token: string | null,
+  items: T[]
+): Promise<T[]> {
+  const cids = [...new Set(items.slice(0, 4).map((i) => String(i.cid ?? '')).filter((s) => s !== ''))]
+  if (cids.length === 0) return items
+  const metas = new Map<string, { authorId: string; isAnonymous: boolean }>()
+  await Promise.all(
+    cids.map(async (cid) => {
+      try {
+        const res = await listRemoteArticles(token, { searchParams: { cid }, limit: 2, order: 'created' })
+        const hit = res.items.find((a) => String(a.cid) === cid)
+        if (hit) metas.set(cid, { authorId: hit.authorId, isAnonymous: hit.isAnonymous === true })
+      } catch {
+        // 单篇查询失败不阻塞信息流
+      }
+    })
+  )
+  if (metas.size === 0) return items
+  return items.map((it) => {
+    const meta = metas.get(String(it.cid ?? ''))
+    if (!meta) return it
+    return {
+      ...it,
+      // 注意：toCommentItem 会把 articleIsAnonymous 初始为 false（boolish 兜底），
+      // 这里不能再用 ?? 回退，否则补全结果永远被 false 挡住
+      articleAuthorId: meta.authorId || it.articleAuthorId,
+      articleIsAnonymous: meta.isAnonymous || it.articleIsAnonymous
+    }
+  })
 }
 
 /** 拉取 metas 栏目条目（M3：连载/活动/作品库/tag 树）。metasList 公开 */
@@ -432,8 +475,11 @@ export async function listReviews(
     method: 'GET',
     query
   })
+  const items = (resp.data ?? []).map(toReviewItem)
+  // 全局评审流（首页「最新评审」）补全所属文章匿名/作者信息；按文章过滤时渲染层已有 detail，无需补
+  const filled = opts.cid ? items : await fillArticleAnonMeta(token, items)
   return {
-    items: (resp.data ?? []).map(toReviewItem),
+    items: filled,
     total: num(resp.total) || (resp.data ?? []).length
   }
 }
@@ -537,10 +583,15 @@ function toCommentItem(item: Record<string, unknown>): CommentItem {
     text: str(item.text),
     // v0.0.8：全局评论流的文章标题（contenTitle / contentsInfo.title）
     articleTitle: str(item.contenTitle ?? contentsInfo.title) || undefined,
-    author: str(item.author ?? userJson.name ?? '匿名'),
+    // v0.0.9：所属文章作者 uid（ownerId 即文章作者，与 authorId 相等时评论者为作者本人）；
+    // 文章 isAnonymous 由 fillArticleAnonMeta 用 contentsList 补全
+    articleAuthorId: str(contentsInfo.authorId ?? item.ownerId ?? item.articleAuthorId) || undefined,
+    articleIsAnonymous: boolish(contentsInfo.isAnonymous ?? item.articleIsAnonymous),
+    // 官网实现：评论者显示名/头像以 userJson 为准——服务端对「匿名作者本人」的 userJson
+    // 已做匿名化（name/avatar/ip/local 全部替换），而顶层 author 仍是真实昵称，不能再优先使用
+    author: str(userJson.name ?? item.author ?? '匿名'),
     authorId: str(item.authorId ?? userJson.uid ?? 0),
-    // 实测（2026-08）：荒启定制版 commentsList 无顶层 avatar，头像在 userJson.avatar
-    avatar: str(item.avatar) || str(userJson.avatar) || undefined,
+    avatar: str(userJson.avatar) || str(item.avatar) || undefined,
     created: normTs(item.created),
     subNum: num(item.subNum),
     parentComments: (item.parentComments as CommentItem['parentComments'] | undefined) ?? undefined,
@@ -594,8 +645,11 @@ export async function listRecentComments(
     method: 'GET',
     query
   })
+  const items = (resp.data ?? []).map(toCommentItem)
+  // v0.0.9：全局评论流补全所属文章匿名/作者信息（首页「最新讨论」用）
+  const filled = await fillArticleAnonMeta(token, items)
   return {
-    items: (resp.data ?? []).map(toCommentItem),
+    items: filled,
     total: num(resp.total) || (resp.data ?? []).length
   }
 }

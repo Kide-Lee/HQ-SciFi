@@ -4,7 +4,7 @@ import { useAuthStore } from '../stores/auth'
 import { useUiStore } from '../stores/ui'
 import { useDocsStore } from '../stores/docs'
 import { activityPhase, type ActivityPhase } from '../lib/activity'
-import { cachedImageUrl, formatSize, formatTs, expandMediaTags, sanitizeHtml, scoreColor, userAvatarUrl, userDisplayName } from '../lib/sanitize'
+import { anonymousAuthorDisplayName, cachedImageUrl, formatSize, formatTs, expandMediaTags, sanitizeHtml, scoreColor, userAvatarUrl, userDisplayName } from '../lib/sanitize'
 import { ErrorBanner } from './ErrorBanner'
 import { CommentSection, CommentCard, ridOf, flatSubs } from './ReaderComments'
 import { ReaderInteractions } from './ReaderInteractions'
@@ -652,6 +652,7 @@ function ReviewItemCard({
   onEdit?: () => void
 }): React.JSX.Element {
   const setAttitude = useReaderStore((s) => s.setAttitude)
+  const detail = useReaderStore((s) => s.detail)
   // v0.0.5：评审评论内嵌于卡片，默认收起（点击「评论 N」展开/收起；「回复评审」展开并聚焦回复框）
   const [commentsOpen, setCommentsOpen] = useState(false)
   const [replyIntent, setReplyIntent] = useState(false)
@@ -665,7 +666,9 @@ function ReviewItemCard({
     }
   }, [target, review.id])
   const u = review.userJson ?? {}
-  const rName = String(u.nickname ?? u.nick ?? u.nickName ?? u.name ?? `UID ${String(u.uid ?? review.uid ?? '')}`)
+  const rNameRaw = String(u.nickname ?? u.nick ?? u.nickName ?? u.name ?? `UID ${String(u.uid ?? review.uid ?? '')}`)
+  // v0.0.9：匿名作者的文章下，评审者就是作者本人时统一显示「匿名用户」
+  const rName = anonymousAuthorDisplayName(detail, review.uid, rNameRaw)
   const avatarRaw = String(u.avatar ?? u.headImg ?? u.headImgUrl ?? u.avatarUrl ?? '')
   const avatar = avatarRaw && /^https?:\/\//i.test(avatarRaw) ? cachedImageUrl(avatarRaw) : undefined
   const scoreColorValue = review.actualscore && review.actualscore !== '-.-' ? scoreColor(review.actualscore) : undefined
@@ -823,7 +826,8 @@ function ReviewInlineComments({
   const commentMessage = useReaderStore((s) => s.commentMessage)
   const clearCommentMessage = useReaderStore((s) => s.clearCommentMessage)
   const submitComment = useReaderStore((s) => s.submitComment)
-  const cid = useReaderStore((s) => s.detail)?.cid ?? ''
+  const detail = useReaderStore((s) => s.detail)
+  const cid = detail?.cid ?? ''
   const rid = String(review.id)
   const session = useAuthStore((s) => s.session)
   const loggedIn = !!session
@@ -893,7 +897,11 @@ function ReviewInlineComments({
             className="comment-input"
             rows={2}
             value={draft}
-            placeholder={replyTo ? `回复 @${replyTo.author}（≥4 字）` : '评论这条评审…（≥4 字）'}
+            placeholder={
+              replyTo
+                ? `回复 @${anonymousAuthorDisplayName(detail, replyTo.authorId, replyTo.author || '匿名')}（≥4 字）`
+                : '评论这条评审…（≥4 字）'
+            }
             onChange={(e) => {
               setDraft(e.target.value)
               setLocalErr(null)

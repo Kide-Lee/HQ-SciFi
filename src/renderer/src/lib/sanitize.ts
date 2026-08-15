@@ -258,6 +258,36 @@ export function userDisplayName(u: Record<string, unknown> | undefined, fallback
   return fallback
 }
 
+/** 是否为「匿名 uid」（0 / 空 / 未提供；荒启以 0 表示匿名访客） */
+function isAnonUid(v: string | number | null | undefined): boolean {
+  if (v == null) return true
+  const s = String(v)
+  return s === '' || s === '0'
+}
+
+/**
+ * v0.0.9：匿名作者的文章下，若评论/评审者就是作者本人，显示名统一为「匿名用户」。
+ * @param article 文章侧信息（authorId + isAnonymous；来自 detail / 列表条目 / 评论流的 articleInfo）
+ * @param itemAuthorId 评论的 authorId 或评审的 uid
+ * @param fallbackName 未命中规则时使用的原始显示名
+ */
+export function anonymousAuthorDisplayName(
+  article: { authorId?: string | number; isAnonymous?: boolean | number | string } | null | undefined,
+  itemAuthorId: string | number | null | undefined,
+  fallbackName: string
+): string {
+  if (!article) return fallbackName
+  const anon = article.isAnonymous
+  if (anon !== true && anon !== 1 && anon !== '1' && anon !== 'true') return fallbackName
+  const aStr = article.authorId == null ? '' : String(article.authorId)
+  const bStr = itemAuthorId == null ? '' : String(itemAuthorId)
+  // 文章与评论/评审同为匿名身份时，视为作者本人（匿名文章下无法区分匿名作者与匿名访客，统一显示为匿名用户）
+  if (isAnonUid(aStr) && isAnonUid(bStr)) return '匿名用户'
+  // 双方都是真实 uid 且相等 → 作者本人
+  if (!isAnonUid(aStr) && !isAnonUid(bStr) && aStr === bStr) return '匿名用户'
+  return fallbackName
+}
+
 /** 从 userJson 提取头像 URL（仅 http(s)；返回原始 URL，由调用方走 cachedImageUrl） */
 export function userAvatarUrl(u: Record<string, unknown> | undefined): string | undefined {
   const raw = String(u?.avatar ?? u?.headImg ?? u?.headImgUrl ?? u?.avatarUrl ?? '')

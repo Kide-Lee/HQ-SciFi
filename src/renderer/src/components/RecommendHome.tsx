@@ -1,12 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { MessageCircle } from 'lucide-react'
 import { useReaderStore } from '../stores/reader'
 import { useAuthStore } from '../stores/auth'
 import { useUiStore } from '../stores/ui'
 import { ArticleCard } from './ArticleListView'
 import { ErrorBanner } from './ErrorBanner'
-import { SkeletonArticleCard } from './Skeletons'
-import { cachedImageUrl, formatTs, userAvatarUrl, userDisplayName } from '../lib/sanitize'
+import { SkeletonArticleCard, SkeletonFeedCard } from './Skeletons'
+import { anonymousAuthorDisplayName, cachedImageUrl, formatTs, userAvatarUrl, userDisplayName } from '../lib/sanitize'
 import type { ApiResult, CommentItem, RemoteArticle, ReviewItem } from '../../../shared/types'
 
 /**
@@ -17,9 +17,33 @@ import type { ApiResult, CommentItem, RemoteArticle, ReviewItem } from '../../..
  * 卡片主体点击跳转到对应文章的评审 / 评论；卡片内评论/回复按钮就地展开编辑框快速回复。
  */
 
-/** 从评审的 userJson 提取评者展示名（多字段容错，与评审卡片一致） */
-function reviewerName(r: ReviewItem): string {
-  return userDisplayName(r.userJson, `UID ${String(r.uid ?? '')}`)
+/** 从评审的 userJson 提取评者展示名（多字段容错，与评审卡片一致）。
+ *  v0.0.9：匿名作者的文章下，评审者就是作者本人时统一显示「匿名用户」。
+ *  优先用主进程为全局评审流补全的 articleAuthorId/articleIsAnonymous；
+ *  其次用评审流自带的 articleInfo（contentJson）；最后回退首页已加载的文章条目。 */
+function reviewerName(r: ReviewItem, homeArticle?: RemoteArticle): string {
+  const raw = userDisplayName(r.userJson, `UID ${String(r.uid ?? '')}`)
+  if (r.articleAuthorId != null || r.articleIsAnonymous != null) {
+    return anonymousAuthorDisplayName(
+      { authorId: r.articleAuthorId, isAnonymous: r.articleIsAnonymous },
+      r.uid,
+      raw
+    )
+  }
+  if (homeArticle) {
+    return anonymousAuthorDisplayName(homeArticle, r.uid, raw)
+  }
+  const info = r.articleInfo as Record<string, unknown> | undefined
+  return anonymousAuthorDisplayName(
+    info
+      ? {
+          authorId: typeof info.authorId === 'string' || typeof info.authorId === 'number' ? info.authorId : undefined,
+          isAnonymous: info.isAnonymous as boolean | number | string | undefined
+        }
+      : null,
+    r.uid,
+    raw
+  )
 }
 
 /** 从评审的 userJson 提取评者头像（仅 http(s) 走缓存协议） */
@@ -145,6 +169,14 @@ export function RecommendHome(): React.JSX.Element {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // v0.0.9：首页已加载文章（置顶+最新发布）按 cid 索引，供最新讨论/评审卡片
+  // 在全局流未携带所属文章匿名/作者信息时兜底判断「匿名作者本人评论/评审」
+  const homeArticleById = useMemo(() => {
+    const m = new Map<string, RemoteArticle>()
+    for (const a of [...top, ...latest]) m.set(String(a.cid), a)
+    return m
+  }, [top, latest])
+
   // 登录后全局拉一次评审任务（红点/卡片标记共用）
   useEffect(() => {
     void loadReviewTasks()
@@ -239,7 +271,7 @@ export function RecommendHome(): React.JSX.Element {
       {error && <ErrorBanner title="首页加载失败" message={error} />}
 
       {loading ? (
-        // v0.0.7：预填充骨架——形状与加载完成后的页面同构（置顶 grid 卡 + 最新列表卡）
+        // v0.0.7：预填充骨架——形状与加载完成后的页面同构（置顶 grid 卡 + 最新评审/讨论 feed 卡 + 最新列表卡）
         <>
           <span className="sr-only" role="status">加载中 …</span>
           <section className="home-section">
@@ -247,6 +279,23 @@ export function RecommendHome(): React.JSX.Element {
             <div className="home-top-grid">
               {Array.from({ length: 6 }).map((_, i) => (
                 <SkeletonArticleCard key={i} />
+              ))}
+            </div>
+          </section>
+          {/* v0.0.9：最新评审 / 最新讨论骨架与真实结构同构（两栏网格，各 4 张，3 行内容高度） */}
+          <section className="home-section home-feed-col">
+            <h2 className="home-section-title">最新评审</h2>
+            <div className="home-feed-list">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <SkeletonFeedCard key={i} />
+              ))}
+            </div>
+          </section>
+          <section className="home-section home-feed-col">
+            <h2 className="home-section-title">最新讨论</h2>
+            <div className="home-feed-list">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <SkeletonFeedCard key={i} />
               ))}
             </div>
           </section>
@@ -287,7 +336,7 @@ export function RecommendHome(): React.JSX.Element {
               <div className="home-feed-list">
                 {recentReviews.length === 0 && <div className="list-empty muted">（暂无评审）</div>}
                 {recentReviews.slice(0, 4).map((r) => {
-                  const name = reviewerName(r)
+                  const name = reviewerName(r, homeArticleById.get(String(r.cid ?? '')))
                   const content = String(r.zonghe ?? '').trim()
                   const title = reviewArticleTitle(r)
                   const editorOpen = editor?.kind === 'review' && editor.id === String(r.id)
@@ -310,9 +359,13 @@ export function RecommendHome(): React.JSX.Element {
                           )}
                         </span>
                         {content ? (
-                          <span className="home-feed-content">{content}</span>
+                          <span className="home-feed-content">
+                            <span className="home-feed-content-text">{content}</span>
+                          </span>
                         ) : (
-                          <span className="home-feed-content home-feed-content-empty">（无综合评价）</span>
+                          <span className="home-feed-content home-feed-content-empty">
+                            <span className="home-feed-content-text">（无综合评价）</span>
+                          </span>
                         )}
                       </button>
                       {/* 文章归属与评论按钮同行——评《xxx》靠左，评论按钮靠右 */}
@@ -361,6 +414,14 @@ export function RecommendHome(): React.JSX.Element {
                       : null
                   const avatarRaw = String(c.avatar ?? '')
                   const avatar = avatarRaw && /^https?:\/\//i.test(avatarRaw) ? cachedImageUrl(avatarRaw) : undefined
+                  // v0.0.9：匿名作者的文章下，评论者就是作者本人时统一显示「匿名用户」。
+                  // 优先用首页已加载文章条目（authorId/isAnonymous 完整）；否则用评论流自带的文章信息
+                  const homeArticle = homeArticleById.get(String(c.cid ?? ''))
+                  const author = anonymousAuthorDisplayName(
+                    homeArticle ?? { authorId: c.articleAuthorId, isAnonymous: c.articleIsAnonymous },
+                    c.authorId,
+                    c.author || '匿名'
+                  )
                   const editorOpen = editor?.kind === 'comment' && editor.id === String(c.coid)
                   return (
                     <div key={String(c.coid)} className={`home-feed-card${editorOpen ? ' editing' : ''}`}>
@@ -377,14 +438,16 @@ export function RecommendHome(): React.JSX.Element {
                         title={rid ? `查看《${c.articleTitle ?? ''}》的评审讨论` : `查看《${c.articleTitle ?? ''}》的评论`}
                       >
                         <span className="home-feed-user">
-                          <Avatar src={avatar} name={c.author} />
+                          <Avatar src={avatar} name={author} />
                           <span className="home-feed-user-meta">
-                            <span className="home-feed-username">{c.author}</span>
+                            <span className="home-feed-username">{author}</span>
                             <span className="home-feed-time">{c.created ? formatTs(c.created) : ''}</span>
                           </span>
                           {rid && <span className="home-feed-tag">评审讨论</span>}
                         </span>
-                        <span className="home-feed-content">{c.text}</span>
+                        <span className="home-feed-content">
+                          <span className="home-feed-content-text">{c.text}</span>
+                        </span>
                       </button>
                       {/* 文章归属与回复按钮同行，回复按钮与评论按钮同款（纯图标、靠右） */}
                       <span className="home-feed-actions">
@@ -400,7 +463,7 @@ export function RecommendHome(): React.JSX.Element {
                       {editorOpen && (
                         <FeedReplyEditor
                           loggedIn={loggedIn}
-                          placeholder={`回复 @${c.author}（≥4 字）`}
+                          placeholder={`回复 @${author}（≥4 字）`}
                           loginHint={rid ? '登录后可回复这条评审讨论' : '登录后可回复这条评论'}
                           onCancel={() => setEditor(null)}
                           onSubmit={(text) => submitCommentReply(c, text)}

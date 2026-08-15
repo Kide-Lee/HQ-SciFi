@@ -268,6 +268,10 @@ export interface ReviewItem {
   userJson?: Record<string, unknown>
   /** 被评审文章信息（reviewList 的 articleInfo） */
   articleInfo?: Record<string, unknown>
+  /** v0.0.9：所属文章作者 uid（主进程对全局评审流补全；用于「匿名作者本人评审」显示为匿名用户） */
+  articleAuthorId?: string
+  /** v0.0.9：所属文章是否匿名（主进程对全局评审流补全；用于「匿名作者本人评审」显示为匿名用户） */
+  articleIsAnonymous?: boolean
   created?: number
 }
 
@@ -329,6 +333,10 @@ export interface CommentItem {
   text: string
   /** v0.0.8：所属文章标题（全局评论流 commentsList 的 contenTitle / contentsInfo.title） */
   articleTitle?: string
+  /** v0.0.9：所属文章作者 uid（全局评论流 ownerId / contentsInfo.authorId；用于「匿名作者本人评论」显示为匿名用户） */
+  articleAuthorId?: string
+  /** v0.0.9：所属文章是否匿名（全局评论流 contentsInfo.isAnonymous；用于「匿名作者本人评论」显示为匿名用户） */
+  articleIsAnonymous?: boolean
   /** 作者昵称 */
   author: string
   /** 作者 uid（0 = 匿名访客） */
