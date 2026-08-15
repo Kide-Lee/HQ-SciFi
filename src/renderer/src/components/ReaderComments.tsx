@@ -4,6 +4,7 @@ import { useReaderStore } from '../stores/reader'
 import { useAuthStore } from '../stores/auth'
 import { anonymousAuthorDisplayName, cachedImageUrl, formatTs } from '../lib/sanitize'
 import { SkeletonComment } from './Skeletons'
+import { UserLevelBadge } from './UserLevelBadge'
 import type { CommentItem } from '../../../shared/types'
 
 /**
@@ -264,6 +265,7 @@ export function CommentCard({
         <div className="comment-meta">
           <div className="comment-meta-top">
             <span className="comment-author">{author}</span>
+            <UserLevelBadge experience={comment.experience} />
           </div>
           {comment.created ? <span className="comment-time">{formatTs(comment.created)}</span> : null}
         </div>

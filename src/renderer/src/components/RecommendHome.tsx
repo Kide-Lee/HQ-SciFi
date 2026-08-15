@@ -6,6 +6,7 @@ import { useUiStore } from '../stores/ui'
 import { ArticleCard } from './ArticleListView'
 import { ErrorBanner } from './ErrorBanner'
 import { SkeletonArticleCard, SkeletonFeedCard } from './Skeletons'
+import { UserLevelBadge } from './UserLevelBadge'
 import { anonymousAuthorDisplayName, cachedImageUrl, formatTs, userAvatarUrl, userDisplayName } from '../lib/sanitize'
 import type { ApiResult, CommentItem, RemoteArticle, ReviewItem } from '../../../shared/types'
 
@@ -353,7 +354,10 @@ export function RecommendHome(): React.JSX.Element {
                         <span className="home-feed-user">
                           <Avatar src={reviewerAvatar(r)} name={name} />
                           <span className="home-feed-user-meta">
-                            <span className="home-feed-username">{name}</span>
+                            <span className="home-feed-name-row">
+                              <span className="home-feed-username">{name}</span>
+                              <UserLevelBadge experience={r.userJson?.experience} />
+                            </span>
                             <span className="home-feed-time">{r.created ? formatTs(r.created) : ''}</span>
                           </span>
                           {r.actualscore && r.actualscore !== '-.-' && (
@@ -442,7 +446,10 @@ export function RecommendHome(): React.JSX.Element {
                         <span className="home-feed-user">
                           <Avatar src={avatar} name={author} />
                           <span className="home-feed-user-meta">
-                            <span className="home-feed-username">{author}</span>
+                            <span className="home-feed-name-row">
+                              <span className="home-feed-username">{author}</span>
+                              <UserLevelBadge experience={c.experience} />
+                            </span>
                             <span className="home-feed-time">{c.created ? formatTs(c.created) : ''}</span>
                           </span>
                           {rid && <span className="home-feed-tag">评审讨论</span>}

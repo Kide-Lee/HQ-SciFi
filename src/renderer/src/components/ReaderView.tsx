@@ -11,6 +11,7 @@ import { ReaderInteractions } from './ReaderInteractions'
 import { RightPanel, type RightTab } from './RightPanel'
 import { SearchPanel } from './SearchPanel'
 import { SkeletonReader } from './Skeletons'
+import { UserLevelBadge } from './UserLevelBadge'
 import { buildRegex } from '../lib/searchText'
 import { clearSearchMarks, jumpToSearchMark, setActiveSearchMark, wrapSearchMatches } from '../lib/searchJump'
 import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Eye, EyeOff, FileDown, MessageCircle, PenLine, X } from 'lucide-react'
@@ -703,6 +704,7 @@ function ReviewItemCard({
         <div className="review-item-meta">
           <div className="review-item-meta-top">
             <span className="review-item-author">{rName}</span>
+            <UserLevelBadge experience={u.experience} />
             {review.isAi ? <span className="review-ai-tag">AI</span> : null}
           </div>
           {review.created ? <span className="review-item-time">{formatTs(Number(review.created))}</span> : null}
