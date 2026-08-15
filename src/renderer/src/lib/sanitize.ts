@@ -258,6 +258,24 @@ export function userDisplayName(u: Record<string, unknown> | undefined, fallback
   return fallback
 }
 
+/** 用户经验等级（v0.0.10：对齐官网 getLever——Lv0~Lv7，含徽章底色） */
+export interface UserLevelInfo {
+  label: string
+  color: string
+}
+
+/** 官网 GetRankStyle 顺序（Lv0 → Lv7） */
+const USER_LEVEL_COLORS = ['#6699CC', '#666699', '#009933', '#FF9900', '#ff007f', '#FF0033', '#660033', '#000000']
+
+/** 经验值 → 等级（官网阈值：0/10/50/200/500/1000/2000/5000） */
+export function userLevelInfo(experience: unknown): UserLevelInfo | null {
+  if (experience == null || experience === '') return null
+  const exp = Number(experience)
+  if (!Number.isFinite(exp)) return null
+  const idx = exp < 10 ? 0 : exp < 50 ? 1 : exp < 200 ? 2 : exp < 500 ? 3 : exp < 1000 ? 4 : exp < 2000 ? 5 : exp < 5000 ? 6 : 7
+  return { label: `Lv${idx}`, color: USER_LEVEL_COLORS[idx] }
+}
+
 /** 是否为「匿名 uid」（0 / 空 / 未提供；荒启以 0 表示匿名访客） */
 function isAnonUid(v: string | number | null | undefined): boolean {
   if (v == null) return true

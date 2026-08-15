@@ -337,6 +337,8 @@ export interface CommentItem {
   articleAuthorId?: string
   /** v0.0.9：所属文章是否匿名（全局评论流 contentsInfo.isAnonymous；用于「匿名作者本人评论」显示为匿名用户） */
   articleIsAnonymous?: boolean
+  /** v0.0.10：评论者经验值（用于显示用户等级 Lv0~Lv7，对齐官网 getLever） */
+  experience?: number
   /** 作者昵称 */
   author: string
   /** 作者 uid（0 = 匿名访客） */

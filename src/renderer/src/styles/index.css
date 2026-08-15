@@ -2739,6 +2739,16 @@ body {
   flex-shrink: 0;
 }
 
+/* v0.0.10：用户等级徽章（Lv0~Lv7，对齐官网 GetRankStyle 底色） */
+.user-level-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  color: #fff;
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+
 /* v0.0.5：评分随头像/meta 两行布局放大 */
 .review-item-score {
   margin-left: auto;
@@ -3472,6 +3482,12 @@ body {
   display: flex;
   flex-direction: column;
   gap: 1px;
+  min-width: 0;
+}
+.home-feed-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   min-width: 0;
 }
 .home-feed-username {

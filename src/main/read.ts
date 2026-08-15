@@ -620,6 +620,8 @@ function toCommentItem(item: Record<string, unknown>): CommentItem {
     author: str(userJson.name ?? item.author ?? '匿名'),
     authorId: str(item.authorId ?? userJson.uid ?? 0),
     avatar: str(userJson.avatar) || str(item.avatar) || undefined,
+    // v0.0.10：评论者经验值（官网 Lv0~Lv7 等级用；缺失/匿名不显示）
+    experience: userJson.experience == null ? undefined : num(userJson.experience),
     created: normTs(item.created),
     subNum: num(item.subNum),
     parentComments: (item.parentComments as CommentItem['parentComments'] | undefined) ?? undefined,
