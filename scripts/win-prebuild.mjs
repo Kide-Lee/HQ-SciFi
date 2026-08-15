@@ -187,6 +187,17 @@ async function apply() {
 
   const bsqVer = JSON.parse(readFileSync(pkgFile, 'utf8')).version
   const abi = electronAbi()
+  // v0.0.10：升级 Electron 时的 ABI 前置检查——better-sqlite3 官方 prebuild
+  // 只覆盖到某个 electron-v ABI（当前锁 v12.11.1 覆盖到 electron-v146）。
+  // 超出时直接失败并给出明确指引，而不是让后面的下载 404 报错。
+  // 若已升级 better-sqlite3 且官方覆盖更高 ABI，请同步更新此阈值。
+  const MAX_BSQ_ABI = 146
+  if (Number(abi) > MAX_BSQ_ABI) {
+    fail(
+      `当前 Electron ABI=${abi} 超出 better-sqlite3 v${bsqVer} 官方 prebuild 已知覆盖（≤ electron-v${MAX_BSQ_ABI}）。` +
+        '请升级 better-sqlite3（并同步更新 scripts/win-prebuild.mjs 的 MAX_BSQ_ABI），或改用其 prebuild 覆盖范围内的 Electron 版本。'
+    )
+  }
   const asset = `better-sqlite3-v${bsqVer}-electron-v${abi}-win32-x64.tar.gz`
   const url = `https://github.com/WiseLibs/better-sqlite3/releases/download/v${bsqVer}/${asset}`
   console.log(`[win-prebuild] Electron ABI=${abi}, better-sqlite3 v${bsqVer}`)

@@ -106,7 +106,12 @@ function toRemoteArticle(item: Record<string, unknown>, index: number): RemoteAr
   }
 }
 
-/** 拉取文章列表：精选（choice）走 choiceList，分类（mid）走 selectContents，其余走 contentsList */
+/**
+ * 拉取文章列表：精选（choice）走 choiceList，分类（mid）走 selectContents，其余走 contentsList。
+ * 注意：返回的 total 字段在 contentsList/selectContents 上均不可靠（服务端可能返回全站数或
+ * 固定值，见 api-research.md），调用方判断「还有下一页」应使用「本页条数 == limit」，
+ * 不要用 total 做分页依据。
+ */
 export async function listRemoteArticles(
   token: string | null,
   opts: ArticleListOptions = {}
@@ -156,11 +161,31 @@ export async function listRemoteArticles(
   }
 }
 
+/** 单篇补全查询超时（毫秒）：慢网络下信息流先返回，不因补全拖死首页 */
+const ANON_META_TIMEOUT_MS = 3000
+
+/** 给 Promise 加超时（超时后原 Promise 继续后台执行，调用方按失败处理） */
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`timeout after ${ms}ms`)), ms)
+    p.then(
+      (v) => {
+        clearTimeout(timer)
+        resolve(v)
+      },
+      (e) => {
+        clearTimeout(timer)
+        reject(e)
+      }
+    )
+  })
+}
+
 /**
  * v0.0.9：全局信息流补全所属文章的 authorId / isAnonymous。
  * 首页「最新评审 / 最新讨论」各展示前 4 条，只需补前 4 条的所属文章元数据；
  * contentsList 支持 searchParams={cid} 精确过滤（公开接口，匿名也可用），
- * 单篇查询失败不阻塞信息流整体返回。
+ * 单篇查询失败/超时不阻塞信息流整体返回。
  */
 async function fillArticleAnonMeta<T extends { cid?: number | string; articleAuthorId?: string; articleIsAnonymous?: boolean }>(
   token: string | null,
@@ -172,11 +197,14 @@ async function fillArticleAnonMeta<T extends { cid?: number | string; articleAut
   await Promise.all(
     cids.map(async (cid) => {
       try {
-        const res = await listRemoteArticles(token, { searchParams: { cid }, limit: 2, order: 'created' })
+        const res = await withTimeout(
+          listRemoteArticles(token, { searchParams: { cid }, limit: 2, order: 'created' }),
+          ANON_META_TIMEOUT_MS
+        )
         const hit = res.items.find((a) => String(a.cid) === cid)
         if (hit) metas.set(cid, { authorId: hit.authorId, isAnonymous: hit.isAnonymous === true })
       } catch {
-        // 单篇查询失败不阻塞信息流
+        // 单篇查询失败/超时不阻塞信息流
       }
     })
   )
@@ -635,7 +663,8 @@ export async function listRecentComments(
   opts: { limit?: number; page?: number; order?: string } = {}
 ): Promise<{ items: CommentItem[]; total: number }> {
   const query: Record<string, unknown> = {
-    searchParams: JSON.stringify({}),
+    // v0.0.10：与官网 H5 首页一致——过滤 type=comment + status=approved，避免未审核评论混入
+    searchParams: JSON.stringify({ type: 'comment', status: 'approved' }),
     limit: opts.limit ?? 8,
     page: opts.page ?? 1,
     ...(opts.order ? { order: opts.order } : { order: 'created' })

@@ -12,6 +12,7 @@ import type {
 import { useUiStore } from './ui'
 import { useEditorStore } from './editor'
 import { useDocsStore } from './docs'
+import { isReviewDisabledArticle } from '../lib/category'
 
 /** 列表排序（对应官方 topList：评分/点赞/评论/阅读/时间/回复；size 按字数为本地排序） */
 export const ARTICLE_ORDERS: Array<{ key: string; label: string }> = [
@@ -41,6 +42,12 @@ interface ReaderState {
   detail: ArticleDetail | null
   detailLoading: boolean
   detailError: string | null
+  /**
+   * v0.0.10：当前文章是否属于「不开启评审、不显示评分」的分类
+   * （科幻杂谈/官方公告/外文翻译）。统一在 openArticle 时计算，
+   * 避免各视图各自判断遗漏；文章卡片仍按 article 自身判断。
+   */
+  reviewDisabled: boolean
 
   // ---- 评审 ----
   reviews: ReviewItem[]
@@ -157,6 +164,7 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
   detail: null,
   detailLoading: false,
   detailError: null,
+  reviewDisabled: false,
 
   reviews: [],
   reviewsLoading: false,
@@ -192,11 +200,21 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
 
   openArticle: async (cid) => {
     if (get().readingCid === cid && get().detail) return
-    set({ readingCid: cid, detail: null, detailError: null, detailLoading: true, reviews: [], reviewsPage: 1, reviewsHasMore: true, comments: [] })
+    set({
+      readingCid: cid,
+      detail: null,
+      detailError: null,
+      detailLoading: true,
+      reviewDisabled: false,
+      reviews: [],
+      reviewsPage: 1,
+      reviewsHasMore: true,
+      comments: []
+    })
     try {
       const res = await window.hqsf.getRemoteArticle(cid)
       if (res.ok) {
-        set({ detail: res.data, detailLoading: false })
+        set({ detail: res.data, detailLoading: false, reviewDisabled: isReviewDisabledArticle(res.data) })
         void get().loadReviews(cid)
         void get().loadComments(cid)
       } else {
@@ -208,7 +226,7 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
   },
 
   closeArticle: () => {
-    set({ readingCid: null, detail: null, detailError: null, reviews: [], reviewsPage: 1, reviewsHasMore: true, comments: [], commentMessage: null })
+    set({ readingCid: null, detail: null, detailError: null, reviewDisabled: false, reviews: [], reviewsPage: 1, reviewsHasMore: true, comments: [], commentMessage: null })
     // 关闭阅读态后，侧栏选中回到编辑器当前打开的文档（若无则清除），避免高亮残留
     useUiStore.getState().setSelectedId(useEditorStore.getState().currentPath)
   },

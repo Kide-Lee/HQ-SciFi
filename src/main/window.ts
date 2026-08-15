@@ -95,6 +95,18 @@ export function createWindow(): BrowserWindow {
   return win
 }
 
+/** 启动阶段出错：弹窗提示后退出（无 GUI 环境则只写 console，供 CI/日志诊断） */
+function failStartup(stage: string, err: unknown): void {
+  const message = err instanceof Error ? err.message : String(err)
+  console.error(`[startup] ${stage} failed:`, err)
+  try {
+    dialog.showErrorBox(`启动失败（${stage}）`, message)
+  } catch {
+    /* 无 GUI 环境（CI 等）：错误已输出到控制台 */
+  }
+  app.exit(1)
+}
+
 export function initApp(): void {
   app.whenReady().then(() => {
     // 先加载 API 配置（baseUrl + 全部接口定义）：缺失/损坏时立即报错并退出，
@@ -102,19 +114,29 @@ export function initApp(): void {
     try {
       loadApiConfig()
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      console.error(message)
-      try {
-        dialog.showErrorBox('API 配置加载失败', message)
-      } catch {
-        /* 无 GUI 环境（CI 等）：错误已输出到控制台 */
-      }
-      app.exit(1)
+      failStartup('API 配置加载失败', err)
       return
     }
-    initDb()
-    registerImageProtocol()
-    registerIpcHandlers()
+    // v0.0.10：initDb / 协议注册 / IPC 注册任一失败都弹窗退出，
+    // 不再 unhandled rejection 静默无窗口
+    try {
+      initDb()
+    } catch (err) {
+      failStartup('本地数据库初始化', err)
+      return
+    }
+    try {
+      registerImageProtocol()
+    } catch (err) {
+      failStartup('图片缓存协议注册', err)
+      return
+    }
+    try {
+      registerIpcHandlers()
+    } catch (err) {
+      failStartup('IPC 处理器注册', err)
+      return
+    }
     createWindow()
     // v0.0.7：启动校验一次 token，失效则丢弃（并行执行，不阻塞窗口展示）
     void startupTokenCheck()
