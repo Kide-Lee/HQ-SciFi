@@ -528,7 +528,8 @@ async function fetchReviewAuthorName(token: string | null, reviewId: string): Pr
     const item = (resp.data ?? [])[0] as Record<string, unknown> | undefined
     if (!item) return undefined
     const userJson = (item.userJson as Record<string, unknown> | undefined) ?? {}
-    const name = str(userJson.name ?? userJson.nickname ?? item.author ?? '')
+    // reviewList 条目只有 userJson.name（无顶层 author），匿名化时 name 为「匿名用户」
+    const name = str(userJson.name ?? userJson.nickname ?? '')
     return name || undefined
   } catch {
     return undefined
@@ -726,10 +727,13 @@ export async function listRecentComments(
     query
   })
   const items = (resp.data ?? []).map(toCommentItem)
-  // v0.0.9：全局评论流补全所属文章匿名/作者信息（首页「最新讨论」用）
-  let filled = await fillArticleAnonMeta(token, items)
-  // v0.0.10：补全评审讨论对应的评审者名（首页「讨论于《xxx》中yyy的评审」用）
-  filled = await fillReviewAuthors(token, filled)
+  // v0.0.9/v0.0.10：并行补全所属文章匿名/作者信息与评审讨论的评审者名，
+  // 避免串行两轮请求拉长首页信息流加载时间
+  const [withArticleMeta, withReviewAuthors] = await Promise.all([
+    fillArticleAnonMeta(token, items),
+    fillReviewAuthors(token, items)
+  ])
+  const filled = withArticleMeta.map((c, i) => ({ ...c, reviewAuthor: withReviewAuthors[i]?.reviewAuthor }))
   return {
     items: filled,
     total: num(resp.total) || (resp.data ?? []).length
