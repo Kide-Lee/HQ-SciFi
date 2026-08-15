@@ -1,13 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { MessageCircle } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { useReaderStore } from '../stores/reader'
 import { useAuthStore } from '../stores/auth'
 import { useUiStore } from '../stores/ui'
 import { ArticleCard } from './ArticleListView'
 import { ErrorBanner } from './ErrorBanner'
 import { SkeletonArticleCard, SkeletonFeedCard } from './Skeletons'
-import { UserLevelBadge } from './UserLevelBadge'
-import { anonymousAuthorDisplayName, cachedImageUrl, formatTs, userAvatarUrl, userDisplayName } from '../lib/sanitize'
+import { CommentFeedCard, ReviewFeedCard } from './FeedCards'
 import type { ApiResult, CommentItem, RemoteArticle, ReviewItem } from '../../../shared/types'
 
 /**
@@ -17,55 +15,6 @@ import type { ApiResult, CommentItem, RemoteArticle, ReviewItem } from '../../..
  * 卡片以用户为主体（头像+昵称+时间），评审卡片展示综合评价；
  * 卡片主体点击跳转到对应文章的评审 / 评论；卡片内评论/回复按钮就地展开编辑框快速回复。
  */
-
-/** 从评审的 userJson 提取评者展示名（多字段容错，与评审卡片一致）。
- *  v0.0.9：匿名作者的文章下，评审者就是作者本人时统一显示「匿名用户」。
- *  优先用主进程为全局评审流补全的 articleAuthorId/articleIsAnonymous；
- *  其次用评审流自带的 articleInfo（contentJson）；最后回退首页已加载的文章条目。 */
-function reviewerName(r: ReviewItem, homeArticle?: RemoteArticle): string {
-  const raw = userDisplayName(r.userJson, `UID ${String(r.uid ?? '')}`)
-  if (r.articleAuthorId != null || r.articleIsAnonymous != null) {
-    return anonymousAuthorDisplayName(
-      { authorId: r.articleAuthorId, isAnonymous: r.articleIsAnonymous },
-      r.uid,
-      raw
-    )
-  }
-  if (homeArticle) {
-    return anonymousAuthorDisplayName(homeArticle, r.uid, raw)
-  }
-  const info = r.articleInfo as Record<string, unknown> | undefined
-  return anonymousAuthorDisplayName(
-    info
-      ? {
-          authorId: typeof info.authorId === 'string' || typeof info.authorId === 'number' ? info.authorId : undefined,
-          isAnonymous: info.isAnonymous as boolean | number | string | undefined
-        }
-      : null,
-    r.uid,
-    raw
-  )
-}
-
-/** 从评审的 userJson 提取评者头像（仅 http(s) 走缓存协议） */
-function reviewerAvatar(r: ReviewItem): string | undefined {
-  const url = userAvatarUrl(r.userJson)
-  return url ? cachedImageUrl(url) : undefined
-}
-
-/** 从评审的 articleInfo（contentJson）提取文章标题 */
-function reviewArticleTitle(r: ReviewItem): string {
-  const info = r.articleInfo as Record<string, unknown> | undefined
-  return String(info?.title ?? info?.contenTitle ?? '')
-}
-
-/** 头像或昵称首字占位（用户为主体，无头像也要有归属感） */
-function Avatar({ src, name }: { src?: string; name: string }): React.JSX.Element {
-  if (src) {
-    return <img className="home-feed-avatar" src={src} alt="" loading="lazy" referrerPolicy="no-referrer" />
-  }
-  return <span className="home-feed-avatar home-feed-avatar-fallback">{[...name][0] || '?'}</span>
-}
 
 /**
  * v0.0.8：信息流卡片内的快速回复编辑框（样式对齐文章页评审卡片的回复框）。
@@ -159,6 +108,7 @@ export function RecommendHome(): React.JSX.Element {
   // v0.0.8：深链目标 + 右栏 tab 切换
   const setTarget = useReaderStore((s) => s.setTarget)
   const openPanelTab = useUiStore((s) => s.openPanelTab)
+  const openUserPage = useUiStore((s) => s.openUserPage)
   const session = useAuthStore((s) => s.session)
   const loggedIn = !!session
 
@@ -169,14 +119,6 @@ export function RecommendHome(): React.JSX.Element {
   const [recentComments, setRecentComments] = useState<CommentItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
-  // v0.0.9：首页已加载文章（置顶+最新发布）按 cid 索引，供最新讨论/评审卡片
-  // 在全局流未携带所属文章匿名/作者信息时兜底判断「匿名作者本人评论/评审」
-  const homeArticleById = useMemo(() => {
-    const m = new Map<string, RemoteArticle>()
-    for (const a of [...top, ...latest]) m.set(String(a.cid), a)
-    return m
-  }, [top, latest])
 
   // 登录后全局拉一次评审任务（红点/卡片标记共用）
   useEffect(() => {
@@ -338,71 +280,30 @@ export function RecommendHome(): React.JSX.Element {
               <div className="home-feed-list">
                 {recentReviews.length === 0 && <div className="list-empty muted">（暂无评审）</div>}
                 {recentReviews.slice(0, 4).map((r) => {
-                  const name = reviewerName(r, homeArticleById.get(String(r.cid ?? '')))
-                  // v0.0.9：无综合评价时回退展示设定评价（dianzi）
-                  const content = String(r.zonghe ?? '').trim() || String(r.dianzi ?? '').trim()
-                  const title = reviewArticleTitle(r)
                   const editorOpen = editor?.kind === 'review' && editor.id === String(r.id)
                   return (
-                    <div key={String(r.id)} className={`home-feed-card${editorOpen ? ' editing' : ''}`}>
-                      {/* 卡片主体：点击跳转到对应文章评审 */}
-                      <button
-                        className="home-feed-main"
-                        onClick={() => openFeedItem(String(r.cid ?? ''), 'review', { reviewId: String(r.id) })}
-                        title={`查看《${title || String(r.cid ?? '')}》的评审`}
-                      >
-                        <span className="home-feed-user">
-                          <Avatar src={reviewerAvatar(r)} name={name} />
-                          <span className="home-feed-user-meta">
-                            <span className="home-feed-name-row">
-                              <span className="home-feed-username">{name}</span>
-                              <UserLevelBadge experience={r.userJson?.experience} />
-                            </span>
-                            <span className="home-feed-time">{r.created ? formatTs(r.created) : ''}</span>
-                          </span>
-                          {r.actualscore && r.actualscore !== '-.-' && (
-                            <span className="home-feed-score">{r.actualscore} 分</span>
-                          )}
-                        </span>
-                        {content ? (
-                          <span className="home-feed-content">
-                            <span className="home-feed-content-text">{content}</span>
-                          </span>
-                        ) : (
-                          <span className="home-feed-content home-feed-content-empty">
-                            <span className="home-feed-content-text">（无评价内容）</span>
-                          </span>
-                        )}
-                      </button>
-                      {/* 文章归属与评论按钮同行——评《xxx》靠左，评论按钮靠右 */}
-                      <span className="home-feed-actions">
-                        <span className="home-feed-article">评《{title || `文章 ${String(r.cid ?? '')}`}》</span>
-                        <button
-                          className="attitude-btn review-comments-btn home-feed-comment-btn"
-                          onClick={() => setEditor(editorOpen ? null : { kind: 'review', id: String(r.id) })}
-                          title={
-                            Number(r.replyNum) > 0
-                              ? `评论这条评审（${Number(r.replyNum)} 条）`
-                              : '评论这条评审'
-                          }
-                        >
-                          <MessageCircle size={13} />
-                          {Number(r.replyNum) > 0 ? (
-                            <span className="review-comments-count">{Number(r.replyNum)}</span>
-                          ) : null}
-                        </button>
-                      </span>
-                      {/* 就地展开的快速回复编辑框（样式对齐文章页评审卡片回复框） */}
-                      {editorOpen && (
-                        <FeedReplyEditor
-                          loggedIn={loggedIn}
-                          placeholder="评论这条评审…（≥4 字）"
-                          loginHint="登录后可评论这条评审"
-                          onCancel={() => setEditor(null)}
-                          onSubmit={(text) => submitReviewComment(r, text)}
-                        />
-                      )}
-                    </div>
+                    <ReviewFeedCard
+                      key={String(r.id)}
+                      review={r}
+                      editing={editorOpen}
+                      onOpen={() => openFeedItem(String(r.cid ?? ''), 'review', { reviewId: String(r.id) })}
+                      onOpenUser={() => {
+                        const uid = String(r.uid ?? (r.userJson as Record<string, unknown> | undefined)?.uid ?? '')
+                        if (uid !== '' && uid !== '0') openUserPage(uid)
+                      }}
+                      onComment={() => setEditor(editorOpen ? null : { kind: 'review', id: String(r.id) })}
+                      footer={
+                        editorOpen ? (
+                          <FeedReplyEditor
+                            loggedIn={loggedIn}
+                            placeholder="评论这条评审…（≥4 字）"
+                            loginHint="登录后可评论这条评审"
+                            onCancel={() => setEditor(null)}
+                            onSubmit={(text) => submitReviewComment(r, text)}
+                          />
+                        ) : undefined
+                      }
+                    />
                   )
                 })}
               </div>
@@ -418,72 +319,36 @@ export function RecommendHome(): React.JSX.Element {
                     c.reviewid != null && String(c.reviewid) !== '' && String(c.reviewid) !== '0'
                       ? String(c.reviewid)
                       : null
-                  const avatarRaw = String(c.avatar ?? '')
-                  const avatar = avatarRaw && /^https?:\/\//i.test(avatarRaw) ? cachedImageUrl(avatarRaw) : undefined
-                  // v0.0.9：匿名作者的文章下，评论者就是作者本人时统一显示「匿名用户」。
-                  // 优先用首页已加载文章条目（authorId/isAnonymous 完整）；否则用评论流自带的文章信息
-                  const homeArticle = homeArticleById.get(String(c.cid ?? ''))
-                  const author = anonymousAuthorDisplayName(
-                    homeArticle ?? { authorId: c.articleAuthorId, isAnonymous: c.articleIsAnonymous },
-                    c.authorId,
-                    c.author || '匿名'
-                  )
                   const editorOpen = editor?.kind === 'comment' && editor.id === String(c.coid)
                   return (
-                    <div key={String(c.coid)} className={`home-feed-card${editorOpen ? ' editing' : ''}`}>
-                      {/* 卡片主体：点击跳转到对应文章评论区 / 评审评论区 */}
-                      <button
-                        className="home-feed-main"
-                        onClick={() =>
-                          openFeedItem(
-                            String(c.cid ?? ''),
-                            rid ? 'review' : 'comments',
-                            rid ? { reviewId: rid, commentId: String(c.coid) } : { commentId: String(c.coid) }
-                          )
-                        }
-                        title={rid ? `查看《${c.articleTitle ?? ''}》的评审讨论` : `查看《${c.articleTitle ?? ''}》的评论`}
-                      >
-                        <span className="home-feed-user">
-                          <Avatar src={avatar} name={author} />
-                          <span className="home-feed-user-meta">
-                            <span className="home-feed-name-row">
-                              <span className="home-feed-username">{author}</span>
-                              <UserLevelBadge experience={c.experience} />
-                            </span>
-                            <span className="home-feed-time">{c.created ? formatTs(c.created) : ''}</span>
-                          </span>
-                        </span>
-                        <span className="home-feed-content">
-                          <span className="home-feed-content-text">{c.text}</span>
-                        </span>
-                      </button>
-                      {/* 文章归属与回复按钮同行，回复按钮与评论按钮同款（纯图标、靠右） */}
-                      <span className="home-feed-actions">
-                        <span className="home-feed-article">
-                          {rid
-                            ? `讨论于《${c.articleTitle || `文章 ${String(c.cid ?? '')}`}》${
-                                c.reviewAuthor ? `中${c.reviewAuthor}的评审` : '中的评审'
-                              }`
-                            : `讨论于《${c.articleTitle || `文章 ${String(c.cid ?? '')}`}》`}
-                        </span>
-                        <button
-                          className="attitude-btn review-comments-btn home-feed-reply-btn"
-                          onClick={() => setEditor(editorOpen ? null : { kind: 'comment', id: String(c.coid) })}
-                          title={rid ? '回复这条评审讨论' : '回复这条评论'}
-                        >
-                          <MessageCircle size={13} />
-                        </button>
-                      </span>
-                      {editorOpen && (
-                        <FeedReplyEditor
-                          loggedIn={loggedIn}
-                          placeholder={`回复 @${author}（≥4 字）`}
-                          loginHint={rid ? '登录后可回复这条评审讨论' : '登录后可回复这条评论'}
-                          onCancel={() => setEditor(null)}
-                          onSubmit={(text) => submitCommentReply(c, text)}
-                        />
-                      )}
-                    </div>
+                    <CommentFeedCard
+                      key={String(c.coid)}
+                      comment={c}
+                      editing={editorOpen}
+                      onOpen={() =>
+                        openFeedItem(
+                          String(c.cid ?? ''),
+                          rid ? 'review' : 'comments',
+                          rid ? { reviewId: rid, commentId: String(c.coid) } : { commentId: String(c.coid) }
+                        )
+                      }
+                      onOpenUser={() => {
+                        const uid = String(c.authorId ?? '')
+                        if (uid !== '' && uid !== '0') openUserPage(uid)
+                      }}
+                      onReply={() => setEditor(editorOpen ? null : { kind: 'comment', id: String(c.coid) })}
+                      footer={
+                        editorOpen ? (
+                          <FeedReplyEditor
+                            loggedIn={loggedIn}
+                            placeholder={`回复 @${c.author || '匿名'}（≥4 字）`}
+                            loginHint={rid ? '登录后可回复这条评审讨论' : '登录后可回复这条评论'}
+                            onCancel={() => setEditor(null)}
+                            onSubmit={(text) => submitCommentReply(c, text)}
+                          />
+                        ) : undefined
+                      }
+                    />
                   )
                 })}
               </div>

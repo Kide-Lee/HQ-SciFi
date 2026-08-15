@@ -5,10 +5,13 @@ import type {
   ArticleDetail,
   ArticleListOptions,
   ArticleRow,
+  ClockResult,
   CommentItem,
+  CommentListResult,
   CommentSubmitResult,
   ConvertDraftResult,
   EditRemoteResult,
+  FollowFeedItem,
   GptModel,
   LocalNode,
   LoginResult,
@@ -22,7 +25,12 @@ import type {
   ReviewPayload,
   ReviewSubmitResult,
   ReviewTaskItem,
-  UserSession
+  SelfStatus,
+  UserFollowItem,
+  UserMarkItem,
+  UserProfile,
+  UserSession,
+  UserStats
 } from '../shared/types'
 import type { ArticleMeta } from '../shared/frontmatter'
 
@@ -128,10 +136,48 @@ const api = {
   /** v0.0.7：当前账号写过的全部评审（「已评审」徽章数据源，按会话 uid） */
   listMyReviews: (): Promise<ApiResult<{ cids: string[] }>> => ipcRenderer.invoke('hqsf:list-my-reviews'),
 
+  // ---- 用户系统（v0.0.8） ----
+  /** 用户资料（公开；key=uid） */
+  getUserProfile: (uid: string | number): Promise<ApiResult<UserProfile>> =>
+    ipcRenderer.invoke('hqsf:user-profile', uid),
+  /** 用户计数（需登录；未登录返回 data:null） */
+  getUserStats: (uid: string | number): Promise<ApiResult<UserStats | null>> =>
+    ipcRenderer.invoke('hqsf:user-stats', uid),
+  /** 当前账号状态（能量币/经验/等级） */
+  getSelfStatus: (): Promise<ApiResult<SelfStatus | null>> => ipcRenderer.invoke('hqsf:user-self-status'),
+  /** 是否已关注目标用户 */
+  getFollowState: (uid: string | number): Promise<ApiResult<boolean>> =>
+    ipcRenderer.invoke('hqsf:user-follow-state', uid),
+  /** 关注/取关（follow true=关注 false=取关） */
+  followUser: (uid: string | number, follow: boolean): Promise<ApiResult<{ ok: boolean; error?: string }>> =>
+    ipcRenderer.invoke('hqsf:user-follow', uid, follow),
+  /** 关注列表（uid=目标用户） */
+  listFollows: (uid: string | number, page?: number, limit?: number): Promise<ApiResult<{ items: UserFollowItem[]; total: number }>> =>
+    ipcRenderer.invoke('hqsf:user-follow-list', uid, page, limit),
+  /** 粉丝列表（touid=目标用户） */
+  listFans: (uid: string | number, page?: number, limit?: number): Promise<ApiResult<{ items: UserFollowItem[]; total: number }>> =>
+    ipcRenderer.invoke('hqsf:user-fan-list', uid, page, limit),
+  /** 我的收藏 */
+  listMarks: (page?: number, limit?: number): Promise<ApiResult<{ items: UserMarkItem[]; total: number }>> =>
+    ipcRenderer.invoke('hqsf:user-marks', page, limit),
+  /** 用户发表的文章 */
+  listUserArticles: (uid: string | number, page?: number, limit?: number): Promise<ApiResult<{ items: RemoteArticle[]; total: number }>> =>
+    ipcRenderer.invoke('hqsf:user-articles', uid, page, limit),
+  /** 用户发表的评审 */
+  listUserReviews: (uid: string | number, page?: number, limit?: number): Promise<ApiResult<{ items: ReviewItem[]; total: number }>> =>
+    ipcRenderer.invoke('hqsf:user-reviews', uid, page, limit),
+  /** 用户发表的评论 */
+  listUserComments: (uid: string | number, page?: number, limit?: number): Promise<ApiResult<CommentListResult>> =>
+    ipcRenderer.invoke('hqsf:user-comments', uid, page, limit),
+  /** 关注动态聚合（仅本人） */
+  listFollowFeed: (): Promise<ApiResult<FollowFeedItem[]>> => ipcRenderer.invoke('hqsf:user-feed'),
+  /** 签到（addLog type=clock） */
+  clockIn: (): Promise<ApiResult<ClockResult>> => ipcRenderer.invoke('hqsf:user-clock'),
+
   // ---- 评论（阅读视图评论区） ----
   /** 文章评论列表（hqComments/commentsList） */
   listComments: (cid: string, opts?: { limit?: number; page?: number; order?: string }): Promise<
-    ApiResult<{ items: CommentItem[]; total: number }>
+    ApiResult<CommentListResult>
   > => ipcRenderer.invoke('hqsf:list-comments', cid, opts),
   /** v0.0.8：全局最新评论流（不带 cid，首页「最新讨论」用） */
   listRecentComments: (opts?: { limit?: number; page?: number; order?: string }): Promise<

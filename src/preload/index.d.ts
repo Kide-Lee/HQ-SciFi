@@ -4,10 +4,13 @@ import type {
   ArticleDetail,
   ArticleListOptions,
   ArticleRow,
+  ClockResult,
   CommentItem,
+  CommentListResult,
   CommentSubmitResult,
   ConvertDraftResult,
   EditRemoteResult,
+  FollowFeedItem,
   GptModel,
   LocalNode,
   LoginResult,
@@ -21,7 +24,12 @@ import type {
   ReviewPayload,
   ReviewSubmitResult,
   ReviewTaskItem,
-  UserSession
+  SelfStatus,
+  UserFollowItem,
+  UserMarkItem,
+  UserProfile,
+  UserSession,
+  UserStats
 } from '../shared/types'
 import type { ArticleMeta } from '../shared/frontmatter'
 
@@ -30,10 +38,13 @@ export type {
   ArticleDetail,
   ArticleListOptions,
   ArticleRow,
+  ClockResult,
   CommentItem,
+  CommentListResult,
   CommentSubmitResult,
   ConvertDraftResult,
   EditRemoteResult,
+  FollowFeedItem,
   GptModel,
   LocalNode,
   LoginResult,
@@ -47,7 +58,12 @@ export type {
   ReviewPayload,
   ReviewSubmitResult,
   ReviewTaskItem,
-  UserSession
+  SelfStatus,
+  UserFollowItem,
+  UserMarkItem,
+  UserProfile,
+  UserSession,
+  UserStats
 }
 
 export interface AppInfo {
@@ -117,8 +133,34 @@ export interface HqsfApi {
   listReviewTasks: () => Promise<ApiResult<ReviewTaskItem[]>>
   /** v0.0.7：当前账号写过的全部评审（「已评审」徽章数据源，按会话 uid） */
   listMyReviews: () => Promise<ApiResult<{ cids: string[] }>>
+  /** 用户资料（公开；key=uid） */
+  getUserProfile: (uid: string | number) => Promise<ApiResult<UserProfile>>
+  /** 用户计数（需登录；未登录返回 data:null） */
+  getUserStats: (uid: string | number) => Promise<ApiResult<UserStats | null>>
+  /** 当前账号状态（能量币/经验/等级） */
+  getSelfStatus: () => Promise<ApiResult<SelfStatus | null>>
+  /** 是否已关注目标用户 */
+  getFollowState: (uid: string | number) => Promise<ApiResult<boolean>>
+  /** 关注/取关（follow true=关注 false=取关） */
+  followUser: (uid: string | number, follow: boolean) => Promise<ApiResult<{ ok: boolean; error?: string }>>
+  /** 关注列表（uid=目标用户） */
+  listFollows: (uid: string | number, page?: number, limit?: number) => Promise<ApiResult<{ items: UserFollowItem[]; total: number }>>
+  /** 粉丝列表（touid=目标用户） */
+  listFans: (uid: string | number, page?: number, limit?: number) => Promise<ApiResult<{ items: UserFollowItem[]; total: number }>>
+  /** 我的收藏 */
+  listMarks: (page?: number, limit?: number) => Promise<ApiResult<{ items: UserMarkItem[]; total: number }>>
+  /** 用户发表的文章 */
+  listUserArticles: (uid: string | number, page?: number, limit?: number) => Promise<ApiResult<{ items: RemoteArticle[]; total: number }>>
+  /** 用户发表的评审 */
+  listUserReviews: (uid: string | number, page?: number, limit?: number) => Promise<ApiResult<{ items: ReviewItem[]; total: number }>>
+  /** 用户发表的评论 */
+  listUserComments: (uid: string | number, page?: number, limit?: number) => Promise<ApiResult<CommentListResult>>
+  /** 关注动态聚合（仅本人） */
+  listFollowFeed: () => Promise<ApiResult<FollowFeedItem[]>>
+  /** 签到（addLog type=clock） */
+  clockIn: () => Promise<ApiResult<ClockResult>>
   listComments: (cid: string, opts?: { limit?: number; page?: number; order?: string }) => Promise<
-    ApiResult<{ items: CommentItem[]; total: number }>
+    ApiResult<CommentListResult>
   >
   /** v0.0.8：全局最新评论流（不带 cid，首页「最新讨论」用） */
   listRecentComments: (opts?: { limit?: number; page?: number; order?: string }) => Promise<

@@ -11,6 +11,7 @@ import { ActivityHome } from './ActivityHome'
 import { LibraryHome } from './LibraryHome'
 import { RightPanel, type RightTab } from './RightPanel'
 import { SearchPanel } from './SearchPanel'
+import { UserView } from './UserView'
 
 /** v0.0.6+：栏目/列表页外壳——内容 + 右栏（搜索列表文章，点击打开） */
 function ListShell({
@@ -54,11 +55,17 @@ export function MainArea(): React.JSX.Element {
   const selectedId = useUiStore((s) => s.selectedId)
   const listContext = useUiStore((s) => s.listContext)
   const readingCid = useReaderStore((s) => s.readingCid)
+  const userPageUid = useUiStore((s) => s.userPageUid)
 
   // v0.0.6+：切换栏目时清空首页文章合集（避免旧栏目数据残留到右栏搜索）
   useEffect(() => {
     useReaderStore.getState().setHomeList([])
   }, [section])
+
+  // v0.0.8：用户页优先于阅读/栏目视图（进入时保留原状态，返回时自然恢复）
+  if (userPageUid) {
+    return <UserView />
+  }
 
   // 写作视图：编辑本地草稿；若打开了远端文章（阅读），显示阅读视图
   if (section === 'writing') {

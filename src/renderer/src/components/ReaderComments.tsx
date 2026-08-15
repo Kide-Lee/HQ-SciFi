@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ChevronDown, ChevronUp, X } from 'lucide-react'
 import { useReaderStore } from '../stores/reader'
 import { useAuthStore } from '../stores/auth'
+import { useUiStore } from '../stores/ui'
 import { anonymousAuthorDisplayName, cachedImageUrl, formatTs } from '../lib/sanitize'
 import { SkeletonComment } from './Skeletons'
 import { UserLevelBadge } from './UserLevelBadge'
@@ -250,21 +251,38 @@ export function CommentCard({
 }): React.JSX.Element {
   const avatar = comment.avatar && /^https?:\/\//i.test(comment.avatar) ? cachedImageUrl(comment.avatar) : undefined
   const detail = useReaderStore((s) => s.detail)
+  const openUserPage = useUiStore((s) => s.openUserPage)
   // v0.0.9：匿名作者的文章下，评论者就是作者本人时统一显示「匿名用户」
   const author = anonymousAuthorDisplayName(detail, comment.authorId, comment.author || '匿名')
   const pc = comment.parentComments
+  // v0.0.8：评论者头像可点进入用户页（匿名/0 不可点）
+  const commentUid = String(comment.authorId ?? '')
+  const commentUserClickable = commentUid !== '' && commentUid !== '0' && author !== '匿名' && author !== '匿名用户'
   return (
     <div className="comment-card">
       <div className="comment-card-head">
         {avatar ? (
-          <img className="comment-avatar" src={avatar} alt="" referrerPolicy="no-referrer" />
+          <img
+            className={`comment-avatar${commentUserClickable ? ' user-link' : ''}`}
+            src={avatar}
+            alt=""
+            referrerPolicy="no-referrer"
+            title={commentUserClickable ? '查看用户主页' : undefined}
+            onClick={commentUserClickable ? () => openUserPage(commentUid) : undefined}
+          />
         ) : (
           <span className="comment-avatar comment-avatar-placeholder" />
         )}
         {/* v0.0.5：头像右侧 meta 分组——昵称一行，下方评论时间一行（与评审卡片一致） */}
         <div className="comment-meta">
           <div className="comment-meta-top">
-            <span className="comment-author">{author}</span>
+            <span
+              className={`comment-author${commentUserClickable ? ' user-link' : ''}`}
+              title={commentUserClickable ? '查看用户主页' : undefined}
+              onClick={commentUserClickable ? () => openUserPage(commentUid) : undefined}
+            >
+              {author}
+            </span>
             <UserLevelBadge experience={comment.experience} />
           </div>
           {comment.created ? <span className="comment-time">{formatTs(comment.created)}</span> : null}

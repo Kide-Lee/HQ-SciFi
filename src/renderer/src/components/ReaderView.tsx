@@ -112,6 +112,7 @@ export function ReaderView(): React.JSX.Element {
   // v0.0.3：右栏（目录/评论/评审/搜索）展开与 tab 由 ui store 管理（顶栏「展开右栏」按钮切换；v0.0.6+ 全局单份）
   const panelOpen = useUiStore((s) => s.panelOpen)
   const panelTab = useUiStore((s) => s.panelTab)
+  const openUserPage = useUiStore((s) => s.openUserPage)
   // v0.0.7+：搜索词/正则/活动序号（与 SearchPanel 共享，驱动正文高亮）
   const searchQuery = useUiStore((s) => s.searchQuery)
   const searchRegex = useUiStore((s) => s.searchRegex)
@@ -353,7 +354,19 @@ export function ReaderView(): React.JSX.Element {
                 <h1 className="reader-title">{detail.title}</h1>
               </div>
               <div className="reader-meta">
-                <span className="reader-author">
+                <span
+                  className={`reader-author${
+                    detail.authorId && String(detail.authorId) !== '0' && authorName(detail) !== '佚名' && authorName(detail) !== '匿名用户'
+                      ? ' user-link'
+                      : ''
+                  }`}
+                  title={detail.authorId && String(detail.authorId) !== '0' ? '查看用户主页' : undefined}
+                  onClick={
+                    detail.authorId && String(detail.authorId) !== '0' && authorName(detail) !== '佚名' && authorName(detail) !== '匿名用户'
+                      ? () => openUserPage(String(detail.authorId))
+                      : undefined
+                  }
+                >
                   {authorAvatar(detail) ? (
                     <img className="reader-author-avatar" src={authorAvatar(detail)} alt="" referrerPolicy="no-referrer" />
                   ) : null}
@@ -665,6 +678,7 @@ function ReviewItemCard({
 }): React.JSX.Element {
   const setAttitude = useReaderStore((s) => s.setAttitude)
   const detail = useReaderStore((s) => s.detail)
+  const openUserPage = useUiStore((s) => s.openUserPage)
   // v0.0.5：评审评论内嵌于卡片，默认收起（点击「评论 N」展开/收起；「回复评审」展开并聚焦回复框）
   const [commentsOpen, setCommentsOpen] = useState(false)
   const [replyIntent, setReplyIntent] = useState(false)
@@ -694,16 +708,33 @@ function ReviewItemCard({
   }, [review.score])
   // v0.0.5：关联该评审的评论数（0 时隐藏「查看评审评论」按钮）
   const commentCount = Number(review.replyNum) || 0
+  // v0.0.8：评审者头像可点进入用户页（匿名不可点）
+  const reviewUid = String(review.uid ?? u.uid ?? '')
+  const reviewUserClickable =
+    reviewUid !== '' && reviewUid !== '0' && rName !== '匿名用户' && !review.isAi
   return (
     <div className={`review-item ${hideScores ? 'hide-scores' : ''}`} data-review-id={String(review.id)}>
       <div className="review-item-head">
         {avatar ? (
-          <img className="review-item-avatar" src={avatar} alt="" referrerPolicy="no-referrer" />
+          <img
+            className={`review-item-avatar${reviewUserClickable ? ' user-link' : ''}`}
+            src={avatar}
+            alt=""
+            referrerPolicy="no-referrer"
+            title={reviewUserClickable ? '查看用户主页' : undefined}
+            onClick={reviewUserClickable ? () => openUserPage(reviewUid) : undefined}
+          />
         ) : null}
         {/* v0.0.5：头像右侧 meta 分组——评审者名字一行，下方一行评审发布时间 */}
         <div className="review-item-meta">
           <div className="review-item-meta-top">
-            <span className="review-item-author">{rName}</span>
+            <span
+              className={`review-item-author${reviewUserClickable ? ' user-link' : ''}`}
+              title={reviewUserClickable ? '查看用户主页' : undefined}
+              onClick={reviewUserClickable ? () => openUserPage(reviewUid) : undefined}
+            >
+              {rName}
+            </span>
             <UserLevelBadge experience={u.experience} />
             {review.isAi ? <span className="review-ai-tag">AI</span> : null}
           </div>

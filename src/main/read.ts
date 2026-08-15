@@ -2,6 +2,7 @@ import { apiRequest, endpoint } from './net/api'
 import { mdToHtml } from './md2html'
 import { deleteReadCache, getReadCache, setReadCache } from './db'
 import { buildCommentRequest } from './comment-request'
+import { sanitizeArticleDetail, sanitizeArticleList, sanitizeCommentList, sanitizeReviewList } from './activity-rules'
 import type {
   ApiRequestOptions,
   ArticleDetail,
@@ -33,22 +34,22 @@ const PAGE_SIZE = 20
 
 type ListData = Record<string, unknown>[] | null
 
-function num(v: unknown): number {
+export function num(v: unknown): number {
   const n = Number(v ?? 0)
   return Number.isFinite(n) ? n : 0
 }
 
-function str(v: unknown): string {
+export function str(v: unknown): string {
   return v == null ? '' : String(v)
 }
 
 /** 宽松布尔（服务端 0/1、'0'/'1'、true/false 均可） */
-function boolish(v: unknown): boolean {
+export function boolish(v: unknown): boolean {
   return v === true || v === 1 || v === '1' || v === 'true'
 }
 
 /** 时间戳规整：统一为秒 */
-function normTs(v: unknown): number {
+export function normTs(v: unknown): number {
   const n = Number(v ?? 0)
   if (!Number.isFinite(n) || n <= 0) return 0
   return n > 1e12 ? Math.floor(n / 1000) : n
@@ -131,8 +132,9 @@ export async function listRemoteArticles(
       method: 'GET',
       query
     })
+    const items = (resp.data ?? []).map((it, i) => toRemoteArticle(it, i))
     return {
-      items: (resp.data ?? []).map((it, i) => toRemoteArticle(it, i)),
+      items: sanitizeArticleList(items, await getOngoingReviewMids(token)),
       total: num(resp.total) || (resp.data ?? []).length
     }
   }
@@ -143,8 +145,9 @@ export async function listRemoteArticles(
       method: 'GET',
       query
     })
+    const items = (resp.data ?? []).map((it, i) => toRemoteArticle(it, i))
     return {
-      items: (resp.data ?? []).map((it, i) => toRemoteArticle(it, i)),
+      items: sanitizeArticleList(items, await getOngoingReviewMids(token)),
       total: num(resp.total) || (resp.data ?? []).length
     }
   }
@@ -155,8 +158,9 @@ export async function listRemoteArticles(
     method: 'GET',
     query
   })
+  const items = (resp.data ?? []).map((it, i) => toRemoteArticle(it, i))
   return {
-    items: (resp.data ?? []).map((it, i) => toRemoteArticle(it, i)),
+    items: sanitizeArticleList(items, await getOngoingReviewMids(token)),
     total: num(resp.total) || (resp.data ?? []).length
   }
 }
@@ -165,7 +169,7 @@ export async function listRemoteArticles(
 const ANON_META_TIMEOUT_MS = 3000
 
 /** 给 Promise 加超时（超时后原 Promise 继续后台执行，调用方按失败处理） */
-function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+export function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(`timeout after ${ms}ms`)), ms)
     p.then(
@@ -179,6 +183,44 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
       }
     )
   })
+}
+
+/** 有并发上限的异步遍历（评论 cid 回查等扇出场景防触发风控） */
+async function mapLimit<T>(items: T[], limit: number, fn: (item: T) => Promise<void>): Promise<void> {
+  const queue = [...items]
+  await Promise.all(
+    Array.from({ length: Math.min(limit, queue.length) }, async () => {
+      for (;;) {
+        const next = queue.shift()
+        if (!next) return
+        await fn(next)
+      }
+    })
+  )
+}
+
+/** 评论所属文章元数据缓存（TTL 5 分钟；评论列表脱敏用） */
+const articleMetaByCidCache = new Map<string, { at: number; meta: { authorId: string; isAnonymous: boolean } | null }>()
+
+async function getArticleMetaByCid(
+  token: string | null,
+  cid: string
+): Promise<{ authorId: string; isAnonymous: boolean } | null> {
+  const cached = articleMetaByCidCache.get(cid)
+  if (cached && Date.now() - cached.at < 5 * 60 * 1000) return cached.meta
+  try {
+    const res = await withTimeout(
+      listRemoteArticles(token, { searchParams: { cid }, limit: 2, order: 'created' }),
+      ANON_META_TIMEOUT_MS
+    )
+    const hit = res.items.find((a) => String(a.cid) === cid)
+    const meta = hit ? { authorId: hit.authorId, isAnonymous: hit.isAnonymous === true } : null
+    articleMetaByCidCache.set(cid, { at: Date.now(), meta })
+    return meta
+  } catch {
+    articleMetaByCidCache.set(cid, { at: Date.now(), meta: null })
+    return null
+  }
 }
 
 /**
@@ -250,6 +292,28 @@ export async function listMetas(
     isReview: num(m.isReview),
     activeStatus: num(m.activeStatus)
   }))
+}
+
+/** 进行中/评审中活动的 mid 集合缓存（5 分钟；公开 metas 接口，token 仅用于登录态更稳） */
+let ongoingReviewMidsCache: { at: number; mids: Set<string> } | null = null
+
+/** 进行中（activeStatus=1）/ 评审中（activeStatus=-1）活动 mid 集合；用于隐藏相关评分 */
+export async function getOngoingReviewMids(token: string | null): Promise<Set<string>> {
+  const now = Date.now()
+  if (ongoingReviewMidsCache && now - ongoingReviewMidsCache.at < 5 * 60 * 1000) {
+    return ongoingReviewMidsCache.mids
+  }
+  const mids = new Set<string>()
+  try {
+    const metas = await listMetas(token, 'active')
+    for (const m of metas) {
+      if (m.activeStatus === 1 || m.activeStatus === -1) mids.add(String(m.mid))
+    }
+  } catch {
+    // 拉取失败时保守处理：返回空集合，不额外隐藏
+  }
+  ongoingReviewMidsCache = { at: now, mids }
+  return mids
 }
 
 /** 拉取 AI 模型列表（推荐栏目「AI模型」，gpt/gptList，公开） */
@@ -448,12 +512,14 @@ export async function fetchRemoteArticle(
     type: str(obj.type) || undefined,
     status: str(obj.status) || undefined
   }
+  // 进行中/评审中活动文章：详情也脱敏（评分/作者展示名），再写缓存
+  sanitizeArticleDetail(detail, await getOngoingReviewMids(token))
   setReadCache(cacheKey, detail)
   return detail
 }
 
 /** 评审条目规整 */
-function toReviewItem(item: Record<string, unknown>): ReviewItem {
+export function toReviewItem(item: Record<string, unknown>): ReviewItem {
   return {
     id: str(item.id ?? item.rid ?? ''),
     cid: str(item.cid ?? item.key ?? ''),
@@ -504,6 +570,8 @@ export async function listReviews(
     query
   })
   const items = (resp.data ?? []).map(toReviewItem)
+  // 进行中/评审中活动的评审不展示评分（含文章评分回退）
+  sanitizeReviewList(items, await getOngoingReviewMids(token))
   // 全局评审流（首页「最新评审」）补全所属文章匿名/作者信息；按文章过滤时渲染层已有 detail，无需补
   const filled = opts.cid ? items : await fillArticleAnonMeta(token, items)
   return {
@@ -651,7 +719,7 @@ export async function listCategories(token: string | null): Promise<CategoryMeta
 // ---------- 评论（hqComments/，api-research.md §8） ----------
 
 /** 评论条目规整（commentsList data 项；coid 为评论 id，parent 为上级评论 coid） */
-function toCommentItem(item: Record<string, unknown>): CommentItem {
+export function toCommentItem(item: Record<string, unknown>): CommentItem {
   const userJson = (item.userJson as Record<string, unknown> | undefined) ?? {}
   const contentsInfo = (item.contentsInfo as Record<string, unknown> | undefined) ?? {}
   return {
@@ -680,6 +748,66 @@ function toCommentItem(item: Record<string, unknown>): CommentItem {
   }
 }
 
+/** 补全评论所属文章的 authorId / isAnonymous（所有条目；带 TTL 缓存） */
+async function enrichCommentsWithArticleMeta(token: string | null, items: CommentItem[]): Promise<CommentItem[]> {
+  const cids = [...new Set(items.map((c) => String(c.cid ?? '')).filter((s) => s !== ''))]
+  if (cids.length === 0) return items
+  const metas = new Map<string, { authorId: string; isAnonymous: boolean } | null>()
+  await mapLimit(cids, 4, async (cid) => {
+    metas.set(cid, await getArticleMetaByCid(token, cid))
+  })
+  return items.map((c) => {
+    const meta = metas.get(String(c.cid ?? ''))
+    if (!meta) return c
+    return {
+      ...c,
+      articleAuthorId: c.articleAuthorId || meta.authorId || undefined,
+      articleIsAnonymous: c.articleIsAnonymous || meta.isAnonymous
+    }
+  })
+}
+
+/** 从评论列表提取匿名活动文章 cid 集合 */
+function anonymousCidsOf(items: CommentItem[]): Set<string> {
+  return new Set(items.filter((c) => c.articleIsAnonymous).map((c) => String(c.cid ?? '')))
+}
+
+/**
+ * 拉取评论列表并脱敏；服务端占位评论会被过滤，若整页过滤后不足 limit 会继续补拉下一页
+ * （最多补 5 页），避免渲染层按「本页条数 == limit」误判没有更多。
+ */
+export async function fetchCommentsBySearchParams(
+  token: string | null,
+  searchParams: Record<string, unknown>,
+  limit: number,
+  page: number,
+  order?: string
+): Promise<{ items: CommentItem[]; total: number; nextPage: number; hasMore: boolean }> {
+  const collected: CommentItem[] = []
+  let total = 0
+  let currentPage = page
+  let hasMore = false
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const query: Record<string, unknown> = {
+      searchParams: JSON.stringify(searchParams),
+      limit,
+      page: currentPage,
+      ...(order ? { order } : {})
+    }
+    if (token) query.token = token
+    const resp = await apiRequest<ListData>(endpoint('commentsList').path, { method: 'GET', query })
+    const rawItems = (resp.data ?? []).map(toCommentItem)
+    total = num(resp.total) || total || rawItems.length
+    const enriched = await enrichCommentsWithArticleMeta(token, rawItems)
+    const visible = sanitizeCommentList(enriched, anonymousCidsOf(enriched))
+    collected.push(...visible)
+    currentPage += 1
+    hasMore = rawItems.length >= limit && collected.length >= limit
+    if (rawItems.length < limit || collected.length >= limit || attempt === 4) break
+  }
+  return { items: collected.slice(0, limit), total, nextPage: currentPage, hasMore }
+}
+
 /**
  * 拉取文章评论列表（hqComments/commentsList，GET；searchParams={cid} 过滤，非管理员强制 status=approved）。
  * order 仅支持 created / coid / cid（服务端白名单）。
@@ -689,21 +817,13 @@ export async function listComments(
   cid: string,
   opts: { limit?: number; page?: number; order?: string } = {}
 ): Promise<{ items: CommentItem[]; total: number }> {
-  const query: Record<string, unknown> = {
-    searchParams: JSON.stringify({ cid }),
-    limit: opts.limit ?? PAGE_SIZE,
-    page: opts.page ?? 1,
-    ...(opts.order ? { order: opts.order } : {})
-  }
-  if (token) query.token = token
-  const resp = await apiRequest<ListData>(endpoint('commentsList').path, {
-    method: 'GET',
-    query
-  })
-  return {
-    items: (resp.data ?? []).map(toCommentItem),
-    total: num(resp.total) || (resp.data ?? []).length
-  }
+  return fetchCommentsBySearchParams(
+    token,
+    { cid },
+    opts.limit ?? PAGE_SIZE,
+    opts.page ?? 1,
+    opts.order
+  )
 }
 
 /**
@@ -727,15 +847,14 @@ export async function listRecentComments(
     query
   })
   const items = (resp.data ?? []).map(toCommentItem)
-  // v0.0.9/v0.0.10：并行补全所属文章匿名/作者信息与评审讨论的评审者名，
-  // 避免串行两轮请求拉长首页信息流加载时间
+  // 并行：补全所属文章匿名/作者信息 + 评审讨论的评审者名
   const [withArticleMeta, withReviewAuthors] = await Promise.all([
-    fillArticleAnonMeta(token, items),
+    enrichCommentsWithArticleMeta(token, items),
     fillReviewAuthors(token, items)
   ])
   const filled = withArticleMeta.map((c, i) => ({ ...c, reviewAuthor: withReviewAuthors[i]?.reviewAuthor }))
   return {
-    items: filled,
+    items: sanitizeCommentList(filled, anonymousCidsOf(filled)),
     total: num(resp.total) || (resp.data ?? []).length
   }
 }

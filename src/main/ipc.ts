@@ -35,6 +35,21 @@ import {
   checkTextBlockStatus
 } from './read'
 import { clearArticles, listArticles } from './db'
+import {
+  clockIn,
+  getFollowState,
+  getSelfStatus,
+  getUserProfile,
+  getUserStats,
+  listFans,
+  listFollowFeed,
+  listFollows,
+  listMarks,
+  listUserArticles,
+  listUserComments,
+  listUserReviews,
+  setFollow
+} from './user'
 import type { ArticleListOptions, ReviewPayload } from '../shared/types'
 
 /** IPC 返回约定：成功 { ok: true, data }，失败 { ok: false, error }（避免 Error 序列化丢 message） */
@@ -55,6 +70,9 @@ export function registerIpcHandlers(): void {
   }
   const trusted = (event: Electron.IpcMainInvokeEvent): Error | null =>
     isTrustedSender(event) ? null : new Error('非法调用来源')
+
+  /** 当前会话 uid（渲染层不可伪造；多字段容错） */
+  const sessionUid = (): string => String(getSession()?.userinfo?.uid ?? getSession()?.userinfo?.id ?? '')
 
   ipcMain.handle('hqsf:ping', () => 'pong')
 
@@ -476,6 +494,138 @@ export function registerIpcHandlers(): void {
     if (!uid) return ok({ cids: [] })
     try {
       return ok(await listMyReviews(token, uid))
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  // ---- 用户系统（v0.0.8：用户页 / 关注 / 粉丝 / 收藏 / 签到 / 动态） ----
+
+  /** 目标 uid 校验：渲染层传入其他用户 uid 可空（登录后可看自己），非法直接拒绝 */
+  function checkedUid(raw: unknown): string {
+    const v = String(raw ?? '').trim()
+    if (!v || v === '0') throw new Error('缺少有效的用户 ID')
+    return v
+  }
+
+  ipcMain.handle('hqsf:user-profile', async (_e, uid: unknown) => {
+    try {
+      return ok(await getUserProfile(getStoredToken(), checkedUid(uid)))
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  ipcMain.handle('hqsf:user-stats', async (_e, uid: unknown) => {
+    try {
+      return ok(await getUserStats(getStoredToken(), checkedUid(uid)))
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  ipcMain.handle('hqsf:user-self-status', async () => {
+    try {
+      const token = getStoredToken()
+      if (!token) return ok(null)
+      return ok(await getSelfStatus(token))
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  ipcMain.handle('hqsf:user-follow-state', async (_e, uid: unknown) => {
+    try {
+      return ok(await getFollowState(getStoredToken(), checkedUid(uid)))
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  ipcMain.handle('hqsf:user-follow', async (event, uid: unknown, follow: boolean) => {
+    const blocked = trusted(event)
+    if (blocked) return fail(blocked)
+    try {
+      return ok(await setFollow(getStoredToken(), checkedUid(uid), follow === true))
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  ipcMain.handle('hqsf:user-follow-list', async (_e, uid: unknown, page = 1, limit = 20) => {
+    try {
+      return ok(await listFollows(getStoredToken(), checkedUid(uid), Number(page) || 1, Number(limit) || 20))
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  ipcMain.handle('hqsf:user-fan-list', async (_e, uid: unknown, page = 1, limit = 20) => {
+    try {
+      return ok(await listFans(getStoredToken(), checkedUid(uid), Number(page) || 1, Number(limit) || 20))
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  ipcMain.handle('hqsf:user-marks', async (event, page = 1, limit = 20) => {
+    const blocked = trusted(event)
+    if (blocked) return fail(blocked)
+    try {
+      const token = getStoredToken()
+      if (!token) return fail(new Error('未登录，无法查看收藏'))
+      return ok(await listMarks(token, Number(page) || 1, Number(limit) || 20))
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  ipcMain.handle('hqsf:user-articles', async (_e, uid: unknown, page = 1, limit = 20) => {
+    try {
+      return ok(await listUserArticles(getStoredToken(), checkedUid(uid), Number(page) || 1, Number(limit) || 20))
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  ipcMain.handle('hqsf:user-reviews', async (_e, uid: unknown, page = 1, limit = 20) => {
+    try {
+      return ok(await listUserReviews(getStoredToken(), checkedUid(uid), Number(page) || 1, Number(limit) || 20))
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  ipcMain.handle('hqsf:user-comments', async (_e, uid: unknown, page = 1, limit = 20) => {
+    try {
+      return ok(await listUserComments(getStoredToken(), checkedUid(uid), Number(page) || 1, Number(limit) || 20))
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  // 关注动态聚合（仅本人，uid 从会话取，渲染层不可伪造）
+  ipcMain.handle('hqsf:user-feed', async (event) => {
+    const blocked = trusted(event)
+    if (blocked) return fail(blocked)
+    try {
+      const token = getStoredToken()
+      const uid = sessionUid()
+      if (!token || !uid) return ok([])
+      return ok(await listFollowFeed(token, uid))
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  // 签到（addLog type=clock；成功后回读能量币余额）
+  ipcMain.handle('hqsf:user-clock', async (event) => {
+    const blocked = trusted(event)
+    if (blocked) return fail(blocked)
+    try {
+      const token = getStoredToken()
+      if (!token) return fail(new Error('未登录，无法签到'))
+      return ok(await clockIn(token))
     } catch (err) {
       return fail(err)
     }

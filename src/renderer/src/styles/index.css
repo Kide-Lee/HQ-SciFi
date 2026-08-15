@@ -423,7 +423,9 @@ body {
 
 .sidebar.collapsed .user-meta,
 .sidebar.collapsed .logout-btn,
-.sidebar.collapsed .user-card-login .user-meta {
+.sidebar.collapsed .user-card-login .user-meta,
+.sidebar.collapsed .user-card-side,
+.sidebar.collapsed .user-card-intro {
   display: none;
 }
 
@@ -3445,6 +3447,7 @@ body {
 .home-feed-main {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 6px;
   width: 100%;
   text-align: left;
@@ -3460,6 +3463,7 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
   min-width: 0;
 }
 .home-feed-avatar {
@@ -5223,4 +5227,393 @@ body {
 /* 源码编辑器（等宽字体）内不改变字符间距，避免高亮导致文本错位 */
 .cm-content .search-highlight {
   padding: 0;
+}
+
+/* ===== v0.0.8 用户系统 ===== */
+
+/* 左栏用户卡：介绍 / 签到 / 能量币 */
+.user-card-col {
+  min-width: 0;
+}
+
+.user-card-avatar-btn {
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.user-card-avatar-btn:hover {
+  opacity: 0.9;
+}
+
+.user-card-side {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.sign-btn {
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  border-radius: 6px;
+  padding: 3px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sign-btn:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.sign-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.user-energy {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.user-card-intro {
+  margin: -2px 8px 8px 8px;
+  padding: 0 8px 8px 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 用户页主容器：宽度与其它功能首页一致 */
+.user-view {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 16px 24px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+/* 防止 flex 子项被容器高度压缩（banner 曾因此塌陷、遮罩显示不完整） */
+.user-view > * {
+  flex-shrink: 0;
+}
+
+.user-banner {
+  position: relative;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, var(--accent-soft), var(--bg-card));
+  overflow: hidden;
+  padding: 24px 20px 16px;
+  border: 1px solid var(--border);
+}
+
+.user-banner-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.86) 0%, rgba(255, 255, 255, 0.72) 100%);
+}
+
+.user-banner[style*='background-image'] .user-banner-mask {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.82) 0%, rgba(255, 255, 255, 0.68) 100%);
+}
+
+.user-head {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.user-avatar-btn {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 50%;
+  flex-shrink: 0;
+  line-height: 0;
+}
+
+.user-avatar-btn:hover {
+  opacity: 0.9;
+}
+
+.user-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.user-head-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.user-head-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.user-head-name {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.user-head-uid {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.user-head-intro {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.6;
+  max-width: 560px;
+  user-select: text;
+}
+
+.user-head-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.user-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: 13px;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.user-action-btn:hover {
+  background: var(--bg-hover, rgba(0, 0, 0, 0.06));
+}
+
+.user-action-btn.follow {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.user-action-btn.follow.following {
+  background: var(--accent-soft);
+}
+
+.user-action-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.user-stats {
+  position: relative;
+  z-index: 1;
+  margin-top: 18px;
+  display: flex;
+  gap: 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  padding-top: 12px;
+}
+
+.user-stat {
+  flex: 1;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.user-stat:hover {
+  color: var(--accent);
+}
+
+.user-stat b {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.user-stat i {
+  font-style: normal;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.user-home {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.user-list-view {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.user-load-more {
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--accent);
+  font-size: 13px;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  align-self: center;
+}
+
+.user-load-more:hover {
+  background: var(--accent-soft);
+}
+
+.user-follow-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.user-follow-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: var(--text);
+}
+
+.user-follow-row:hover {
+  background: var(--bg-hover, rgba(0, 0, 0, 0.06));
+}
+
+.user-follow-row.disabled {
+  cursor: default;
+}
+
+.user-follow-meta {
+  min-width: 0;
+}
+
+.user-follow-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-follow-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.user-follow-intro {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 560px;
+}
+
+.user-comment-clickable {
+  cursor: pointer;
+  border-radius: var(--radius);
+}
+
+.user-comment-clickable:hover {
+  background: var(--bg-hover, rgba(0, 0, 0, 0.04));
+}
+
+.feed-kind-tag {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+/* 首页/用户页/动态中头像可点击的用户入口 */
+.home-feed-avatar-wrap {
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+
+.home-feed-avatar-wrap:hover {
+  opacity: 0.85;
+}
+
+.user-link {
+  cursor: pointer;
+}
+
+.user-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* 用户页列表懒加载哨兵（样式对齐作品库列表底部） */
+.user-lazy-sentinel {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* 窄窗下头部操作按钮换行 */
+@media (max-width: 720px) {
+  .user-head-actions {
+    width: 100%;
+  }
 }

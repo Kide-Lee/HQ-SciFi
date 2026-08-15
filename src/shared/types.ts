@@ -149,6 +149,8 @@ export interface RemoteArticle {
   isAnonymous?: boolean
   /** 关联活动（active[0].mid / name） */
   active?: MetaRef[] | null
+  /** 进行中/评审中活动的文章不展示评分（主进程按 active[].mid 判定后设置） */
+  hideScore?: boolean
   /** 字数（列表条目可选） */
   size?: number
   /** 配图（列表条目，images[0] 为封面） */
@@ -265,6 +267,8 @@ export interface ReviewItem {
   earnest?: number
   /** 关联该评审的评论数（reviewList 返回 replyNum，实测与评论列表 reviewid 关联数一致） */
   replyNum?: number
+  /** 进行中/评审中活动不展示评分（主进程按 activeid 判定后设置） */
+  hideScore?: boolean
   userJson?: Record<string, unknown>
   /** 被评审文章信息（reviewList 的 articleInfo） */
   articleInfo?: Record<string, unknown>
@@ -360,6 +364,14 @@ export interface CommentItem {
   reviewid?: number | string
 }
 
+/** 评论列表结果（含脱敏补拉后的下一页游标，供渲染层追加分页使用） */
+export interface CommentListResult {
+  items: CommentItem[]
+  total: number
+  nextPage: number
+  hasMore: boolean
+}
+
 /** 评论提交结果（commentsAdd） */
 export interface CommentSubmitResult {
   ok: boolean
@@ -388,4 +400,134 @@ export interface MarkStatus {
 export interface AgreementData {
   version: string
   html: string
+}
+
+// ---------- 用户系统（v0.0.8，hqUsers/ hqUserlog/） ----------
+
+/** 用户资料（hqUsers/userInfo?key=uid；公开可读） */
+export interface UserProfile {
+  uid: string
+  name: string
+  screenName?: string
+  avatar?: string
+  /** 个人介绍（可能缺失） */
+  introduce?: string
+  /** 主页背景图 URL（可能缺失） */
+  userBg?: string
+  /** 经验值（等级徽章用） */
+  experience?: number
+  /** 服务端等级值（可选） */
+  lv?: number | string
+  /** 能量币等资产（userStatus 返回更实时） */
+  assets?: number
+  groupKey?: string
+}
+
+/** 用户计数（hqUsers/userData；需登录） */
+export interface UserStats {
+  fanNum: number
+  contentsNum: number
+  commentsNum: number
+  /** 今日是否已签到（0/1） */
+  isClock: number
+}
+
+/** 关注/粉丝列表条目（followList 的 userJson 为被关注者；fanList 的 userJson 为粉丝） */
+export interface UserFollowItem {
+  uid: string
+  touid: string
+  created: number
+  userJson?: Record<string, unknown>
+  name?: string
+  avatar?: string
+  introduce?: string
+  experience?: number
+}
+
+/** 收藏条目（hqUserlog/markList data 项；仅本人） */
+export interface UserMarkItem {
+  cid: string
+  title: string
+  type?: string
+  text?: string
+  cover?: string
+  images?: string[]
+  score?: string
+  views?: number
+  likes?: number
+  commentsNum?: number
+  created?: number
+  size?: number
+  authorId?: string
+  authorInfo?: Record<string, unknown>
+  /** 关联活动（进行中/评审中活动收藏文章不展示评分） */
+  active?: MetaRef[] | null
+  hideScore?: boolean
+}
+
+/** 用户页左栏 tab（home = 主页四栏预览） */
+export type UserPageTab = 'home' | 'dynamic' | 'marks' | 'fans' | 'articles' | 'reviews' | 'comments'
+
+/** 动态条目类型（关注流聚合） */
+export type FollowFeedKind = 'article' | 'review' | 'comment' | 'review_comment'
+
+/** 关注动态条目（关注用户发表的文章/评审/评论/评审评论，按 created 排序） */
+export interface FollowFeedItem {
+  kind: FollowFeedKind
+  created: number
+  /** 内容属主 uid（关注对象） */
+  uid: string
+  userName?: string
+  avatar?: string
+  experience?: number
+  /** 目标文章 cid 与标题 */
+  cid: string
+  articleTitle?: string
+  /** 评审 id（kind=review/review_comment 时） */
+  reviewId?: string
+  /** 评论 coid（kind=comment/review_comment 时） */
+  commentId?: string
+  /** 评论/评审文本摘要 */
+  text?: string
+  /** 评审综合得分（kind=review 时；用于动态卡片复用评审卡） */
+  score?: string
+  /** 进行中/评审中活动的内容不展示评分 */
+  hideScore?: boolean
+  /** 评审评论数（kind=review 时；用于动态卡片复用评审卡） */
+  replyNum?: number
+  /** 文章摘要（kind=article 时；用于 ArticleCard 摘要展示） */
+  views?: number
+  likes?: number
+  commentsNum?: number
+  size?: number
+  /** 评论关联的评审 id（kind=review_comment 时） */
+  reviewid?: string
+  /** 评审者名（评审讨论卡片展示「中yyy的评审」用） */
+  reviewAuthor?: string
+}
+
+/** 签到结果（addLog type=clock） */
+export interface ClockResult {
+  ok: boolean
+  error?: string
+  /** 签到奖励能量币 */
+  award?: number
+  /** 签到获得经验 */
+  addExp?: number
+  /** 签到后最新能量币余额（userStatus.assets） */
+  assets?: number
+}
+
+/** 当前用户状态（hqUsers/userStatus） */
+export interface SelfStatus {
+  assets: number
+  experience?: number
+  lv?: number | string
+}
+
+/** 用户页打开的会话信息（渲染层 user store 用） */
+export interface UserPageState {
+  uid: string
+  isSelf: boolean
+  tab: UserPageTab
 }

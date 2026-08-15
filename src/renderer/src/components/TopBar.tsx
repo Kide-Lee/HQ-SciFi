@@ -3,6 +3,7 @@ import { Copy, Eye, Minus, PanelLeftClose, PanelLeftOpen, PanelRightClose, Panel
 import { SECTION_LABELS, useUiStore } from '../stores/ui'
 import { useReaderStore } from '../stores/reader'
 import { useEditorStore } from '../stores/editor'
+import { useUserStore } from '../stores/user'
 
 /** 页面标题推导（v0.0.3：所有页面顶栏显示当前页面标题） */
 function usePageTitle(): string {
@@ -12,6 +13,13 @@ function usePageTitle(): string {
   const readingCid = useReaderStore((s) => s.readingCid)
   const detail = useReaderStore((s) => s.detail)
   const currentPath = useEditorStore((s) => s.currentPath)
+  const userPageUid = useUiStore((s) => s.userPageUid)
+  const profile = useUserStore((s) => s.profile)
+
+  // v0.0.8：用户页优先（标题显示昵称/UID）
+  if (userPageUid) {
+    return profile?.name ?? `用户主页 · UID ${userPageUid}`
+  }
 
   // 文章阅读态优先（写作视图打开远端文章也走这里）
   if (readingCid) return detail?.title ?? '阅读'
@@ -40,6 +48,8 @@ export function TopBar(): React.JSX.Element {
   const togglePanel = useUiStore((s) => s.togglePanel)
   const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed)
   const toggleSidebar = useUiStore((s) => s.toggleSidebarCollapsed)
+  const userPageUid = useUiStore((s) => s.userPageUid)
+  const closeUserPage = useUiStore((s) => s.closeUserPage)
 
   const [maximized, setMaximized] = useState(false)
   useEffect(() => {
@@ -117,7 +127,12 @@ export function TopBar(): React.JSX.Element {
             )}
           </button>
         )}
-        {readingCid && (
+        {userPageUid && (
+          <button className="topbar-back-btn" onClick={closeUserPage} title="返回">
+            <Undo2 size={14} />
+          </button>
+        )}
+        {readingCid && !userPageUid && (
           <button className="topbar-back-btn" onClick={closeArticle} title="返回">
             <Undo2 size={14} />
           </button>
