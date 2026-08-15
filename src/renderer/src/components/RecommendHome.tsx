@@ -186,8 +186,9 @@ export function RecommendHome(): React.JSX.Element {
     let alive = true
     setLoading(true)
     void Promise.all([
-      // 置顶文章：contentsList searchParams={istop:1}（2026-08-08 实测）
-      window.hqsf.listRemoteArticles({ searchParams: { istop: 1 }, limit: 6, order: 'created' }),
+      // 置顶文章：contentsList searchParams={istop:1,type:'post'}（v0.0.9 补 type 过滤草稿——
+      // 服务端对草稿条目也返回 istop=1 且 status=publish，不按 type 过滤会把同名草稿一起置顶）
+      window.hqsf.listRemoteArticles({ searchParams: { istop: 1, type: 'post' }, limit: 6, order: 'created' }),
       // 最新发布流
       window.hqsf.listRemoteArticles({ searchParams: { type: 'post' }, limit: 12, order: 'created' }),
       // v0.0.8：最新评审（全局 reviewList，按时间倒序）
