@@ -338,7 +338,8 @@ export function RecommendHome(): React.JSX.Element {
                 {recentReviews.length === 0 && <div className="list-empty muted">（暂无评审）</div>}
                 {recentReviews.slice(0, 4).map((r) => {
                   const name = reviewerName(r, homeArticleById.get(String(r.cid ?? '')))
-                  const content = String(r.zonghe ?? '').trim()
+                  // v0.0.9：无综合评价时回退展示设定评价（dianzi）
+                  const content = String(r.zonghe ?? '').trim() || String(r.dianzi ?? '').trim()
                   const title = reviewArticleTitle(r)
                   const editorOpen = editor?.kind === 'review' && editor.id === String(r.id)
                   return (
@@ -365,7 +366,7 @@ export function RecommendHome(): React.JSX.Element {
                           </span>
                         ) : (
                           <span className="home-feed-content home-feed-content-empty">
-                            <span className="home-feed-content-text">（无综合评价）</span>
+                            <span className="home-feed-content-text">（无评价内容）</span>
                           </span>
                         )}
                       </button>
