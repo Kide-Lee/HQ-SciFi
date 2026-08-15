@@ -93,7 +93,7 @@ interface UiState {
 }
 
 export const useUiStore = create<UiState>((set) => ({
-  section: 'writing',
+  section: 'recommend',
   selectedId: null,
   listContext: null,
   revealTarget: null,
