@@ -6,7 +6,8 @@ import { ArticleCard } from './ArticleListView'
 import { ErrorBanner } from './ErrorBanner'
 import { SkeletonArticleCard, SkeletonFeedCard } from './Skeletons'
 import { CommentFeedCard, ReviewFeedCard } from './FeedCards'
-import type { ApiResult, CommentItem, RemoteArticle, ReviewItem } from '../../../shared/types'
+import { ACTIVITY_PHASE_LABEL, activityPhase, sortActivities } from '../lib/activity'
+import type { ApiResult, CommentItem, MetaInfo, RemoteArticle, ReviewItem } from '../../../shared/types'
 
 /**
  * 推荐栏目首页（v0.0.2）：点击左栏「推荐」顶层（未选中子项）时显示，
@@ -98,6 +99,118 @@ function FeedReplyEditor({
   )
 }
 
+/**
+ * 推荐首页轮播图：展示进行中/评审中的活动。
+ * 简单实现：自动轮播 + 左右箭头 + 圆点；点击幻灯片进入对应活动列表。
+ */
+function ActivityCarousel({ items, onOpen }: { items: MetaInfo[]; onOpen: (m: MetaInfo) => void }): React.JSX.Element | null {
+  const [index, setIndex] = useState(0)
+  const timerRef = useRef<number | null>(null)
+  const count = items.length
+
+  useEffect(() => {
+    if (count <= 1) return
+    timerRef.current = window.setInterval(() => {
+      setIndex((i) => (i + 1) % count)
+    }, 4500)
+    return () => {
+      if (timerRef.current != null) {
+        window.clearInterval(timerRef.current)
+        timerRef.current = null
+      }
+    }
+  }, [count])
+
+  useEffect(() => {
+    if (index >= count) setIndex(0)
+  }, [index, count])
+
+  const pause = (): void => {
+    if (timerRef.current != null) {
+      window.clearInterval(timerRef.current)
+      timerRef.current = null
+    }
+  }
+
+  const resume = (): void => {
+    if (count <= 1 || timerRef.current != null) return
+    timerRef.current = window.setInterval(() => {
+      setIndex((i) => (i + 1) % count)
+    }, 4500)
+  }
+
+  if (count === 0) return null
+
+  return (
+    <section className="home-section activity-carousel-section">
+      <div
+        className="activity-carousel"
+        onMouseEnter={pause}
+        onMouseLeave={resume}
+        onFocus={pause}
+        onBlur={resume}
+      >
+        <div className="activity-carousel-track" style={{ transform: `translateX(-${index * 100}%)` }}>
+          {items.map((m) => {
+            const phase = activityPhase(m)
+            return (
+              <button
+                key={String(m.mid)}
+                type="button"
+                className="activity-carousel-slide"
+                onClick={() => onOpen(m)}
+                style={{
+                  backgroundImage: m.imgurl
+                    ? `linear-gradient(90deg, rgba(15,23,42,0.76), rgba(15,23,42,0.18)), url("${m.imgurl}")`
+                    : 'linear-gradient(120deg, #4A6CF7, #7C3AED)'
+                }}
+              >
+                <span className="activity-carousel-content">
+                  <span className={`activity-badge phase-${phase}`}>{ACTIVITY_PHASE_LABEL[phase]}</span>
+                  <span className="activity-carousel-name">{m.name}</span>
+                  {m.description ? <span className="activity-carousel-desc">{m.description}</span> : null}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+        {count > 1 && (
+          <>
+            <button
+              type="button"
+              className="activity-carousel-arrow prev"
+              aria-label="上一个活动"
+              onClick={() => setIndex((index - 1 + count) % count)}
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              className="activity-carousel-arrow next"
+              aria-label="下一个活动"
+              onClick={() => setIndex((index + 1) % count)}
+            >
+              ›
+            </button>
+            <div className="activity-carousel-dots">
+              {items.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className={`activity-carousel-dot${i === index ? ' active' : ''}`}
+                  aria-label={`第 ${i + 1} 个活动`}
+                  onClick={() => setIndex(i)}
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </section>
+  )
+}
+
+
 export function RecommendHome(): React.JSX.Element {
   const openArticle = useReaderStore((s) => s.openArticle)
   const readingCid = useReaderStore((s) => s.readingCid)
@@ -117,6 +230,8 @@ export function RecommendHome(): React.JSX.Element {
   // v0.0.8：最新评审 / 最新讨论（全局信息流）
   const [recentReviews, setRecentReviews] = useState<ReviewItem[]>([])
   const [recentComments, setRecentComments] = useState<CommentItem[]>([])
+  // 推荐首页轮播：进行中/评审中的活动
+  const [activeMetas, setActiveMetas] = useState<MetaInfo[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -142,9 +257,11 @@ export function RecommendHome(): React.JSX.Element {
       ((): Promise<ApiResult<{ items: CommentItem[]; total: number }>> =>
         typeof window.hqsf.listRecentComments === 'function'
           ? window.hqsf.listRecentComments({ limit: 8 })
-          : Promise.resolve({ ok: false as const, error: '接口未就绪' }))()
+          : Promise.resolve({ ok: false as const, error: '接口未就绪' }))(),
+      // 推荐首页轮播：进行中/评审中的活动（失败时降级为空轮播，不影响首页主体）
+      window.hqsf.listMetas('active').catch(() => ({ ok: false as const, error: '活动加载失败' }))
     ])
-      .then(([t, l, rv, cm]) => {
+      .then(([t, l, rv, cm, am]) => {
         if (!alive) return
         const topItems = t.ok ? t.data.items : []
         const latestItems = l.ok ? l.data.items : []
@@ -152,6 +269,14 @@ export function RecommendHome(): React.JSX.Element {
         setLatest(latestItems)
         setRecentReviews(rv.ok ? rv.data.items : [])
         setRecentComments(cm.ok ? cm.data.items : [])
+        // 只保留进行中/评审中的活动作为轮播内容
+        const carouselItems = am.ok
+          ? sortActivities(am.data).filter((m) => {
+              const p = activityPhase(m)
+              return p === 'ongoing' || p === 'reviewing'
+            })
+          : []
+        setActiveMetas(carouselItems.slice(0, 6))
         // v0.0.6+：上报首页文章合集供右栏搜索
         useReaderStore.getState().setHomeList([...topItems, ...latestItems])
         // v0.0.8.6：错误横幅只由主体请求（置顶/最新发布）触发；信息流失败静默降级为空栏目
@@ -181,6 +306,14 @@ export function RecommendHome(): React.JSX.Element {
     setTarget({ cid, ...target })
     void openArticle(cid)
     openPanelTab(tab)
+  }
+
+  /** 轮播活动点击：切到「活动」栏目并打开对应活动列表 */
+  function openActivity(m: MetaInfo): void {
+    useReaderStore.getState().closeArticle()
+    const ui = useUiStore.getState()
+    ui.setSection('activity')
+    ui.openList({ title: m.name, mid: m.mid, activityPhase: activityPhase(m), meta: m })
   }
 
   // v0.0.8：就地展开的回复编辑框目标（同一时间最多展开一个）
@@ -218,6 +351,10 @@ export function RecommendHome(): React.JSX.Element {
         // v0.0.7：预填充骨架——形状与加载完成后的页面同构（置顶 grid 卡 + 最新评审/讨论 feed 卡 + 最新列表卡）
         <>
           <span className="sr-only" role="status">加载中 …</span>
+          {/* 活动轮播骨架：与真实轮播同高，减少加载后布局跳动 */}
+          <section className="home-section activity-carousel-section">
+            <div className="activity-carousel activity-carousel-skeleton" aria-hidden="true" />
+          </section>
           <section className="home-section">
             <h2 className="home-section-title">置顶文章</h2>
             <div className="home-top-grid">
@@ -254,6 +391,8 @@ export function RecommendHome(): React.JSX.Element {
         </>
       ) : (
         <>
+          {activeMetas.length > 0 && <ActivityCarousel items={activeMetas} onOpen={openActivity} />}
+
           {top.length > 0 && (
             <section className="home-section">
               <h2 className="home-section-title">置顶文章</h2>

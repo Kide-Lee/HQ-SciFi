@@ -2744,6 +2744,7 @@ body {
 /* v0.0.10：用户等级徽章（Lv0~Lv7，对齐官网 GetRankStyle 底色） */
 .user-level-badge {
   font-size: 10px;
+  font-weight: 600;
   padding: 1px 6px;
   border-radius: 8px;
   color: #fff;
@@ -3400,6 +3401,130 @@ body {
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 12px;
 }
+
+/* 推荐首页活动轮播：进行中/评审中活动 */
+.activity-carousel-section {
+  margin-bottom: 28px;
+}
+.activity-carousel {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+}
+.activity-carousel-skeleton {
+  height: 180px;
+  border-radius: 12px;
+  background: linear-gradient(100deg, #eceef2 40%, #f6f7f9 50%, #eceef2 60%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .activity-carousel-skeleton {
+    animation: none;
+  }
+}
+.activity-carousel-track {
+  display: flex;
+  transition: transform 0.45s ease;
+}
+.activity-carousel-slide {
+  position: relative;
+  flex: 0 0 100%;
+  min-height: 180px;
+  display: block;
+  padding: 0;
+  border: none;
+  overflow: hidden;
+  cursor: pointer;
+  text-align: left;
+  color: #fff;
+  font: inherit;
+  background-color: var(--accent);
+  background-size: cover;
+  background-position: center;
+}
+.activity-carousel-content {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0), rgba(15, 23, 42, 0.58));
+}
+.activity-carousel .activity-badge {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+.activity-carousel-name {
+  font-size: 20px;
+  font-weight: 700;
+}
+.activity-carousel-desc {
+  max-width: 80%;
+  font-size: 13px;
+  line-height: 1.5;
+  opacity: 0.92;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.activity-carousel-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.28);
+  color: #fff;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+.activity-carousel-arrow.prev {
+  left: 12px;
+}
+.activity-carousel-arrow.next {
+  right: 12px;
+}
+.activity-carousel-arrow:hover {
+  background: rgba(15, 23, 42, 0.5);
+}
+.activity-carousel-dots {
+  position: absolute;
+  right: 16px;
+  bottom: 10px;
+  z-index: 2;
+  display: flex;
+  gap: 6px;
+}
+.activity-carousel-dot {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+}
+.activity-carousel-dot.active {
+  width: 18px;
+  border-radius: 4px;
+  background: #fff;
+}
+
 .home-list {
   display: flex;
   flex-direction: column;

@@ -30,27 +30,21 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ session: null, restoring: false })
       return
     }
-    // v0.0.8：登录态启动时，启动页为用户页（本人 uid）
-    const uidValue = res.data.userinfo?.uid ?? res.data.userinfo?.id
-    const startupUid = uidValue != null ? String(uidValue) : ''
     // 校验 token 有效性：服务端对无效 token 在列表接口静默降级（拿到错误的已发布数据），
     // 失效时清除本地会话并提示重新登录；网络异常（离线）不强制登出
     try {
       const v = await window.hqsf.verifySession()
       if (v.ok && v.data.valid) {
-        if (startupUid && startupUid !== '0') useUiStore.getState().openUserPage(startupUid)
         set({ session: res.data, restoring: false })
         return
       }
       if (v.ok && !v.data.reachable) {
         // 无法联网判定：保留会话（离线可继续本地写作）
-        if (startupUid && startupUid !== '0') useUiStore.getState().openUserPage(startupUid)
         set({ session: res.data, restoring: false })
         return
       }
     } catch {
       // 校验异常按可保留处理，避免误登出
-      if (startupUid && startupUid !== '0') useUiStore.getState().openUserPage(startupUid)
       set({ session: res.data, restoring: false })
       return
     }

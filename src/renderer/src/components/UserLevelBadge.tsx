@@ -1,6 +1,6 @@
 import { userLevelInfo } from '../lib/sanitize'
 
-/** 用户等级徽章（v0.0.10）：对齐官网 getLever 的 Lv0~Lv7 展示 */
+/** 用户等级徽章（v0.0.10）：按 getLever 展示 Lv0~Lv7，使用应用风格等级配色 */
 export function UserLevelBadge({ experience }: { experience?: unknown }): React.JSX.Element | null {
   const info = userLevelInfo(experience)
   if (!info) return null

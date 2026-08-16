@@ -25,7 +25,7 @@ import { PromptModal } from './PromptModal'
 import { useUserStore } from '../stores/user'
 import type { UserPageTab } from '../../../shared/types'
 
-const SECTIONS: TopSection[] = ['writing', 'recommend', 'serial', 'activity', 'library']
+const SECTIONS: TopSection[] = ['writing', 'recommend', 'activity', 'serial', 'library']
 
 /** v0.0.8：用户页左栏 tab（本人多「动态/收藏」） */
 const USER_TABS_SELF: Array<{ key: UserPageTab; label: string }> = [

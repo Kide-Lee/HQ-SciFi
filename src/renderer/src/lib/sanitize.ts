@@ -264,8 +264,8 @@ export interface UserLevelInfo {
   color: string
 }
 
-/** 官网 GetRankStyle 顺序（Lv0 → Lv7） */
-const USER_LEVEL_COLORS = ['#6699CC', '#666699', '#009933', '#FF9900', '#ff007f', '#FF0033', '#660033', '#000000']
+/** 用户等级配色（Lv0 → Lv7）：灰 → 灰蓝 → 蓝 → 主题蓝 → 深蓝 → 紫 → 红 → 金 */
+const USER_LEVEL_COLORS = ['#6B7280', '#5F7396', '#5A6ECC', '#4A6CF7', '#2E46A6', '#7C3AED', '#D64545', '#A67C00']
 
 /** 经验值 → 等级（官网阈值：0/10/50/200/500/1000/2000/5000） */
 export function userLevelInfo(experience: unknown): UserLevelInfo | null {
