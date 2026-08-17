@@ -1,6 +1,7 @@
 import { apiRequest, endpoint } from './net/api'
 import { fetchCommentsBySearchParams, getOngoingReviewMids, listRemoteArticles, num, str, toReviewItem } from './read'
 import { sanitizeReviewList } from './activity-rules'
+import { getSession } from './auth'
 import type {
   ClockResult,
   CommentItem,
@@ -11,6 +12,7 @@ import type {
   UserFollowItem,
   UserMarkItem,
   UserProfile,
+  UserSearchResult,
   UserStats
 } from '../shared/types'
 
@@ -291,11 +293,42 @@ export async function listUserReviews(
   }
   if (token) query.token = token
   const resp = await apiRequest<ListData>(endpoint('reviewList').path, { method: 'GET', query })
-  const items = sanitizeReviewList((resp.data ?? []).map(toReviewItem), await getOngoingReviewMids(token))
+  const session = getSession()
+  const myUid = String(session?.userinfo?.uid ?? session?.userinfo?.id ?? '')
+  const items = sanitizeReviewList((resp.data ?? []).map(toReviewItem), await getOngoingReviewMids(token), myUid || undefined)
   return {
     items,
     total: num(resp.total) || (resp.data ?? []).length
   }
+}
+
+/** 全局搜索用户（hqUsers/userList；作品库首页） */
+export async function searchUsers(
+  token: string | null,
+  keyword: string,
+  page = 1,
+  limit = 10
+): Promise<{ items: UserSearchResult[]; total: number }> {
+  const ep = endpoint('userList')
+  const resp = await apiRequest<Record<string, unknown>[]>(ep.path, {
+    method: ep.method,
+    ...(ep.method === 'POST'
+      ? { body: { searchParams: '', limit, page, searchKey: keyword, order: 'created', ...(token ? { token } : {}) } }
+      : { query: { searchParams: '', limit, page, searchKey: keyword, order: 'created', ...(token ? { token } : {}) } })
+  })
+  const items = (resp.data ?? []).map((it) => {
+    const o = (it ?? {}) as Record<string, unknown>
+    return {
+      uid: str(o.uid ?? ''),
+      name: str(o.name ?? o.screenName ?? ''),
+      screenName: str(o.screenName) || undefined,
+      avatar: str(o.avatar) || undefined,
+      experience: o.experience != null ? num(o.experience) : undefined,
+      introduce: str(o.introduce) || undefined,
+      groupKey: str(o.groupKey) || undefined
+    }
+  })
+  return { items, total: num(resp.total) || items.length }
 }
 
 /** 用户发表的评论（commentsList searchParams={type:"comment", authorId}；authorId 数字） */

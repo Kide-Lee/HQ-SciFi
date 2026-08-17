@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect } from 'react'
 import { SECTION_LABELS, useUiStore } from '../stores/ui'
 import { useReaderStore } from '../stores/reader'
 import { EditorPane } from './EditorPane'
@@ -9,8 +9,7 @@ import { RecommendHome } from './RecommendHome'
 import { SerialHome } from './SerialHome'
 import { ActivityHome } from './ActivityHome'
 import { LibraryHome } from './LibraryHome'
-import { RightPanel, type RightTab } from './RightPanel'
-import { SearchPanel } from './SearchPanel'
+import { RightPanel } from './RightPanel'
 import { UserView } from './UserView'
 
 /** v0.0.6+：栏目/列表页外壳——内容 + 右栏（搜索列表文章，点击打开） */
@@ -24,27 +23,29 @@ function ListShell({
   const panelOpen = useUiStore((s) => s.panelOpen)
   const panelTab = useUiStore((s) => s.panelTab)
   const setPanelTab = useUiStore((s) => s.setPanelTab)
-  const list = useReaderStore((s) => s.list)
-  const homeList = useReaderStore((s) => s.homeList)
-  const openArticle = useReaderStore((s) => s.openArticle)
 
-  const tabs = useMemo<Array<RightTab<'search'>>>(() => {
-    // 列表页数据优先；栏目首页用上报的 homeList
-    const src = list.length > 0 ? list : homeList
-    const items = src.map((it) => ({ id: it.cid, title: it.title, text: it.text }))
-    return [
-      {
-        key: 'search',
-        label: '搜索',
-        content: <SearchPanel items={items} onOpenItem={(cid) => void openArticle(cid)} />
-      }
-    ]
-  }, [list, homeList, openArticle])
-
+  // v0.0.9：除文章页/编辑器页外，右栏不再提供「搜索」tab；
+  // 这里只保留全局消息 tab（RightPanel 会自动追加）
   return (
     <main className="main-area main-area-panel">
       <div className={`main-content${contentClass ? ` ${contentClass}` : ''}`}>{children}</div>
-      <RightPanel tabs={tabs} activeTab={panelTab} onTabChange={setPanelTab} open={panelOpen} />
+      <RightPanel tabs={[]} activeTab={panelTab} onTabChange={setPanelTab} open={panelOpen} />
+    </main>
+  )
+}
+
+/** v0.0.9：用户页外壳——内容区 + 右栏，主页与子页共用 */
+function UserPageShell(): React.JSX.Element {
+  const panelOpen = useUiStore((s) => s.panelOpen)
+  const panelTab = useUiStore((s) => s.panelTab)
+  const setPanelTab = useUiStore((s) => s.setPanelTab)
+
+  return (
+    <main className="main-area main-area-panel">
+      <div className="main-content user-page-content">
+        <UserView />
+      </div>
+      <RightPanel tabs={[]} activeTab={panelTab} onTabChange={setPanelTab} open={panelOpen} />
     </main>
   )
 }
@@ -63,8 +64,9 @@ export function MainArea(): React.JSX.Element {
   }, [section])
 
   // v0.0.8：用户页优先于阅读/栏目视图（进入时保留原状态，返回时自然恢复）
+  // v0.0.9：用户页主页/子页也挂右栏，右栏按钮在用户页可用
   if (userPageUid) {
-    return <UserView />
+    return <UserPageShell />
   }
 
   // 写作视图：编辑本地草稿；若打开了远端文章（阅读），显示阅读视图
@@ -103,7 +105,9 @@ export function MainArea(): React.JSX.Element {
     }
     if (section === 'library') {
       return (
-        <ListShell>
+        // v0.0.9：作品库首页也使用 list-content 的 0 顶部内边距，
+        // 避免 sticky .list-toolbar 与滚动容器顶部之间出现 24px 缝隙
+        <ListShell contentClass="list-content">
           <LibraryHome />
         </ListShell>
       )

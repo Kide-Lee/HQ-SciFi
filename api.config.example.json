@@ -120,6 +120,34 @@
     "userTextBlockStatus": {
       "path": "contents/userTextBlockStatus",
       "method": "POST"
+    },
+    "inbox": {
+      "path": "hqUsers/inbox",
+      "method": "POST"
+    },
+    "unreadNum": {
+      "path": "hqUsers/unreadNum",
+      "method": "GET"
+    },
+    "setRead": {
+      "path": "hqUsers/setRead",
+      "method": "GET"
+    },
+    "userList": {
+      "path": "hqUsers/userList",
+      "method": "POST"
+    },
+    "getPrivateChat": {
+      "path": "hqChat/getPrivateChat",
+      "method": "GET"
+    },
+    "msgList": {
+      "path": "hqChat/msgList",
+      "method": "GET"
+    },
+    "sendMsg": {
+      "path": "hqChat/sendMsg",
+      "method": "POST"
     }
   }
 }

@@ -511,9 +511,17 @@ export function Sidebar(): React.JSX.Element {
       const r = res.data
       setClocked(true)
       if (r.assets != null) setEnergy(r.assets)
-      alert(r.award != null ? `签到成功！获得 ${r.award} 能量币${r.addExp != null ? `、${r.addExp} 经验` : ''}` : '签到成功')
+      void window.hqsf.showMessageBox({
+        type: 'info',
+        title: '签到成功',
+        message: r.award != null ? `获得 ${r.award} 能量币${r.addExp != null ? `、${r.addExp} 经验` : ''}` : '签到成功'
+      })
     } else {
-      alert(res.ok ? res.data.error ?? '签到失败' : res.error)
+      void window.hqsf.showMessageBox({
+        type: 'error',
+        title: '签到失败',
+        message: res.ok ? res.data.error ?? '签到失败' : res.error
+      })
     }
   }
 
@@ -641,7 +649,7 @@ export function Sidebar(): React.JSX.Element {
                 className="tree-tool-btn"
                 onClick={() => {
                   void window.hqsf.openDocsDir().then((res) => {
-                    if (!res.ok) alert(`打开存档目录失败: ${res.error}`)
+                    if (!res.ok) void window.hqsf.showMessageBox({ type: 'error', title: '打开存档目录失败', message: res.error })
                   })
                 }}
                 title="在系统文件管理器中打开本地存档目录"

@@ -47,10 +47,15 @@ export function sanitizeArticleDetail(detail: ArticleDetail, mids: Set<string>):
   return detail
 }
 
-/** 评审列表脱敏：进行中/评审中活动的评审不展示评分（含文章评分回退） */
-export function sanitizeReviewList(items: ReviewItem[], mids: Set<string>): ReviewItem[] {
+/**
+ * 评审列表脱敏：进行中/评审中活动的评审不展示评分（含文章评分回退）。
+ * 例外：自己的评审始终保留评分——用户应当能看到自己提交的评分，
+ * 匿名/隐藏规则只约束他人可见性。
+ */
+export function sanitizeReviewList(items: ReviewItem[], mids: Set<string>, myUid?: string): ReviewItem[] {
   for (const it of items) {
-    if (isInMids(mids, it.activeid)) {
+    const isMine = myUid != null && myUid !== '' && String(it.uid ?? '') === String(myUid)
+    if (isInMids(mids, it.activeid) && !isMine) {
       it.actualscore = '-.-'
       it.score = '-.-,-.-,-.-,-.-,-.-'
       it.hideScore = true

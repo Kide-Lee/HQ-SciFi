@@ -301,11 +301,27 @@ export function RecommendHome(): React.JSX.Element {
   function openFeedItem(
     cid: string,
     tab: 'review' | 'comments',
-    target: { reviewId?: string; commentId?: string }
+    target: { reviewId?: string; commentId?: string; replyCommentId?: string }
   ): void {
     setTarget({ cid, ...target })
     void openArticle(cid)
     openPanelTab(tab)
+  }
+
+  /** 首页「最新讨论」点回复：跳转到对应文章评论区/评审评论区，并自动定位/选中该评论进行回复 */
+  function openFeedReply(c: CommentItem): void {
+    const rid =
+      c.reviewid != null && String(c.reviewid) !== '' && String(c.reviewid) !== '0'
+        ? String(c.reviewid)
+        : null
+    setEditor(null)
+    openFeedItem(
+      String(c.cid ?? ''),
+      rid ? 'review' : 'comments',
+      rid
+        ? { reviewId: rid, commentId: String(c.coid), replyCommentId: String(c.coid) }
+        : { commentId: String(c.coid), replyCommentId: String(c.coid) }
+    )
   }
 
   /** 轮播活动点击：切到「活动」栏目并打开对应活动列表 */
@@ -475,7 +491,7 @@ export function RecommendHome(): React.JSX.Element {
                         const uid = String(c.authorId ?? '')
                         if (uid !== '' && uid !== '0') openUserPage(uid)
                       }}
-                      onReply={() => setEditor(editorOpen ? null : { kind: 'comment', id: String(c.coid) })}
+                      onReply={() => openFeedReply(c)}
                       footer={
                         editorOpen ? (
                           <FeedReplyEditor

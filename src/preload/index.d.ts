@@ -1,6 +1,8 @@
 import type {
   AgreementData,
   ApiResult,
+  AppNotification,
+  ChatMessage,
   ArticleDetail,
   ArticleListOptions,
   ArticleRow,
@@ -28,6 +30,7 @@ import type {
   UserFollowItem,
   UserMarkItem,
   UserProfile,
+  UserSearchResult,
   UserSession,
   UserStats
 } from '../shared/types'
@@ -35,6 +38,7 @@ import type { ArticleMeta } from '../shared/frontmatter'
 
 export type {
   ApiResult,
+  AppNotification,
   ArticleDetail,
   ArticleListOptions,
   ArticleRow,
@@ -62,6 +66,7 @@ export type {
   UserFollowItem,
   UserMarkItem,
   UserProfile,
+  UserSearchResult,
   UserSession,
   UserStats
 }
@@ -86,6 +91,29 @@ export interface HqsfApi {
   ping: () => Promise<string>
   getAppInfo: () => Promise<AppInfo>
   copyText: (text: string) => Promise<ApiResult<null>>
+  /** 原生消息弹窗（替代渲染层 alert/confirm，避免 Electron 弹窗后输入框失焦的已知问题） */
+  showMessageBox: (options: {
+    type?: 'none' | 'info' | 'error' | 'question' | 'warning'
+    title?: string
+    message: string
+    detail?: string
+    buttons?: string[]
+    cancelId?: number
+    defaultId?: number
+  }) => Promise<ApiResult<{ response: number }>>
+  /** 消息中心（v0.0.9：真实收件箱 API） */
+  listNotifications: () => Promise<ApiResult<{ items: AppNotification[]; totalUnread: number }>>
+  getUnreadCount: () => Promise<ApiResult<{ total: number }>>
+  markNotificationsRead: (categories: string[]) => Promise<ApiResult<null>>
+  /** 全局搜索（作品库首页） */
+  searchComments: (keyword: string, limit?: number) => Promise<ApiResult<{ items: CommentItem[]; total: number }>>
+  searchReviews: (keyword: string, limit?: number) => Promise<ApiResult<{ items: ReviewItem[]; total: number }>>
+  searchUsers: (keyword: string, limit?: number) => Promise<ApiResult<{ items: UserSearchResult[]; total: number }>>
+  /** 私聊（hqChat/） */
+  getPrivateChat: (touid: number | string) => Promise<ApiResult<{ chatid: string }>>
+  listChatMessages: (chatid: string) => Promise<ApiResult<{ items: ChatMessage[] }>>
+  sendChatMessage: (chatid: string, msg: string) => Promise<ApiResult<null>>
+
   /** 用户协议（{ version, html }；版本用于比对本地同意状态） */
   getAgreement: () => Promise<ApiResult<AgreementData>>
   /** 荒启平台用户协议（网络抓取；失败时渲染层禁用勾选） */

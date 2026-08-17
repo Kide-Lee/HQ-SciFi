@@ -1,132 +1,280 @@
 import { useEffect, useState } from 'react'
+import { Search, X } from 'lucide-react'
 import { useUiStore } from '../stores/ui'
 import { useReaderStore } from '../stores/reader'
 import { cachedImageUrl } from '../lib/sanitize'
 import { ArticleCard } from './ArticleListView'
-import { CoverImage } from './CoverImage'
+import { CommentFeedCard, ReviewFeedCard } from './FeedCards'
 import { ErrorBanner } from './ErrorBanner'
-import { SkeletonArticleCard, SkeletonMetaCard } from './Skeletons'
-import type { RemoteArticle } from '../../../shared/types'
+import type { CommentItem, RemoteArticle, ReviewItem, UserSearchResult } from '../../../shared/types'
+
+type SearchType = 'articles' | 'comments' | 'reviews' | 'users'
+
+const SEARCH_TABS: Array<{ key: SearchType; label: string }> = [
+  { key: 'articles', label: '文章' },
+  { key: 'comments', label: '评论' },
+  { key: 'reviews', label: '评审' },
+  { key: 'users', label: '用户' }
+]
+
+interface SearchResults {
+  articles: RemoteArticle[]
+  comments: CommentItem[]
+  reviews: ReviewItem[]
+  users: UserSearchResult[]
+}
+
+const EMPTY_RESULTS: SearchResults = { articles: [], comments: [], reviews: [], users: [] }
 
 /**
- * 作品库栏目首页（v0.0.2）：点击左栏「作品库」顶层（未选中子项）时显示
- * 四个作品分类入口（原创作品/科幻杂谈/官方公告/外文翻译）+ 最新发布流；
- * 加载中渲染与真实结构同构的预填充骨架（分类 meta 卡 + 文章卡）。
+ * v0.0.9：作品库首页改版为「荒启 + 全局搜索」。
+ * 搜索范围：文章 / 评论 / 评审 / 用户，与官方 H5 搜索页保持一致。
  */
 export function LibraryHome(): React.JSX.Element {
-  const openList = useUiStore((s) => s.openList)
   const openArticle = useReaderStore((s) => s.openArticle)
   const readingCid = useReaderStore((s) => s.readingCid)
   const reviewTaskByCid = useReaderStore((s) => s.reviewTaskByCid)
-  // v0.0.7：「已评审」徽章数据——本人评审过该文章（登录/挂载时一次拉全）
   const myReviewedCids = useReaderStore((s) => s.myReviewedCids)
+  const openUserPage = useUiStore((s) => s.openUserPage)
+  const librarySearchActive = useUiStore((s) => s.librarySearchActive)
+  const setLibrarySearchActive = useUiStore((s) => s.setLibrarySearchActive)
 
-  const [cats, setCats] = useState<
-    Array<{ mid: number | string; name: string; description?: string; imgurl?: string }>
-  >([])
-  const [latest, setLatest] = useState<RemoteArticle[]>([])
-  const [loading, setLoading] = useState(true)
+  const [query, setQuery] = useState('')
+  const [searched, setSearched] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [activeType, setActiveType] = useState<SearchType>('articles')
+  const [results, setResults] = useState<SearchResults>(EMPTY_RESULTS)
 
+  // 顶栏“返回”按钮会把 librarySearchActive 置为 false，这里同步清空本地搜索结果
   useEffect(() => {
-    let alive = true
-    setLoading(true)
-    void Promise.all([
-      window.hqsf.listCategories(),
-      window.hqsf.listRemoteArticles({ searchParams: { type: 'post' }, limit: 12, order: 'created' })
-    ])
-      .then(([c, l]) => {
-        if (!alive) return
-        if (c.ok)
-          setCats(c.data.map((x) => ({ mid: x.mid, name: x.name, description: x.description, imgurl: x.imgurl })))
-        else setError(c.error)
-        const latestItems = l.ok ? l.data.items : []
-        setLatest(latestItems)
-        // v0.0.6+：上报首页文章合集供右栏搜索
-        useReaderStore.getState().setHomeList(latestItems)
-        setLoading(false)
-      })
-      .catch((err) => {
-        if (!alive) return
-        setError((err as Error).message)
-        setLoading(false)
-      })
-    return () => {
-      alive = false
+    if (!librarySearchActive && searched) {
+      setQuery('')
+      setSearched(false)
+      setResults(EMPTY_RESULTS)
+      setActiveType('articles')
+      setError(null)
     }
-  }, [])
+  }, [librarySearchActive, searched])
+
+  async function doSearch(raw?: string): Promise<void> {
+    const keyword = (raw ?? query).trim()
+    if (!keyword) return
+    setLoading(true)
+    setError(null)
+    setSearched(true)
+    setActiveType('articles')
+    setLibrarySearchActive(true)
+    try {
+      const [a, c, r, u] = await Promise.all([
+        window.hqsf.listRemoteArticles({
+          searchParams: { type: 'post' },
+          searchKey: keyword,
+          limit: 10,
+          order: 'created'
+        }),
+        window.hqsf.searchComments(keyword, 10),
+        window.hqsf.searchReviews(keyword, 10),
+        window.hqsf.searchUsers(keyword, 10)
+      ])
+      setResults({
+        articles: a.ok ? a.data.items : [],
+        comments: c.ok ? c.data.items : [],
+        reviews: r.ok ? r.data.items : [],
+        users: u.ok ? u.data.items : []
+      })
+      const errs = [a, c, r, u].filter((x) => !x.ok).map((x) => x.error)
+      setError(errs[0] ?? null)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function lucky(): Promise<void> {
+    try {
+      const res = await window.hqsf.listRemoteArticles({ searchParams: { type: 'post' }, limit: 50, order: 'created' })
+      if (!res.ok || res.data.items.length === 0) return
+      const item = res.data.items[Math.floor(Math.random() * res.data.items.length)]
+      void openArticle(item.cid)
+    } catch {
+      // 随机打开失败静默
+    }
+  }
+
+  const counts: Record<SearchType, number> = {
+    articles: results.articles.length,
+    comments: results.comments.length,
+    reviews: results.reviews.length,
+    users: results.users.length
+  }
 
   return (
-    <div className="home-view">
-      {error && <ErrorBanner title="作品库加载失败" message={error} />}
+    <div className="library-search-page">
+      {/* 搜索区：荒启图标 + 搜索框 */}
+      <div className={`library-search-hero${searched ? ' compact' : ''}`}>
+        <img
+          className="library-search-logo"
+          src={cachedImageUrl('https://www.huangqisf.com/logo-w.png')}
+          alt="荒启"
+          onClick={() => useUiStore.getState().setSection('recommend')}
+          title="返回推荐首页"
+        />
+        <form
+          className="library-search-form"
+          onSubmit={(e) => {
+            e.preventDefault()
+            void doSearch()
+          }}
+        >
+          <div className="library-search-box">
+            <Search size={18} className="library-search-icon" />
+            <input
+              className="library-search-input"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="在荒启中搜索"
+              autoFocus={!searched}
+            />
+            {query && (
+              <button
+                type="button"
+                className="library-search-clear"
+                onClick={() => setQuery('')}
+                title="清除"
+              >
+                <X size={18} />
+              </button>
+            )}
+            <button type="submit" className="library-search-btn" disabled={loading}>
+              {loading ? '搜索中…' : '搜索'}
+            </button>
+          </div>
+          <div className="library-search-actions">
+            <button type="button" className="library-search-wormhole" onClick={() => void lucky()}>
+              时空乱流
+            </button>
+            <button
+              type="button"
+              className="library-search-wormhole"
+              onClick={() => window.open('https://www.huangqisf.com/', '_blank')}
+            >
+              前往官网
+            </button>
+          </div>
+        </form>
+      </div>
 
-      {loading ? (
-        // v0.0.7：预填充骨架——形状与真实结构同构（分类 meta 卡 grid + 最新文章列表卡）
-        <>
-          <span className="sr-only" role="status">加载中 …</span>
-          <section className="home-section">
-            <h2 className="home-section-title">作品分类</h2>
-            <div className="home-meta-grid library-cat-grid">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <SkeletonMetaCard key={i} />
-              ))}
-            </div>
-          </section>
-          <section className="home-section">
-            <h2 className="home-section-title">最新发布</h2>
-            <div className="home-list">
-              {Array.from({ length: 12 }).map((_, i) => (
-                <SkeletonArticleCard key={i} />
-              ))}
-            </div>
-          </section>
-        </>
-      ) : (
-        <>
-          <section className="home-section">
-            <h2 className="home-section-title">作品分类</h2>
-            <div className="home-meta-grid library-cat-grid">
-              {cats.map((c) => {
-                // v0.0.2：无配图的分类不显示占位封面
-                const cover =
-                  c.imgurl && /^https?:\/\//i.test(c.imgurl) ? cachedImageUrl(c.imgurl) : undefined
-                return (
-                  <button
-                    key={c.mid}
-                    className="meta-card"
-                    onClick={() => openList({ title: c.name, mid: c.mid })}
-                    title={c.description || c.name}
-                  >
-                    {cover ? (
-                      <CoverImage className="meta-card-cover" src={cover} alt="" />
-                    ) : null}
-                    <div className="meta-card-body">
-                      <div className="meta-card-name">{c.name}</div>
-                      {c.description && <div className="meta-card-desc">{c.description}</div>}
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-          </section>
+      {error && <ErrorBanner title="搜索失败" message={error} />}
 
-          <section className="home-section">
-            <h2 className="home-section-title">最新发布</h2>
-            <div className="home-list">
-              {latest.length === 0 && <div className="list-empty muted">（暂无文章）</div>}
-              {latest.map((a) => (
-                <ArticleCard
-                  key={a.cid}
-                  article={a}
-                  active={readingCid === a.cid}
-                  taskStatus={reviewTaskByCid[a.cid]}
-                  reviewed={myReviewedCids[a.cid] === true}
-                  onOpen={() => void openArticle(a.cid)}
-                />
-              ))}
+      {searched && (
+        <div className="library-search-results">
+          <div className="list-toolbar">
+            <span className="list-title">搜索“{query.trim()}”</span>
+            <div className="library-search-tabs">
+            {SEARCH_TABS.map((t) => (
+              <button
+                key={t.key}
+                className={`order-btn library-search-tab${activeType === t.key ? ' active' : ''}`}
+                onClick={() => setActiveType(t.key)}
+              >
+                {t.label}
+                <span className="library-search-tab-count">{counts[t.key]}</span>
+              </button>
+            ))}
             </div>
-          </section>
-        </>
+          </div>
+
+          {loading ? (
+            <div className="muted library-search-loading">正在搜索…</div>
+          ) : (
+            <div className="library-search-list">
+              {activeType === 'articles' && (
+                <>
+                  {results.articles.length === 0 && <div className="list-empty muted">（没有匹配的文章）</div>}
+                  {results.articles.map((a) => (
+                    <ArticleCard
+                      key={a.cid}
+                      article={a}
+                      active={readingCid === a.cid}
+                      taskStatus={reviewTaskByCid[a.cid]}
+                      reviewed={myReviewedCids[a.cid] === true}
+                      onOpen={() => void openArticle(a.cid)}
+                    />
+                  ))}
+                </>
+              )}
+
+              {activeType === 'comments' && (
+                <div className="home-feed-list">
+                  {results.comments.length === 0 && <div className="list-empty muted">（没有匹配的评论）</div>}
+                  {results.comments.map((c) => (
+                    <CommentFeedCard
+                      key={String(c.coid)}
+                      comment={c}
+                      onOpen={() => {
+                        if (c.cid) void openArticle(String(c.cid))
+                      }}
+                      onOpenUser={() => {
+                        const uid = String(c.authorId ?? '')
+                        if (uid && uid !== '0') openUserPage(uid)
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {activeType === 'reviews' && (
+                <div className="home-feed-list">
+                  {results.reviews.length === 0 && <div className="list-empty muted">（没有匹配的评审）</div>}
+                  {results.reviews.map((r) => (
+                    <ReviewFeedCard
+                      key={String(r.id)}
+                      review={r}
+                      onOpen={() => {
+                        if (r.cid) void openArticle(String(r.cid))
+                      }}
+                      onOpenUser={() => {
+                        const uid = String(r.uid ?? (r.userJson as Record<string, unknown> | undefined)?.uid ?? '')
+                        if (uid && uid !== '0') openUserPage(uid)
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {activeType === 'users' && (
+                <div className="user-follow-list">
+                  {results.users.length === 0 && <div className="list-empty muted">（没有匹配的用户）</div>}
+                  {results.users.map((u) => {
+                    const avatar = u.avatar && /^https?:\/\//i.test(u.avatar) ? cachedImageUrl(u.avatar) : undefined
+                    return (
+                      <button
+                        key={u.uid}
+                        className="user-follow-row"
+                        onClick={() => openUserPage(u.uid)}
+                        title={`查看 ${u.name || u.uid} 的主页`}
+                      >
+                        {avatar ? (
+                          <img className="comment-avatar" src={avatar} alt="" referrerPolicy="no-referrer" />
+                        ) : (
+                          <span className="comment-avatar comment-avatar-placeholder" />
+                        )}
+                        <span className="user-follow-meta">
+                          <span className="user-follow-name-row">
+                            <span className="user-follow-name">{u.name || `UID ${u.uid}`}</span>
+                          </span>
+                          {u.introduce ? <span className="user-follow-intro">{u.introduce}</span> : null}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       )}
     </div>
   )

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, ChevronUp, X } from 'lucide-react'
 import { useReaderStore } from '../stores/reader'
 import { useAuthStore } from '../stores/auth'
@@ -66,8 +66,22 @@ export function CommentSection({ cid }: { cid: string }): React.JSX.Element {
   const [draft, setDraft] = useState('')
   const [replyTo, setReplyTo] = useState<CommentItem | null>(null)
   const [localErr, setLocalErr] = useState<string | null>(null)
+  const replyBoxRef = useRef<HTMLTextAreaElement | null>(null)
   // v0.0.8.5：已收起深层评论的第一层评论 coid 集合
   const [collapsedSubs, setCollapsedSubs] = useState<Set<string>>(new Set())
+
+  // v0.0.8.7：首页「最新讨论」点回复普通评论 → 自动选中目标评论并聚焦回复框
+  useEffect(() => {
+    if (!target?.replyCommentId || target.reviewId) return
+    const c = comments.find((item) => String(item.coid) === String(target.replyCommentId))
+    if (!c) return
+    setReplyTo(c)
+    // preventScroll：聚焦不抢滚动；这里自己负责定位到目标评论，避免与父级深链 effect 的执行顺序耦合
+    replyBoxRef.current?.focus({ preventScroll: true })
+    const el = document.querySelector(`.reader-panel [data-coid="${CSS.escape(String(target.replyCommentId))}"]`)
+    el?.scrollIntoView({ block: 'center' })
+    clearTarget()
+  }, [target, comments, clearTarget])
 
   function toggleCollapsed(coid: number | string): void {
     setCollapsedSubs((prev) => {
@@ -90,7 +104,8 @@ export function CommentSection({ cid }: { cid: string }): React.JSX.Element {
     const el = document.querySelector(`.reader-panel [data-coid="${CSS.escape(target.commentId)}"]`)
     if (el) {
       el.scrollIntoView({ block: 'center' })
-      clearTarget()
+      // 回复跳转时由回复框消费后再 clear，确保子组件能拿到 replyCommentId
+      if (!target.replyCommentId) clearTarget()
     } else if (!commentsLoading) {
       if (commentsHasMore) void loadComments(cid, { append: true, limit: 100 })
       else clearTarget() // 已无更多页仍未找到，放弃定位
@@ -205,6 +220,7 @@ export function CommentSection({ cid }: { cid: string }): React.JSX.Element {
       {loggedIn ? (
         <form className="comment-form" onSubmit={(e) => void handleSubmit(e)}>
           <textarea
+            ref={replyBoxRef}
             className="comment-input"
             rows={3}
             value={draft}

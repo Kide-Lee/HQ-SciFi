@@ -82,9 +82,10 @@ export async function verifySessionToken(): Promise<{ valid: boolean; reachable:
     })
     return { valid: resp.code === 1, reachable: true }
   } catch (err) {
-    // ApiError = 服务端已响应且返回非 1 的 code（如 @LoginRequired 拦截），可明确判定失效；
-    // 其余（网络失败/超时）不可判定，交由调用方保留会话。
-    return { valid: false, reachable: !(err instanceof ApiError) }
+    // ApiError = 服务端已响应且返回非 1 的 code（如 @LoginRequired 拦截），
+    // 说明服务端可达且明确判定 token 失效 → reachable=true，可安全清除本地会话；
+    // 其余（网络失败/超时）不可判定，reachable=false，调用方应保留会话。
+    return { valid: false, reachable: err instanceof ApiError }
   }
 }
 

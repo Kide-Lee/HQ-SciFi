@@ -4,12 +4,15 @@ import { MainArea } from './components/MainArea'
 import { TopBar } from './components/TopBar'
 import { LoginView } from './components/LoginView'
 import { FirstRunAgreement } from './components/FirstRunAgreement'
+import { PrivateChatModal } from './components/PrivateChatModal'
 import { useAuthStore } from './stores/auth'
 import { useUiStore } from './stores/ui'
+import { useNotificationStore } from './stores/notifications'
 import { AGREEMENT_KEY } from './lib/agreement'
 
 export default function App(): React.JSX.Element {
   const restoring = useAuthStore((s) => s.restoring)
+  const session = useAuthStore((s) => s.session)
   const restore = useAuthStore((s) => s.restore)
   const loginOpen = useUiStore((s) => s.loginOpen)
   // v0.0.7：首启协议门状态——null=校验中（加载态），false=未同意当前版本（展示协议门），
@@ -21,6 +24,22 @@ export default function App(): React.JSX.Element {
   useEffect(() => {
     void restore()
   }, [restore])
+
+  // v0.0.9：加载真实消息中心（未读数驱动顶栏通知按钮红点）；登录态变化后重新拉取
+  useEffect(() => {
+    void useNotificationStore.getState().load()
+  }, [session])
+
+  // v0.0.9：窗口重新聚焦和定时刷新未读数，保证运行中收到新消息时红点能点亮
+  useEffect(() => {
+    const refresh = (): void => void useNotificationStore.getState().refreshUnread()
+    window.addEventListener('focus', refresh)
+    const timer = window.setInterval(refresh, 60000)
+    return () => {
+      window.removeEventListener('focus', refresh)
+      window.clearInterval(timer)
+    }
+  }, [])
 
   // v0.0.7：进入应用前先确认本应用用户协议是否已同意（本地文件读取，快；失败按未同意处理，协议门内可重试）
   useEffect(() => {
@@ -79,6 +98,7 @@ export default function App(): React.JSX.Element {
         </div>
       </div>
       {loginOpen && <LoginView />}
+      <PrivateChatModal />
     </>
   )
 }

@@ -2,6 +2,7 @@ import { apiRequest, endpoint } from './net/api'
 import { mdToHtml } from './md2html'
 import { deleteReadCache, getReadCache, setReadCache } from './db'
 import { buildCommentRequest } from './comment-request'
+import { getSession } from './auth'
 import { sanitizeArticleDetail, sanitizeArticleList, sanitizeCommentList, sanitizeReviewList } from './activity-rules'
 import type {
   ApiRequestOptions,
@@ -553,7 +554,7 @@ export function toReviewItem(item: Record<string, unknown>): ReviewItem {
 /** 拉取某文章（或某活动）的评审列表。reviewList 公开；searchParams={cid} 按文章过滤 */
 export async function listReviews(
   token: string | null,
-  opts: { cid?: string; activeid?: number | string; limit?: number; page?: number; order?: string } = {}
+  opts: { cid?: string; activeid?: number | string; limit?: number; page?: number; order?: string; searchKey?: string } = {}
 ): Promise<{ items: ReviewItem[]; total: number }> {
   const searchParams: Record<string, unknown> = {}
   if (opts.cid) searchParams.cid = opts.cid
@@ -562,7 +563,8 @@ export async function listReviews(
     searchParams: JSON.stringify(searchParams),
     limit: opts.limit ?? PAGE_SIZE,
     page: opts.page ?? 1,
-    ...(opts.order ? { order: opts.order } : {})
+    ...(opts.order ? { order: opts.order } : {}),
+    ...(opts.searchKey ? { searchKey: opts.searchKey } : {})
   }
   if (token) query.token = token
   const resp = await apiRequest<ListData>(endpoint('reviewList').path, {
@@ -570,8 +572,11 @@ export async function listReviews(
     query
   })
   const items = (resp.data ?? []).map(toReviewItem)
-  // 进行中/评审中活动的评审不展示评分（含文章评分回退）
-  sanitizeReviewList(items, await getOngoingReviewMids(token))
+  // 进行中/评审中活动的评审不展示评分（含文章评分回退）；
+  // 自己的评审保留评分（用户应能看到自己提交的分数）
+  const session = getSession()
+  const myUid = String(session?.userinfo?.uid ?? session?.userinfo?.id ?? '')
+  sanitizeReviewList(items, await getOngoingReviewMids(token), myUid || undefined)
   // 全局评审流（首页「最新评审」）补全所属文章匿名/作者信息；按文章过滤时渲染层已有 detail，无需补
   const filled = opts.cid ? items : await fillArticleAnonMeta(token, items)
   return {
@@ -781,7 +786,8 @@ export async function fetchCommentsBySearchParams(
   searchParams: Record<string, unknown>,
   limit: number,
   page: number,
-  order?: string
+  order?: string,
+  searchKey?: string
 ): Promise<{ items: CommentItem[]; total: number; nextPage: number; hasMore: boolean }> {
   const collected: CommentItem[] = []
   let total = 0
@@ -792,7 +798,8 @@ export async function fetchCommentsBySearchParams(
       searchParams: JSON.stringify(searchParams),
       limit,
       page: currentPage,
-      ...(order ? { order } : {})
+      ...(order ? { order } : {}),
+      ...(searchKey ? { searchKey } : {})
     }
     if (token) query.token = token
     const resp = await apiRequest<ListData>(endpoint('commentsList').path, { method: 'GET', query })
@@ -857,6 +864,24 @@ export async function listRecentComments(
     items: sanitizeCommentList(filled, anonymousCidsOf(filled)),
     total: num(resp.total) || (resp.data ?? []).length
   }
+}
+
+/** 全局搜索评论（作品库首页；commentsList + searchKey） */
+export async function searchComments(
+  token: string | null,
+  keyword: string,
+  limit = 10,
+  page = 1
+): Promise<{ items: CommentItem[]; total: number }> {
+  const res = await fetchCommentsBySearchParams(
+    token,
+    { type: 'comment' },
+    limit,
+    page,
+    'created',
+    keyword
+  )
+  return { items: res.items, total: res.total }
 }
 
 /**

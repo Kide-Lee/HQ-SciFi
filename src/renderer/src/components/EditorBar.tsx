@@ -93,7 +93,15 @@ export function EditorBar({ formatSlot }: EditorBarProps): React.JSX.Element {
 
   /** 违禁词检测：官方接口（hqContents/userTextBlockStatus，付费 5 能量币/次），先确认再检测 */
   async function handleCheckForbidden(): Promise<void> {
-    if (!window.confirm('违禁词检测将消耗 5 能量币，是否继续？')) return
+    const confirmRes = await window.hqsf.showMessageBox({
+      type: 'question',
+      title: '违禁词检测',
+      message: '违禁词检测将消耗 5 能量币，是否继续？',
+      buttons: ['取消', '继续'],
+      cancelId: 0,
+      defaultId: 1
+    })
+    if (!confirmRes.ok || confirmRes.data.response !== 1) return
     const fileName = (currentPath ?? '').split('/').pop()?.replace(/\.md$/i, '') ?? ''
     setForbidMsg(null)
     const res = await window.hqsf.checkForbidden(fileName, content)

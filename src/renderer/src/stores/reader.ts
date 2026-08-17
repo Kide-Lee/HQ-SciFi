@@ -156,8 +156,8 @@ interface ReaderState {
    * 由评审/评论面板消费（滚动定位到目标评审卡片/评论；评审评论还需展开所属评审的评论区）。
    * 消费完成或目标文章与当前阅读文章不符时 clearTarget。
    */
-  target: { cid: string; reviewId?: string; commentId?: string } | null
-  setTarget: (t: { cid: string; reviewId?: string; commentId?: string } | null) => void
+  target: { cid: string; reviewId?: string; commentId?: string; replyCommentId?: string } | null
+  setTarget: (t: { cid: string; reviewId?: string; commentId?: string; replyCommentId?: string } | null) => void
   clearTarget: () => void
 }
 
