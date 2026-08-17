@@ -364,6 +364,41 @@ export interface CommentItem {
   reviewid?: number | string
 }
 
+// ---------- 私聊（hqChat/） ----------
+
+/** 私聊消息条目（hqChat/msgList） */
+export interface ChatMessage {
+  id: number | string
+  type: number
+  /** 发送者 uid */
+  uid: string
+  text: string
+  /** 秒级时间戳 */
+  created: number
+  userJson?: Record<string, unknown>
+}
+
+// ---------- 消息中心（hqUsers/inbox 等） ----------
+
+export type NotificationCategory = 'comment' | 'review' | 'finance' | 'system'
+
+/** 通知/消息条目（收件箱规整后；评论/评审消息附带可复用信息流卡片的数据） */
+export interface AppNotification {
+  id: string
+  category: NotificationCategory
+  title: string
+  text: string
+  /** 秒级时间戳 */
+  time: number
+  read: boolean
+  /** 关联文章 cid（可用于点击跳转） */
+  cid?: string
+  /** 评论类消息：可直接交给 CommentFeedCard 渲染 */
+  comment?: CommentItem
+  /** 评审类消息：可直接交给 ReviewFeedCard 渲染 */
+  review?: ReviewItem
+}
+
 /** 评论列表结果（含脱敏补拉后的下一页游标，供渲染层追加分页使用） */
 export interface CommentListResult {
   items: CommentItem[]
@@ -420,6 +455,17 @@ export interface UserProfile {
   lv?: number | string
   /** 能量币等资产（userStatus 返回更实时） */
   assets?: number
+  groupKey?: string
+}
+
+/** 用户搜索结果（hqUsers/userList，作品库全局搜索用） */
+export interface UserSearchResult {
+  uid: string
+  name: string
+  screenName?: string
+  avatar?: string
+  experience?: number
+  introduce?: string
   groupKey?: string
 }
 

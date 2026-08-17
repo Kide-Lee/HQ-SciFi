@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { MessageCircle, UserPlus, UserCheck, LogOut } from 'lucide-react'
+import { LogOut, MessageCircle, UserCheck, UserPlus } from 'lucide-react'
 import { useUiStore } from '../stores/ui'
 import { useAuthStore } from '../stores/auth'
 import { useReaderStore } from '../stores/reader'
 import { followItemDisplay, useUserStore } from '../stores/user'
+import { useChatStore } from '../stores/chat'
 import { ArticleCard } from './ArticleListView'
 import { CommentFeedCard, ReviewFeedCard } from './FeedCards'
 import { UserLevelBadge } from './UserLevelBadge'
@@ -108,34 +109,114 @@ function feedToComment(item: FollowFeedItem): CommentItem {
   }
 }
 
-/** 粉丝/关注行 */
-function FollowRow({ f }: { f: UserFollowItem }): React.JSX.Element {
+/** 粉丝/关注卡片（两列网格；关注列表可取关，粉丝列表可回关，均含私聊） */
+function FollowRow({
+  f,
+  mode
+}: {
+  f: UserFollowItem
+  mode: 'follows' | 'fans'
+}): React.JSX.Element {
   const d = followItemDisplay(f)
   const openUser = useUiStore((s) => s.openUserPage)
+  const isSelf = useUserStore((s) => s.isSelf)
+  const [busy, setBusy] = useState(false)
+  // 关注列表里的用户一定已关注；粉丝/他人页需要查询当前登录用户是否已关注对方
+  const [following, setFollowing] = useState<boolean | null>(mode === 'follows' ? true : null)
   const avatar = d.avatar ? cachedImageUrl(d.avatar) : undefined
   const uid = d.uid && d.uid !== '0' ? d.uid : String(f.touid ?? '')
   const clickable = uid !== '' && uid !== '0'
+
+  useEffect(() => {
+    if (mode === 'follows') {
+      setFollowing(true)
+      return
+    }
+    if (!uid) return
+    let alive = true
+    void window.hqsf.getFollowState(uid).then((res) => {
+      if (alive && res.ok) setFollowing(res.data)
+    })
+    return () => {
+      alive = false
+    }
+  }, [mode, uid])
+
+  const actionLabel =
+    mode === 'follows'
+      ? '取关'
+      : following === true
+        ? '取关'
+        : isSelf
+          ? '回关'
+          : '关注'
+
+  async function handleFollowAction(): Promise<void> {
+    if (!uid || busy || following == null) return
+    setBusy(true)
+    const follow = mode === 'fans' ? !following : false
+    const res = await window.hqsf.followUser(uid, follow)
+    setBusy(false)
+    if (res.ok && res.data.ok) {
+      setFollowing(follow)
+      void useUserStore.getState().loadTab()
+    } else {
+      void window.hqsf.showMessageBox({
+        type: 'error',
+        title: follow ? '关注失败' : '取关失败',
+        message: res.ok ? res.data.error ?? '操作失败' : res.error
+      })
+    }
+  }
+
   return (
-    <button
-      className={`user-follow-row${clickable ? '' : ' disabled'}`}
-      onClick={() => {
-        if (clickable) openUser(uid)
-      }}
-      title={clickable ? `查看 ${d.name || uid} 的主页` : undefined}
-    >
-      {avatar ? (
-        <img className="comment-avatar" src={avatar} alt="" loading="lazy" referrerPolicy="no-referrer" />
-      ) : (
-        <span className="comment-avatar comment-avatar-placeholder" />
-      )}
-      <span className="user-follow-meta">
-        <span className="user-follow-name-row">
-          <span className="user-follow-name">{d.name || `UID ${uid}`}</span>
-          <UserLevelBadge experience={d.experience} />
+    <div className="user-follow-card">
+      <div
+        className={`user-follow-main${clickable ? '' : ' disabled'}`}
+        role="button"
+        tabIndex={clickable ? 0 : -1}
+        onClick={() => {
+          if (clickable) openUser(uid)
+        }}
+        onKeyDown={(e) => {
+          if (clickable && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault()
+            openUser(uid)
+          }
+        }}
+        title={clickable ? `查看 ${d.name || uid} 的主页` : undefined}
+      >
+        {avatar ? (
+          <img className="comment-avatar" src={avatar} alt="" loading="lazy" referrerPolicy="no-referrer" />
+        ) : (
+          <span className="comment-avatar comment-avatar-placeholder" />
+        )}
+        <span className="user-follow-meta">
+          <span className="user-follow-name-row">
+            <span className="user-follow-name">{d.name || `UID ${uid}`}</span>
+            <UserLevelBadge experience={d.experience} />
+          </span>
+          {d.introduce ? <span className="user-follow-intro">{d.introduce}</span> : null}
         </span>
-        {d.introduce ? <span className="user-follow-intro">{d.introduce}</span> : null}
-      </span>
-    </button>
+      </div>
+      <div className="user-follow-actions">
+        <button
+          className="user-follow-action"
+          onClick={() => void handleFollowAction()}
+          disabled={busy || !uid || following == null}
+        >
+          {following === true ? <UserCheck size={13} /> : <UserPlus size={13} />}
+          {busy ? '处理中…' : actionLabel}
+        </button>
+        <button
+          className="user-follow-action"
+          onClick={() => useChatStore.getState().open({ uid, name: d.name || `UID ${uid}`, avatar: d.avatar })}
+        >
+          <MessageCircle size={13} />
+          私聊
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -181,11 +262,9 @@ export function UserView(): React.JSX.Element | null {
   // 当前视图未初始化完成（uid 不匹配）时给加载态
   if (!userPageUid || user.uid !== userPageUid) {
     return (
-      <main className="main-area">
-        <div className="user-view loading">
-          <span className="muted">正在加载用户页 …</span>
-        </div>
-      </main>
+      <div className="user-view loading">
+        <span className="muted">正在加载用户页 …</span>
+      </div>
     )
   }
 
@@ -227,8 +306,7 @@ export function UserView(): React.JSX.Element | null {
   }
 
   return (
-    <main className="main-area">
-      <div className="user-view">
+    <div className="user-view">
         {/* 头部背景 + 用户信息 */}
         <div className="user-banner" style={bg ? { backgroundImage: `url("${bg}")` } : undefined}>
           <div className="user-banner-mask" />
@@ -261,8 +339,8 @@ export function UserView(): React.JSX.Element | null {
                 <>
                   <button
                     className="user-action-btn"
-                    onClick={() => alert('私聊功能将在后续版本开放')}
-                    title="私聊（后续版本开放）"
+                    onClick={() => useChatStore.getState().open({ uid: user.uid ?? '', name, avatar })}
+                    title="私聊"
                   >
                     <MessageCircle size={14} /> 私聊
                   </button>
@@ -376,8 +454,7 @@ export function UserView(): React.JSX.Element | null {
         ) : (
           <UserListTab />
         )}
-      </div>
-    </main>
+    </div>
   )
 }
 
@@ -479,7 +556,8 @@ function UserListTab(): React.JSX.Element {
   }
 
   if (tab === 'fans') {
-    const mode = user.fanMode
+    // 本人页按切换按钮显示关注/粉丝；他人页只有「粉丝」
+    const mode = user.isSelf ? user.fanMode : 'fans'
     return (
       <div className="user-list-view">
         {user.isSelf && (
@@ -493,10 +571,10 @@ function UserListTab(): React.JSX.Element {
           </div>
         )}
         {user.fans.error && <ErrorBanner title="列表加载失败" message={user.fans.error} />}
-        <div className="user-follow-list">
+        <div className="user-follow-list two-col">
           {user.fans.items.length === 0 && !user.fans.loading && <div className="list-empty muted">（暂无）</div>}
           {user.fans.items.map((f) => (
-            <FollowRow key={`${f.uid}:${f.touid}:${f.created}`} f={f} />
+            <FollowRow key={`${f.uid}:${f.touid}:${f.created}`} f={f} mode={mode} />
           ))}
         </div>
         <LazySentinel

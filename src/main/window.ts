@@ -56,6 +56,15 @@ export function createWindow(): BrowserWindow {
 
   win.on('ready-to-show', () => {
     win.show()
+    // 确保窗口和 webContents 获得焦点：某些平台/桌面环境下首启偶发窗口已显示
+    // 但输入框无法获得焦点/插入光标，显式 focus 可规避。
+    win.focus()
+    win.webContents.focus()
+  })
+
+  // v0.0.9：窗口重新获得焦点时也把焦点交还 webContents，降低输入法/键盘状态卡死概率
+  win.on('focus', () => {
+    if (!win.isDestroyed()) win.webContents.focus()
   })
 
   // v0.0.2：任何界面按 Ctrl+F12 打开/收起开发者工具（打包后同样可用；macOS 亦为 Ctrl 键）

@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Copy, Eye, Minus, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, PenLine, Square, Undo2, X } from 'lucide-react'
+import { Bell, Copy, Eye, Minus, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, PenLine, Square, Undo2, X } from 'lucide-react'
 import { SECTION_LABELS, useUiStore } from '../stores/ui'
 import { useReaderStore } from '../stores/reader'
 import { useEditorStore } from '../stores/editor'
 import { useUserStore } from '../stores/user'
+import { useNotificationStore } from '../stores/notifications'
 
 /** 页面标题推导（v0.0.3：所有页面顶栏显示当前页面标题） */
 function usePageTitle(): string {
@@ -38,6 +39,9 @@ function usePageTitle(): string {
 export function TopBar(): React.JSX.Element {
   const title = usePageTitle()
   const section = useUiStore((s) => s.section)
+  const listContext = useUiStore((s) => s.listContext)
+  const librarySearchActive = useUiStore((s) => s.librarySearchActive)
+  const setLibrarySearchActive = useUiStore((s) => s.setLibrarySearchActive)
   const readingCid = useReaderStore((s) => s.readingCid)
   const closeArticle = useReaderStore((s) => s.closeArticle)
   const currentPath = useEditorStore((s) => s.currentPath)
@@ -45,7 +49,11 @@ export function TopBar(): React.JSX.Element {
   const editMode = useEditorStore((s) => s.mode)
   const setEditMode = useEditorStore((s) => s.setMode)
   const panelOpen = useUiStore((s) => s.panelOpen)
+  const panelTab = useUiStore((s) => s.panelTab)
+  const panelNotificationOnly = useUiStore((s) => s.panelNotificationOnly)
   const togglePanel = useUiStore((s) => s.togglePanel)
+  const openPanelTab = useUiStore((s) => s.openPanelTab)
+  const totalUnread = useNotificationStore((s) => s.totalUnread)
   const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed)
   const toggleSidebar = useUiStore((s) => s.toggleSidebarCollapsed)
   const userPageUid = useUiStore((s) => s.userPageUid)
@@ -66,17 +74,19 @@ export function TopBar(): React.JSX.Element {
     }
   }, [])
 
-  // v0.0.6+：Ctrl/Cmd+F 调出右栏「搜索」（Word 导航窗格式）
+  // v0.0.6+：Ctrl/Cmd+F 调出右栏「搜索」（仅文章页/编辑器页有搜索 tab 时生效）
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f') {
+        const canSearch = !!readingCid || (section === 'writing' && !!currentPath)
+        if (!canSearch) return
         e.preventDefault()
         useUiStore.getState().openPanelTab('search')
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [readingCid, section, currentPath])
 
   // macOS 用原生红绿灯（hiddenInset），渲染层隐藏自绘窗口按钮、左栏避开红绿灯
   const [platform, setPlatform] = useState('')
@@ -90,6 +100,21 @@ export function TopBar(): React.JSX.Element {
     }
   }, [])
   const isMac = platform === 'darwin'
+
+  /** v0.0.9：有未读通知或右栏只剩消息 tab 时，右栏按钮变为通知按钮；在消息页再点一次可收起右栏 */
+  const notificationButton = totalUnread > 0 || panelNotificationOnly
+  function handleRightPanelButton(): void {
+    if (panelNotificationOnly) {
+      // 右栏只有消息 tab：打开即消息页，再点一次直接收起
+      if (panelOpen) togglePanel()
+      else openPanelTab('messages')
+    } else if (totalUnread > 0) {
+      if (panelOpen && panelTab === 'messages') togglePanel()
+      else openPanelTab('messages')
+    } else {
+      togglePanel()
+    }
+  }
 
   return (
     <header className={isMac ? 'topbar topbar-mac' : 'topbar'}>
@@ -127,6 +152,15 @@ export function TopBar(): React.JSX.Element {
             )}
           </button>
         )}
+        {section === 'library' && !listContext && librarySearchActive && (
+          <button
+            className="topbar-back-btn"
+            onClick={() => setLibrarySearchActive(false)}
+            title="返回作品库首页"
+          >
+            <Undo2 size={14} />
+          </button>
+        )}
         {userPageUid && (
           <button className="topbar-back-btn" onClick={closeUserPage} title="返回">
             <Undo2 size={14} />
@@ -149,12 +183,30 @@ export function TopBar(): React.JSX.Element {
       </div>
       <div className="topbar-controls">
         {/* v0.0.6+：所有视图均可调出右栏（搜索为基础 tab，故按钮恒显示） */}
+        {/* v0.0.9：有未读通知时变成通知按钮并显示小红点 */}
         <button
-          className="topbar-btn"
-          onClick={togglePanel}
-          title={panelOpen ? '收起右栏' : '展开右栏'}
+          className={`topbar-btn${notificationButton ? ' has-notification' : ''}`}
+          onClick={handleRightPanelButton}
+          title={
+            notificationButton
+              ? panelOpen && panelTab === 'messages'
+                ? '收起消息'
+                : '查看消息'
+              : panelOpen
+                ? '收起右栏'
+                : '展开右栏'
+          }
         >
-          {panelOpen ? <PanelRightClose size={14} /> : <PanelRightOpen size={14} />}
+          {notificationButton ? (
+            <>
+              <Bell size={14} />
+              {totalUnread > 0 && <span className="topbar-notify-dot" />}
+            </>
+          ) : panelOpen ? (
+            <PanelRightClose size={14} />
+          ) : (
+            <PanelRightOpen size={14} />
+          )}
         </button>
         {/* macOS 用原生红绿灯，不渲染自绘窗口按钮 */}
         {!isMac && (

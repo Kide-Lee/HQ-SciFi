@@ -871,6 +871,8 @@ function ReviewInlineComments({
   const clearCommentMessage = useReaderStore((s) => s.clearCommentMessage)
   const submitComment = useReaderStore((s) => s.submitComment)
   const detail = useReaderStore((s) => s.detail)
+  const target = useReaderStore((s) => s.target)
+  const clearTarget = useReaderStore((s) => s.clearTarget)
   const cid = detail?.cid ?? ''
   const rid = String(review.id)
   const session = useAuthStore((s) => s.session)
@@ -880,6 +882,19 @@ function ReviewInlineComments({
   const [replyTo, setReplyTo] = useState<CommentItem | null>(null)
   const [localErr, setLocalErr] = useState<string | null>(null)
   const replyBoxRef = useRef<HTMLTextAreaElement | null>(null)
+
+  // v0.0.8.7：首页「最新讨论」点回复评审讨论 → 打开对应评审评论后，自动选中目标评论并聚焦回复框
+  useEffect(() => {
+    if (!target?.replyCommentId || String(target.reviewId ?? '') !== rid) return
+    const c = comments.find((item) => String(item.coid) === String(target.replyCommentId))
+    if (!c) return
+    setReplyTo(c)
+    // preventScroll：聚焦不抢滚动；这里自己负责定位到目标评论，避免与父级深链 effect 的执行顺序耦合
+    replyBoxRef.current?.focus({ preventScroll: true })
+    const el = document.querySelector(`.review-panel [data-coid="${CSS.escape(String(target.replyCommentId))}"]`)
+    el?.scrollIntoView({ block: 'center' })
+    clearTarget()
+  }, [target, comments, rid, clearTarget])
   // v0.0.8.5：已收起深层评审评论的第一层评论 coid 集合
   const [collapsedSubs, setCollapsedSubs] = useState<Set<string>>(new Set())
 
@@ -1093,11 +1108,19 @@ function ReviewPanel(): React.JSX.Element {
   const myReview = mine[0]
   const others = reviews.filter((r) => !mine.includes(r))
 
-  // v0.0.8：深链目标带 reviewId 时切到「所有评审」tab——评审卡片列表在该 tab 下，
-  // 默认「我的评审」tab 只展示发表/编辑表单，无法滚动定位到目标评审
+  // v0.0.8：深链目标带 reviewId 时切到包含目标评审的 tab——
+  // 自己的评审在「我的评审」tab，他人的评审在「所有评审」tab。
+  // 之前固定切「所有评审」导致点自己评审的讨论无法定位（自己的评审不在 others 列表）。
   useEffect(() => {
-    if (target?.reviewId && target.cid === detail?.cid && tab !== 'all') setTab('all')
-  }, [target, detail?.cid, tab])
+    if (!target?.reviewId || target.cid !== detail?.cid) return
+    if (reviewsLoading || reviews.length === 0) return
+    const targetReview = reviews.find((r) => String(r.id) === String(target.reviewId))
+    if (!targetReview) return // 目标评审可能在第 2+ 页，由深链分页追加后再切
+    const targetUid = String(targetReview.uid ?? (targetReview.userJson as Record<string, unknown> | undefined)?.uid ?? '')
+    const isMine = myUid !== '' && targetUid === myUid
+    const wantedTab = isMine ? 'mine' : 'all'
+    if (tab !== wantedTab) setTab(wantedTab)
+  }, [target, detail?.cid, tab, reviews, reviewsLoading, myUid])
 
   // v0.0.8：消费深链目标——目标文章不符则丢弃；评审评论需等评论区展开渲染后再定位。
   // 评论按 coid 升序分页加载，目标评论可能是最新一条（第 2+ 页）：未命中且还有下一页时继续追加加载。
@@ -1118,7 +1141,8 @@ function ReviewPanel(): React.JSX.Element {
           const el = card.querySelector(`[data-coid="${CSS.escape(target.commentId)}"]`)
           if (el) {
             el.scrollIntoView({ block: 'center' })
-            clearTarget()
+            // 回复跳转时由回复框消费后再 clear，确保子组件能拿到 replyCommentId
+            if (!target.replyCommentId) clearTarget()
             found = true
           }
         } else {

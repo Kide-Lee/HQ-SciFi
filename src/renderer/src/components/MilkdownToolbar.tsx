@@ -49,7 +49,7 @@ export function MilkdownToolbar(): React.JSX.Element {
   const askImage = async (): Promise<void> => {
     const res = await window.hqsf.pickUploadImage()
     if (!res.ok) {
-      if (res.error) window.alert(res.error)
+      if (res.error) void window.hqsf.showMessageBox({ type: 'error', title: '插入图片失败', message: res.error })
       return
     }
     const url = res.data?.url

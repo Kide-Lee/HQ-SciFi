@@ -30,6 +30,7 @@ import {
   listReviewTasks,
   listMyReviews,
   removeUserLog,
+  searchComments,
   setReviewAttitude,
   submitReview,
   checkTextBlockStatus
@@ -48,8 +49,11 @@ import {
   listUserArticles,
   listUserComments,
   listUserReviews,
+  searchUsers,
   setFollow
 } from './user'
+import { getUnreadCount, listInbox, markNotificationsRead } from './notify'
+import { getPrivateChat, listChatMessages, sendChatMessage } from './chat'
 import type { ArticleListOptions, ReviewPayload } from '../shared/types'
 
 /** IPC 返回约定：成功 { ok: true, data }，失败 { ok: false, error }（避免 Error 序列化丢 message） */
@@ -129,6 +133,166 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('hqsf:window-is-maximized', (event) => {
     return windowOf(event)?.isMaximized() ?? false
+  })
+
+  /**
+   * 安全的消息弹窗：渲染层禁用 alert()/confirm()/prompt()——Electron 的
+   * 渲染进程同步 alert 关闭后可能让窗口内所有输入框失去焦点/无法插入光标
+   * （Windows 上偶发，重启或 alt-tab 才能恢复）。统一改走主进程原生 dialog。
+   */
+  ipcMain.handle(
+    'hqsf:show-message-box',
+    async (
+      event,
+      options?: {
+        type?: 'none' | 'info' | 'error' | 'question' | 'warning'
+        title?: string
+        message?: string
+        detail?: string
+        buttons?: string[]
+        cancelId?: number
+        defaultId?: number
+      }
+    ) => {
+      const blocked = trusted(event)
+      if (blocked) return fail(blocked)
+      const win = windowOf(event)
+      const boxOptions: Electron.MessageBoxOptions = {
+        type: options?.type ?? 'info',
+        title: options?.title ?? '黄芪饮片',
+        message: options?.message ?? '',
+        ...(options?.detail ? { detail: options.detail } : {}),
+        buttons: options?.buttons?.length ? options.buttons.slice(0, 4) : ['确定'],
+        ...(options?.cancelId != null ? { cancelId: options.cancelId } : {}),
+        ...(options?.defaultId != null ? { defaultId: options.defaultId } : {})
+      }
+      try {
+        const result =
+          win && !win.isDestroyed()
+            ? await dialog.showMessageBox(win, boxOptions)
+            : await dialog.showMessageBox(boxOptions)
+        // 原生对话框关闭后确保窗口重新获得焦点，避免任何焦点残留问题
+        if (win && !win.isDestroyed()) win.focus()
+        return ok({ response: result.response })
+      } catch (err) {
+        return fail(err)
+      }
+    }
+  )
+
+  // ---- 消息中心（v0.0.9：真实 hqUsers/inbox + unreadNum + setRead） ----
+  ipcMain.handle('hqsf:list-notifications', async (event) => {
+    const blocked = trusted(event)
+    if (blocked) return fail(blocked)
+    const token = getStoredToken()
+    if (!token) return ok({ items: [], totalUnread: 0 })
+    try {
+      const items = await listInbox(token)
+      const totalUnread = items.filter((n) => !n.read).length
+      return ok({ items, totalUnread })
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  ipcMain.handle('hqsf:get-unread-count', async (event) => {
+    const blocked = trusted(event)
+    if (blocked) return fail(blocked)
+    const token = getStoredToken()
+    if (!token) return ok({ total: 0 })
+    try {
+      return ok({ total: await getUnreadCount(token) })
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  ipcMain.handle('hqsf:mark-notifications-read', async (event, categories: string[]) => {
+    const blocked = trusted(event)
+    if (blocked) return fail(blocked)
+    const token = getStoredToken()
+    if (!token) return fail(new Error('未登录，无法标记已读'))
+    try {
+      await markNotificationsRead(token, (Array.isArray(categories) ? categories : []) as Parameters<typeof markNotificationsRead>[1])
+      return ok(null)
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  // ---- 全局搜索（作品库首页：文章/评论/评审/用户） ----
+  ipcMain.handle('hqsf:search-comments', async (event, keyword: string, limit?: number) => {
+    const blocked = trusted(event)
+    if (blocked) return fail(blocked)
+    try {
+      const token = getStoredToken()
+      const res = await searchComments(token, String(keyword ?? ''), limit ?? 10, 1)
+      return ok(res)
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  ipcMain.handle('hqsf:search-reviews', async (event, keyword: string, limit?: number) => {
+    const blocked = trusted(event)
+    if (blocked) return fail(blocked)
+    try {
+      const token = getStoredToken()
+      const res = await listReviews(token, { searchKey: String(keyword ?? ''), limit: limit ?? 10, page: 1, order: 'created' })
+      return ok(res)
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  ipcMain.handle('hqsf:search-users', async (event, keyword: string, limit?: number) => {
+    const blocked = trusted(event)
+    if (blocked) return fail(blocked)
+    try {
+      const token = getStoredToken()
+      const res = await searchUsers(token, String(keyword ?? ''), 1, limit ?? 10)
+      return ok(res)
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  // ---- 私聊（hqChat/） ----
+  ipcMain.handle('hqsf:get-private-chat', async (event, touid: number | string) => {
+    const blocked = trusted(event)
+    if (blocked) return fail(blocked)
+    const token = getStoredToken()
+    if (!token) return fail(new Error('未登录，无法私聊'))
+    try {
+      return ok({ chatid: await getPrivateChat(token, touid) })
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  ipcMain.handle('hqsf:list-chat-messages', async (event, chatid: string) => {
+    const blocked = trusted(event)
+    if (blocked) return fail(blocked)
+    const token = getStoredToken()
+    if (!token) return fail(new Error('未登录，无法私聊'))
+    try {
+      return ok({ items: await listChatMessages(token, String(chatid ?? '')) })
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  ipcMain.handle('hqsf:send-chat-message', async (event, chatid: string, msg: string) => {
+    const blocked = trusted(event)
+    if (blocked) return fail(blocked)
+    const token = getStoredToken()
+    if (!token) return fail(new Error('未登录，无法私聊'))
+    try {
+      await sendChatMessage(token, String(chatid ?? ''), String(msg ?? ''))
+      return ok(null)
+    } catch (err) {
+      return fail(err)
+    }
   })
 
   // ---- 认证与会话 ----

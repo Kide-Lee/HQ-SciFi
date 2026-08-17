@@ -2,6 +2,8 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type {
   AgreementData,
   ApiResult,
+  AppNotification,
+  ChatMessage,
   ArticleDetail,
   ArticleListOptions,
   ArticleRow,
@@ -29,6 +31,7 @@ import type {
   UserFollowItem,
   UserMarkItem,
   UserProfile,
+  UserSearchResult,
   UserSession,
   UserStats
 } from '../shared/types'
@@ -45,6 +48,36 @@ const api = {
   getAppInfo: (): Promise<{ version: string; platform: string; arch: string; packaged: boolean }> =>
     ipcRenderer.invoke('hqsf:get-app-info'),
   copyText: (text: string): Promise<ApiResult<null>> => ipcRenderer.invoke('hqsf:copy-text', text),
+  /** 原生消息弹窗（替代渲染层 alert/confirm，避免 Electron 弹窗后输入框失焦的已知问题） */
+  showMessageBox: (options: {
+    type?: 'none' | 'info' | 'error' | 'question' | 'warning'
+    title?: string
+    message: string
+    detail?: string
+    buttons?: string[]
+    cancelId?: number
+    defaultId?: number
+  }): Promise<ApiResult<{ response: number }>> => ipcRenderer.invoke('hqsf:show-message-box', options),
+  // ---- 消息中心（v0.0.9：真实收件箱 API） ----
+  listNotifications: (): Promise<ApiResult<{ items: AppNotification[]; totalUnread: number }>> =>
+    ipcRenderer.invoke('hqsf:list-notifications'),
+  getUnreadCount: (): Promise<ApiResult<{ total: number }>> => ipcRenderer.invoke('hqsf:get-unread-count'),
+  markNotificationsRead: (categories: string[]): Promise<ApiResult<null>> =>
+    ipcRenderer.invoke('hqsf:mark-notifications-read', categories),
+  // ---- 全局搜索（作品库首页） ----
+  searchComments: (keyword: string, limit?: number): Promise<ApiResult<{ items: CommentItem[]; total: number }>> =>
+    ipcRenderer.invoke('hqsf:search-comments', keyword, limit),
+  searchReviews: (keyword: string, limit?: number): Promise<ApiResult<{ items: ReviewItem[]; total: number }>> =>
+    ipcRenderer.invoke('hqsf:search-reviews', keyword, limit),
+  searchUsers: (keyword: string, limit?: number): Promise<ApiResult<{ items: UserSearchResult[]; total: number }>> =>
+    ipcRenderer.invoke('hqsf:search-users', keyword, limit),
+  // ---- 私聊（hqChat/） ----
+  getPrivateChat: (touid: number | string): Promise<ApiResult<{ chatid: string }>> =>
+    ipcRenderer.invoke('hqsf:get-private-chat', touid),
+  listChatMessages: (chatid: string): Promise<ApiResult<{ items: ChatMessage[] }>> =>
+    ipcRenderer.invoke('hqsf:list-chat-messages', chatid),
+  sendChatMessage: (chatid: string, msg: string): Promise<ApiResult<null>> =>
+    ipcRenderer.invoke('hqsf:send-chat-message', chatid, msg),
 
   // ---- 用户协议（登录前须阅读并同意） ----
   getAgreement: (): Promise<ApiResult<AgreementData>> => ipcRenderer.invoke('hqsf:get-agreement'),

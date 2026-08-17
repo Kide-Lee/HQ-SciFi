@@ -52,7 +52,8 @@ export function ReviewFeedCard({
   onComment,
   footer,
   editing = false,
-  hideScore = false
+  hideScore = false,
+  headerAction
 }: {
   review: ReviewItem
   onOpen: () => void
@@ -61,6 +62,8 @@ export function ReviewFeedCard({
   onComment?: () => void
   /** 卡片底部附加内容（推荐首页就地回复编辑框等） */
   footer?: React.ReactNode
+  /** 头像行右侧附加操作（如「标记已读」） */
+  headerAction?: React.ReactNode
   /** 就地编辑框展开时解除卡片高度限制 */
   editing?: boolean
   /** 进行中/评审中活动不暴露评分 */
@@ -104,7 +107,19 @@ export function ReviewFeedCard({
   return (
     <div className={`home-feed-card${editing ? ' editing' : ''}`}>
       {/* 卡片主体：点击跳转到对应文章评审 */}
-      <button className="home-feed-main" onClick={onOpen} title={`查看《${title || String(review.cid ?? '')}》的评审`}>
+      <div
+        className="home-feed-main"
+        role="button"
+        tabIndex={0}
+        onClick={onOpen}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            onOpen()
+          }
+        }}
+        title={`查看《${title || String(review.cid ?? '')}》的评审`}
+      >
         <span className="home-feed-user">
           <FeedAvatarWrap src={avatar} name={name} uid={uid} onOpenUser={onOpenUser} />
           <span className="home-feed-user-meta">
@@ -114,7 +129,10 @@ export function ReviewFeedCard({
             </span>
             <span className="home-feed-time">{review.created ? formatTs(Number(review.created)) : ''}</span>
           </span>
-          {score && <span className="home-feed-score">{score}</span>}
+          <span className="home-feed-user-right">
+            {score && <span className="home-feed-score">{score}</span>}
+            {headerAction}
+          </span>
         </span>
         {content ? (
           <span className="home-feed-content">
@@ -125,7 +143,7 @@ export function ReviewFeedCard({
             <span className="home-feed-content-text">（无评价内容）</span>
           </span>
         )}
-      </button>
+      </div>
       {/* 文章归属与评论按钮同行——评《xxx》靠左，评论按钮靠右（与推荐首页一致） */}
       <span className="home-feed-actions">
         <span className="home-feed-article">评《{title || `文章 ${String(review.cid ?? '')}`}》</span>
@@ -152,7 +170,8 @@ export function CommentFeedCard({
   onOpenUser,
   onReply,
   footer,
-  editing = false
+  editing = false,
+  headerAction
 }: {
   comment: CommentItem
   onOpen: () => void
@@ -160,6 +179,8 @@ export function CommentFeedCard({
   /** 提供则显示与推荐首页一致的「回复这条评论」按钮 */
   onReply?: () => void
   footer?: React.ReactNode
+  /** 头像行右侧附加操作（如「标记已读」） */
+  headerAction?: React.ReactNode
   /** 就地编辑框展开时解除卡片高度限制 */
   editing?: boolean
 }): React.JSX.Element {
@@ -184,7 +205,19 @@ export function CommentFeedCard({
   return (
     <div className={`home-feed-card${editing ? ' editing' : ''}`}>
       {/* 卡片主体：点击跳转到对应文章评论区 / 评审评论区 */}
-      <button className="home-feed-main" onClick={onOpen} title={`查看《${title}》的${rid ? '评审讨论' : '评论'}`}>
+      <div
+        className="home-feed-main"
+        role="button"
+        tabIndex={0}
+        onClick={onOpen}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            onOpen()
+          }
+        }}
+        title={`查看《${title}》的${rid ? '评审讨论' : '评论'}`}
+      >
         <span className="home-feed-user">
           <FeedAvatarWrap src={avatar} name={author} uid={uid} onOpenUser={onOpenUser} />
           <span className="home-feed-user-meta">
@@ -194,11 +227,12 @@ export function CommentFeedCard({
             </span>
             <span className="home-feed-time">{comment.created ? formatTs(Number(comment.created)) : ''}</span>
           </span>
+          <span className="home-feed-user-right">{headerAction}</span>
         </span>
         <span className="home-feed-content">
           <span className="home-feed-content-text">{comment.text}</span>
         </span>
-      </button>
+      </div>
       {/* 文章归属与回复按钮同行（与推荐首页一致） */}
       <span className="home-feed-actions">
         <span className="home-feed-article">{articleLine}</span>

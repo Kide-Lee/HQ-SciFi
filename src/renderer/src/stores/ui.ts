@@ -65,6 +65,10 @@ interface UiState {
   panelOpen: boolean
   /** 右栏当前 tab（key 由各视图 tabs 定义：文章页 toc/comments/review/search、编辑器 preview/toc/search 等） */
   panelTab: string
+  /** v0.0.9：当前右栏是否只剩全局「消息」tab（用于顶栏切换为通知图标） */
+  panelNotificationOnly: boolean
+  /** v0.0.9：作品库首页是否处于搜索结果态（用于顶栏显示返回按钮） */
+  librarySearchActive: boolean
   /**
    * v0.0.6：登录模态是否打开（未登录也可浏览/写作，登录作为覆盖层从用户卡唤起）
    */
@@ -87,6 +91,8 @@ interface UiState {
   setPanelTab: (tab: string) => void
   /** 打开右栏并切到指定 tab（Ctrl+F 搜索用） */
   openPanelTab: (tab: string) => void
+  setPanelNotificationOnly: (v: boolean) => void
+  setLibrarySearchActive: (v: boolean) => void
   setSearchQuery: (q: string) => void
   setSearchRegex: (v: boolean) => void
   setSearchActive: (idx: number) => void
@@ -105,6 +111,8 @@ export const useUiStore = create<UiState>((set) => ({
   sidebarCollapsed: localStorage.getItem('hqsf-sidebar-collapsed') === '1',
   panelOpen: false,
   panelTab: 'search',
+  panelNotificationOnly: false,
+  librarySearchActive: false,
   loginOpen: false,
   searchQuery: '',
   searchRegex: false,
@@ -124,6 +132,8 @@ export const useUiStore = create<UiState>((set) => ({
     }),
   setPanelTab: (panelTab) => set({ panelTab }),
   openPanelTab: (panelTab) => set({ panelOpen: true, panelTab }),
+  setPanelNotificationOnly: (panelNotificationOnly) => set({ panelNotificationOnly }),
+  setLibrarySearchActive: (librarySearchActive) => set({ librarySearchActive }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
   setSearchRegex: (searchRegex) => set({ searchRegex }),
   setSearchActive: (searchActive) => set({ searchActive }),
