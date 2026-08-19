@@ -4,6 +4,7 @@ import type {
   ApiResult,
   AppNotification,
   ChatMessage,
+  ChatSession,
   ArticleDetail,
   ArticleListOptions,
   ArticleRow,
@@ -74,6 +75,8 @@ const api = {
   // ---- 私聊（hqChat/） ----
   getPrivateChat: (touid: number | string): Promise<ApiResult<{ chatid: string }>> =>
     ipcRenderer.invoke('hqsf:get-private-chat', touid),
+  listChatSessions: (): Promise<ApiResult<{ items: ChatSession[] }>> =>
+    ipcRenderer.invoke('hqsf:list-chat-sessions'),
   listChatMessages: (chatid: string): Promise<ApiResult<{ items: ChatMessage[] }>> =>
     ipcRenderer.invoke('hqsf:list-chat-messages', chatid),
   sendChatMessage: (chatid: string, msg: string): Promise<ApiResult<null>> =>

@@ -53,6 +53,7 @@ export const REQUIRED_ENDPOINTS = [
   'userList',
   // 私聊（chat.ts）
   'getPrivateChat',
+  'myChat',
   'msgList',
   'sendMsg',
   'follow',
@@ -99,6 +100,7 @@ const ENDPOINT_DESC: Record<EndpointName, string> = {
   setRead: '标记消息已读',
   userList: '用户搜索列表',
   getPrivateChat: '获取/创建私聊会话',
+  myChat: '私聊会话列表',
   msgList: '私聊消息列表',
   sendMsg: '发送私聊消息',
   follow: '关注/取关用户',

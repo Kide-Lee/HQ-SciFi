@@ -1,5 +1,5 @@
 import { $command, $node } from '@milkdown/kit/utils'
-import { mediaPlayerUrl } from './sanitize'
+import { mediaPlayerUrl, parseMediaId } from './sanitize'
 
 /**
  * v0.0.6：荒启媒体标签节点（音乐/视频）。
@@ -34,14 +34,15 @@ export const mediaNode = $node('mediaTag', () => ({
   ],
   toDOM: (node) => {
     const tag = node.attrs.tag as MediaTag
-    const id = node.attrs.id as string
-    const url = mediaPlayerUrl(tag, id)
+    const rawId = node.attrs.id as string
+    const id = parseMediaId(tag, rawId) ?? ''
+    const url = id ? mediaPlayerUrl(tag, id) : null
     if (!url) {
       // 非法/未知媒体：回退标签原文（点击仍可打开弹窗修正）
       return [
         'span',
-        { class: 'media-tag', 'data-media': tag, 'data-id': id, 'data-type': 'mediaTag', contenteditable: 'false' },
-        `[${tag}]${id}[/${tag}]`
+        { class: 'media-tag', 'data-media': tag, 'data-id': rawId, 'data-type': 'mediaTag', contenteditable: 'false' },
+        `[${tag}]${rawId}[/${tag}]`
       ]
     }
     const isVideo = tag === 'video bilibili'
@@ -53,7 +54,7 @@ export const mediaNode = $node('mediaTag', () => ({
         'data-id': id,
         'data-type': 'mediaTag',
         contenteditable: 'false',
-        title: `[${tag}]${id}[/${tag}]`
+        title: `[${tag}]${rawId}[/${tag}]`
       },
       [
         'iframe',
@@ -106,9 +107,7 @@ export const insertMediaCommand = $command(
     }
 )
 
-/** 校验并规范化媒体 ID：音乐 = 纯数字；B 站视频 = 大写 BV 号（与阅读端展开正则一致） */
+/** 校验并规范化媒体 ID：支持纯 ID 或完整分享链接；音乐解析为数字 ID，B 站解析为 BV 号。 */
 export function normalizeMediaInput(tag: MediaTag, raw: string): string | null {
-  const v = raw.trim()
-  if (tag === 'video bilibili') return /^BV[0-9A-Za-z]{6,20}$/.test(v) ? v : null
-  return /^\d{3,20}$/.test(v) ? v : null
+  return parseMediaId(tag, raw)
 }

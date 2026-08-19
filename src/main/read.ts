@@ -62,7 +62,7 @@ export function normTs(v: unknown): number {
  * 正文渲染仍需保留标记（expandMediaTags 展开成播放器），仅展示类文本剥离。
  */
 const MEDIA_TAG_RE =
-  /(?:\[music\s+163\]\s*\d{3,20}\s*\[\/music\s+163\]|\[music\s+qq\]\s*\d{3,20}\s*\[\/music\s+qq\]|\[video\s+bilibili\]\s*BV[0-9A-Za-z]{6,20}\s*\[\/video\s+bilibili\]|music163\s*\d{3,20}\s*\/music163|musicqq\s*\d{3,20}\s*\/musicqq)/g
+  /(?:\[music\s+163\][\s\S]*?\[\/music\s+163\]|\[music\s+qq\][\s\S]*?\[\/music\s+qq\]|\[video\s+bilibili\][\s\S]*?\[\/video\s+bilibili\]|music163\s*\d{3,20}\s*\/music163|musicqq\s*\d{3,20}\s*\/musicqq)/g
 function stripMediaTags(v: unknown): string {
   return str(v).replace(MEDIA_TAG_RE, '')
 }

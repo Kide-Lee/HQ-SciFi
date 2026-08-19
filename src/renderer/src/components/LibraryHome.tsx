@@ -45,6 +45,24 @@ export function LibraryHome(): React.JSX.Element {
   const [error, setError] = useState<string | null>(null)
   const [activeType, setActiveType] = useState<SearchType>('articles')
   const [results, setResults] = useState<SearchResults>(EMPTY_RESULTS)
+  const [wormholeTotal, setWormholeTotal] = useState<number | null>(null)
+  const [wormholeLoading, setWormholeLoading] = useState(false)
+
+  // 预取全站文章总数，让“时空乱流”点击后只需请求一次随机页
+  useEffect(() => {
+    let cancelled = false
+    window.hqsf
+      .listRemoteArticles({ searchParams: { type: 'post' }, limit: 1, page: 1, order: 'created' })
+      .then((res) => {
+        if (!cancelled && res.ok && res.data.total > 0) setWormholeTotal(res.data.total)
+      })
+      .catch(() => {
+        // 预取失败不阻塞，点击时再取
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   // 顶栏“返回”按钮会把 librarySearchActive 置为 false，这里同步清空本地搜索结果
   useEffect(() => {
@@ -93,13 +111,51 @@ export function LibraryHome(): React.JSX.Element {
   }
 
   async function lucky(): Promise<void> {
+    if (wormholeLoading) return
+    setWormholeLoading(true)
+    const PAGE_SIZE = 50
     try {
-      const res = await window.hqsf.listRemoteArticles({ searchParams: { type: 'post' }, limit: 50, order: 'created' })
-      if (!res.ok || res.data.items.length === 0) return
-      const item = res.data.items[Math.floor(Math.random() * res.data.items.length)]
-      void openArticle(item.cid)
+      // 优先使用预取的总数；没有预取成功时先用轻量请求拿总数
+      let total = wormholeTotal
+      if (total == null) {
+        const first = await window.hqsf.listRemoteArticles({
+          searchParams: { type: 'post' },
+          limit: 1,
+          page: 1,
+          order: 'created'
+        })
+        if (!first.ok || first.data.items.length === 0) return
+        total = Math.max(first.data.total, first.data.items.length)
+        setWormholeTotal(total)
+      }
+
+      // 最多重试 3 次，避免服务端 total 不可靠时选中空页
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const target = Math.floor(Math.random() * total)
+        const page = Math.floor(target / PAGE_SIZE) + 1
+        const offset = target % PAGE_SIZE
+
+        const res = await window.hqsf.listRemoteArticles({
+          searchParams: { type: 'post' },
+          limit: PAGE_SIZE,
+          page,
+          order: 'created'
+        })
+
+        if (!res.ok) continue
+        const items = res.data.items
+        if (items.length === 0) continue
+
+        const item = items[offset] ?? items[Math.floor(Math.random() * items.length)]
+        if (item) {
+          void openArticle(item.cid)
+          return
+        }
+      }
     } catch {
       // 随机打开失败静默
+    } finally {
+      setWormholeLoading(false)
     }
   }
 
@@ -152,8 +208,13 @@ export function LibraryHome(): React.JSX.Element {
             </button>
           </div>
           <div className="library-search-actions">
-            <button type="button" className="library-search-wormhole" onClick={() => void lucky()}>
-              时空乱流
+            <button
+              type="button"
+              className="library-search-wormhole"
+              onClick={() => void lucky()}
+              disabled={wormholeLoading}
+            >
+              {wormholeLoading ? '时空乱流…' : '时空乱流'}
             </button>
             <button
               type="button"
