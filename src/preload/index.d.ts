@@ -3,6 +3,7 @@ import type {
   ApiResult,
   AppNotification,
   ChatMessage,
+  ChatSession,
   ArticleDetail,
   ArticleListOptions,
   ArticleRow,
@@ -111,6 +112,7 @@ export interface HqsfApi {
   searchUsers: (keyword: string, limit?: number) => Promise<ApiResult<{ items: UserSearchResult[]; total: number }>>
   /** 私聊（hqChat/） */
   getPrivateChat: (touid: number | string) => Promise<ApiResult<{ chatid: string }>>
+  listChatSessions: () => Promise<ApiResult<{ items: ChatSession[] }>>
   listChatMessages: (chatid: string) => Promise<ApiResult<{ items: ChatMessage[] }>>
   sendChatMessage: (chatid: string, msg: string) => Promise<ApiResult<null>>
 

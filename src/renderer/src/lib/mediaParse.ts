@@ -1,6 +1,7 @@
 import { $prose } from '@milkdown/kit/utils'
 import { Plugin } from '@milkdown/prose/state'
 import type { Node as PMNode, Schema } from '@milkdown/prose/model'
+import { parseMediaId } from './sanitize'
 
 /**
  * v0.0.8：解析阶段把正文中的媒体标签文本转换为 mediaTag 节点。
@@ -13,7 +14,7 @@ import type { Node as PMNode, Schema } from '@milkdown/prose/model'
  * 含 `[music 163]…[/music 163]` 等标签的文本拆成 text + mediaTag 原子节点。
  */
 
-const MEDIA_TEXT_RE = /\[(music 163|music qq|video bilibili)\]([^\]]+)\[\/(?:music 163|music qq|video bilibili)\]/g
+const MEDIA_TEXT_RE = /\[(music 163|music qq|video bilibili)\]([\s\S]*?)\[\/(?:music 163|music qq|video bilibili)\]/g
 
 /**
  * 递归转换：文本节点含媒体标签时拆成多个行内节点；块节点递归子节点并重建。
@@ -32,9 +33,12 @@ function transformInline(node: PMNode, schema: Schema): PMNode[] | null {
     let last = 0
     let m: RegExpExecArray | null
     while ((m = MEDIA_TEXT_RE.exec(text))) {
+      const id = parseMediaId(m[1], m[2])
+      // 无法解析的媒体标签保持原文，不拆成节点
+      if (!id) continue
       if (m.index > last) parts.push(schema.text(text.slice(last, m.index), node.marks))
       // 媒体节点不带 marks：toMarkdown 输出的 html 节点不携带 marks，继承 marks 会在保存后丢格式
-      parts.push(mediaType.create({ tag: m[1], id: m[2] }))
+      parts.push(mediaType.create({ tag: m[1], id }))
       last = m.index + m[0].length
     }
     if (last < text.length) parts.push(schema.text(text.slice(last), node.marks))

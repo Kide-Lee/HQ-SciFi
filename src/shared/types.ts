@@ -378,9 +378,24 @@ export interface ChatMessage {
   userJson?: Record<string, unknown>
 }
 
+/** 私聊会话条目（hqChat/myChat）：用于消息中心「私聊」tab 的用户卡片列表 */
+export interface ChatSession {
+  chatid: string
+  /** 对方用户 uid */
+  uid: string
+  name: string
+  avatar?: string
+  /** 最近一条消息时间（秒级时间戳） */
+  lastTime: number
+  /** 最近一条消息文本 */
+  lastMsg?: string
+  /** 我未读的消息数 */
+  unread: number
+}
+
 // ---------- 消息中心（hqUsers/inbox 等） ----------
 
-export type NotificationCategory = 'comment' | 'review' | 'finance' | 'system'
+export type NotificationCategory = 'comment' | 'review' | 'finance' | 'system' | 'fan' | 'chat'
 
 /** 通知/消息条目（收件箱规整后；评论/评审消息附带可复用信息流卡片的数据） */
 export interface AppNotification {

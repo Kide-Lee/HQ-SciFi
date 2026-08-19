@@ -53,7 +53,7 @@ import {
   setFollow
 } from './user'
 import { getUnreadCount, listInbox, markNotificationsRead } from './notify'
-import { getPrivateChat, listChatMessages, sendChatMessage } from './chat'
+import { getPrivateChat, listChatMessages, listChatSessions, sendChatMessage } from './chat'
 import type { ArticleListOptions, ReviewPayload } from '../shared/types'
 
 /** IPC 返回约定：成功 { ok: true, data }，失败 { ok: false, error }（避免 Error 序列化丢 message） */
@@ -265,6 +265,18 @@ export function registerIpcHandlers(): void {
     if (!token) return fail(new Error('未登录，无法私聊'))
     try {
       return ok({ chatid: await getPrivateChat(token, touid) })
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  ipcMain.handle('hqsf:list-chat-sessions', async (event) => {
+    const blocked = trusted(event)
+    if (blocked) return fail(blocked)
+    const token = getStoredToken()
+    if (!token) return ok({ items: [] })
+    try {
+      return ok({ items: await listChatSessions(token) })
     } catch (err) {
       return fail(err)
     }

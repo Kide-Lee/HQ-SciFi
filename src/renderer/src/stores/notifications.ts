@@ -3,13 +3,6 @@ import type { AppNotification, NotificationCategory } from '../../../shared/type
 
 export { type AppNotification, type NotificationCategory }
 
-export const NOTIFICATION_CATEGORY_LABEL: Record<NotificationCategory, string> = {
-  comment: '评论',
-  review: '评审',
-  finance: '财务',
-  system: '系统'
-}
-
 interface NotificationState {
   notifications: AppNotification[]
   totalUnread: number

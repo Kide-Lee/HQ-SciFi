@@ -180,12 +180,38 @@ export function htmlToText(html: string): string {
  *   [music 163]id[/music 163]      → 网易云 iframe 播放器（id 仅数字）
  *   [music qq]id[/music qq]        → QQ 音乐 iframe 播放器（id 仅数字）
  *   [video bilibili]BVxx[/video bilibili] → B 站 iframe（仅 BV 号）
+ * 也兼容标签内直接贴完整分享链接的情况，例如：
+ *   [music 163]https://y.music.163.com/m/song?id=123[/music 163]
  * 必须在 sanitizeHtml 之后调用（文本已在白名单内）；这里只生成受控 iframe：
  * src 域名/路径固定、id 经严格校验，杜绝注入任意 URL。
  */
-const MUSIC_163_RE = /\[music\s+163\]\s*(\d{3,20})\s*\[\/music\s+163\]/g
-const MUSIC_QQ_RE = /\[music\s+qq\]\s*(\d{3,20})\s*\[\/music\s+qq\]/g
-const BILI_RE = /\[video\s+bilibili\]\s*(BV[0-9A-Za-z]{6,20})\s*\[\/video\s+bilibili\]/g
+
+/** 从媒体标签原文中解析出真正用于播放器的 ID；解析失败返回 null（保持原文）。 */
+export function parseMediaId(tag: string, raw: string): string | null {
+  const v = raw.trim()
+  if (tag === 'music 163') {
+    if (/^\d{3,20}$/.test(v)) return v
+    const url = v.replace(/&amp;/g, '&')
+    const m = /[?&]id=(\d{3,20})/.exec(url)
+    return m ? m[1] : null
+  }
+  if (tag === 'music qq') {
+    if (/^\d{3,20}$/.test(v)) return v
+    const url = v.replace(/&amp;/g, '&')
+    const m = /(?:[?&]songid=|[?&]id=)(\d{3,20})/.exec(url)
+    return m ? m[1] : null
+  }
+  if (tag === 'video bilibili') {
+    if (/^BV[0-9A-Za-z]{6,20}$/.test(v)) return v
+    const m = /(BV[0-9A-Za-z]{6,20})/.exec(v)
+    return m ? m[1] : null
+  }
+  return null
+}
+
+const MUSIC_163_RE = /\[music\s+163\]\s*([\s\S]*?)\s*\[\/music\s+163\]/g
+const MUSIC_QQ_RE = /\[music\s+qq\]\s*([\s\S]*?)\s*\[\/music\s+qq\]/g
+const BILI_RE = /\[video\s+bilibili\]\s*([\s\S]*?)\s*\[\/video\s+bilibili\]/g
 
 /**
  * 媒体标签 → 播放器 iframe src（编辑器内嵌播放器与阅读/预览展开共用同一 URL 来源）。
@@ -218,9 +244,18 @@ const BILI_IFRAME = (id: string): string =>
 export function expandMediaTags(html: string): string {
   if (!html) return ''
   return html
-    .replace(MUSIC_163_RE, (_m, id: string) => MUSIC_163_IFRAME(id))
-    .replace(MUSIC_QQ_RE, (_m, id: string) => MUSIC_QQ_IFRAME(id))
-    .replace(BILI_RE, (_m, id: string) => BILI_IFRAME(id))
+    .replace(MUSIC_163_RE, (m, raw: string) => {
+      const id = parseMediaId('music 163', raw)
+      return id ? MUSIC_163_IFRAME(id) : m
+    })
+    .replace(MUSIC_QQ_RE, (m, raw: string) => {
+      const id = parseMediaId('music qq', raw)
+      return id ? MUSIC_QQ_IFRAME(id) : m
+    })
+    .replace(BILI_RE, (m, raw: string) => {
+      const id = parseMediaId('video bilibili', raw)
+      return id ? BILI_IFRAME(id) : m
+    })
 }
 
 /** 秒级时间戳 → 本地日期串（YYYY-MM-DD HH:mm） */

@@ -141,6 +141,10 @@
       "path": "hqChat/getPrivateChat",
       "method": "GET"
     },
+    "myChat": {
+      "path": "hqChat/myChat",
+      "method": "GET"
+    },
     "msgList": {
       "path": "hqChat/msgList",
       "method": "GET"
