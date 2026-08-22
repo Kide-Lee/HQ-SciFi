@@ -43,6 +43,7 @@ export const REQUIRED_ENDPOINTS = [
   'signOut',
   // 用户系统（user.ts）
   'userInfo',
+  'userEdit',
   'userData',
   'userStatus',
   // 消息中心（notify.ts）
@@ -93,6 +94,7 @@ const ENDPOINT_DESC: Record<EndpointName, string> = {
   userLogin: '账号密码登录',
   signOut: '退出登录',
   userInfo: '用户资料（按 uid 查公开资料）',
+  userEdit: '编辑用户资料（昵称/头像/背景/简介/邮箱/手机号）',
   userData: '用户计数（粉丝/文章/评论/签到状态）',
   userStatus: '当前用户状态（能量币/等级）',
   inbox: '收件箱（消息中心）',

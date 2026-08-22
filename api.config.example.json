@@ -152,6 +152,10 @@
     "sendMsg": {
       "path": "hqChat/sendMsg",
       "method": "POST"
+    },
+    "userEdit": {
+      "path": "users/userEdit",
+      "method": "POST"
     }
   }
 }

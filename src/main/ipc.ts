@@ -1,10 +1,12 @@
 import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
 import { existsSync, readFileSync } from 'node:fs'
-import { basename } from 'node:path'
+import { basename, dirname, join } from 'node:path'
+import { spawn } from 'node:child_process'
 import { loadAgreement, fetchHuangqiAgreement } from './agreement'
 import {
   loginWithPassword,
   getSession,
+  updateSessionUserinfo,
   getStoredToken,
   verifySessionToken,
   logout as doLogout
@@ -35,7 +37,7 @@ import {
   submitReview,
   checkTextBlockStatus
 } from './read'
-import { clearArticles, listArticles } from './db'
+import { clearArticles, clearReadCache, listArticles } from './db'
 import {
   clockIn,
   getFollowState,
@@ -50,11 +52,16 @@ import {
   listUserComments,
   listUserReviews,
   searchUsers,
-  setFollow
+  setFollow,
+  updateUserProfile
 } from './user'
 import { getUnreadCount, listInbox, markNotificationsRead } from './notify'
+import { clearImageCache } from './imgcache'
+import { getAppSettings, updateAppSettings } from './settings'
+import { applyWindowCustomCode } from './window'
+import { checkForGitHubUpdate, getUpdateState, scheduleAutoUpdateCheck } from './updater'
 import { getPrivateChat, listChatMessages, listChatSessions, sendChatMessage } from './chat'
-import type { ArticleListOptions, ReviewPayload } from '../shared/types'
+import type { AppSettings, ArticleListOptions, ReviewPayload, UserProfileUpdatePayload } from '../shared/types'
 
 /** IPC 返回约定：成功 { ok: true, data }，失败 { ok: false, error }（避免 Error 序列化丢 message） */
 function ok<T>(data: T) {
@@ -90,7 +97,8 @@ export function registerIpcHandlers(): void {
     version: app.getVersion(),
     platform: process.platform,
     arch: process.arch,
-    packaged: app.isPackaged
+    packaged: app.isPackaged,
+    isAppImage: !!process.env.APPIMAGE
   }))
 
   // 用户协议（登录前须阅读并同意）：返回 { version, html }，版本用于比对本地同意状态
@@ -909,6 +917,171 @@ export function registerIpcHandlers(): void {
     if (!logKey) return fail(new Error('缺少收藏记录 ID'))
     try {
       return ok(await removeUserLog(token, logKey))
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  // ---- v0.1.10 设置 ----
+  ipcMain.handle('hqsf:get-settings', (event) => {
+    const blocked = trusted(event)
+    if (blocked) return fail(blocked)
+    try {
+      return ok(getAppSettings())
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  ipcMain.handle('hqsf:update-settings', (event, patch: Partial<AppSettings>) => {
+    const blocked = trusted(event)
+    if (blocked) return fail(blocked)
+    try {
+      if (patch == null || typeof patch !== 'object' || Array.isArray(patch)) {
+        return fail(new Error('无效的设置数据'))
+      }
+      const next = updateAppSettings({
+        ...(typeof patch.autoUpdate === 'boolean' ? { autoUpdate: patch.autoUpdate } : {}),
+        ...(typeof patch.hardwareAccel === 'boolean' ? { hardwareAccel: patch.hardwareAccel } : {}),
+        ...(typeof patch.zoomFactor === 'number' ? { zoomFactor: patch.zoomFactor } : {}),
+        ...(typeof patch.customCss === 'string' ? { customCss: patch.customCss } : {}),
+        ...(typeof patch.customJs === 'string' ? { customJs: patch.customJs } : {})
+      })
+      // 部分设置需要立即对当前窗口生效
+      const win = windowOf(event)
+      if (win && (typeof patch.zoomFactor === 'number' || typeof patch.customCss === 'string' || typeof patch.customJs === 'string')) {
+        applyWindowCustomCode(win)
+      }
+      return ok(next)
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  ipcMain.handle('hqsf:get-changelog', () => {
+    try {
+      const candidates = [
+        join(process.resourcesPath ?? '', 'changelog.md'),
+        join(app.getAppPath(), 'doc', 'CHANGELOG.md'),
+        join(process.cwd(), 'doc', 'CHANGELOG.md')
+      ]
+      const file = candidates.find((f) => f && existsSync(f))
+      if (!file) return fail(new Error('找不到更新日志文件'))
+      return ok({ version: app.getVersion(), markdown: readFileSync(file, 'utf8') })
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  ipcMain.handle('hqsf:clear-cache', async (event) => {
+    const blocked = trusted(event)
+    if (blocked) return fail(blocked)
+    try {
+      const imageFreed = await clearImageCache()
+      clearReadCache()
+      try {
+        await event.sender.session.clearCache()
+      } catch {
+        /* 非关键：部分环境清理失败忽略 */
+      }
+      return ok({ freedBytes: imageFreed })
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  ipcMain.handle('hqsf:uninstall', (event) => {
+    const blocked = trusted(event)
+    if (blocked) return fail(blocked)
+    try {
+      if (process.platform !== 'win32') {
+        return fail(new Error('当前平台不支持应用内卸载；请使用系统包管理器或删除应用目录'))
+      }
+      const uninstaller = join(dirname(process.execPath), 'Uninstall huangqi-scifi.exe')
+      if (!existsSync(uninstaller)) {
+        return fail(new Error('未找到卸载程序，请打开系统设置中的应用列表手动卸载'))
+      }
+      const child = spawn(uninstaller, [], { detached: true, stdio: 'ignore' })
+      child.unref()
+      setImmediate(() => app.quit())
+      return ok(null)
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  // ---- v0.1.10 更新（GitHub Releases 轻量检查） ----
+  ipcMain.handle('hqsf:update-state', () => ok(getUpdateState()))
+  ipcMain.handle('hqsf:update-check', async () => {
+    try {
+      return ok(await checkForGitHubUpdate())
+    } catch (err) {
+      return fail(err)
+    }
+  })
+  ipcMain.handle('hqsf:update-download', async () => {
+    try {
+      const state = getUpdateState()
+      if (state.status !== 'available' || !state.url) {
+        return fail(new Error('当前没有可下载的更新'))
+      }
+      await shell.openExternal(state.url)
+      return ok(null)
+    } catch (err) {
+      return fail(err)
+    }
+  })
+  ipcMain.handle('hqsf:update-install', async () => {
+    try {
+      const state = getUpdateState()
+      if (state.status !== 'available' || !state.url) {
+        return fail(new Error('当前没有可安装的更新'))
+      }
+      await shell.openExternal(state.url)
+      return ok(null)
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  // ---- v0.1.10 用户资料 ----
+  ipcMain.handle('hqsf:user-update-profile', async (event, payload: UserProfileUpdatePayload) => {
+    const blocked = trusted(event)
+    if (blocked) return fail(blocked)
+    const token = getStoredToken()
+    if (!token) return fail(new Error('未登录，无法修改资料'))
+    try {
+      if (!payload || typeof payload !== 'object') return fail(new Error('无效的资料数据'))
+      const clean: UserProfileUpdatePayload = {}
+      if (payload.screenName != null) clean.screenName = String(payload.screenName).trim()
+      if (payload.avatar != null) clean.avatar = String(payload.avatar).trim()
+      if (payload.userBg != null) clean.userBg = String(payload.userBg).trim()
+      if (payload.introduce != null) clean.introduce = String(payload.introduce).trim()
+      if (payload.mail != null) clean.mail = String(payload.mail).trim()
+      if (payload.phone != null) clean.phone = String(payload.phone).trim()
+      await updateUserProfile(token, clean)
+      updateSessionUserinfo(clean as unknown as Record<string, unknown>)
+      return ok(null)
+    } catch (err) {
+      return fail(err)
+    }
+  })
+
+  ipcMain.handle('hqsf:pick-upload-user-image', async (event) => {
+    const blocked = trusted(event)
+    if (blocked) return fail(blocked)
+    const token = getStoredToken()
+    if (!token) return fail(new Error('未登录，无法上传图片'))
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      title: '选择要上传的图片',
+      properties: ['openFile'],
+      filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'] }]
+    })
+    if (canceled || !filePaths[0]) return ok(null)
+    try {
+      const file = filePaths[0]
+      const url = await uploadMultipart(apiUrl(endpoint('uploadFile').path), token, basename(file), readFileSync(file))
+      return ok({ url })
     } catch (err) {
       return fail(err)
     }

@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
+import { applyInitialSettings } from './stores/settings'
 import './styles/index.css'
 
 // Electron 渲染进程的 alert() 关闭后可能导致窗口内输入框无法插入光标（已知 bug，
@@ -13,6 +14,8 @@ window.alert = (message?: unknown): void => {
     message: message == null ? '' : String(message)
   })
 }
+
+applyInitialSettings()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

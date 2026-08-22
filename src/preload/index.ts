@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type {
   AgreementData,
   ApiResult,
+  AppSettings,
   AppNotification,
   ChatMessage,
   ChatSession,
@@ -16,6 +17,8 @@ import type {
   EditRemoteResult,
   FollowFeedItem,
   GptModel,
+  ChangelogData,
+  ClearCacheResult,
   LocalNode,
   LoginResult,
   LogOpResult,
@@ -32,9 +35,11 @@ import type {
   UserFollowItem,
   UserMarkItem,
   UserProfile,
+  UserProfileUpdatePayload,
   UserSearchResult,
   UserSession,
-  UserStats
+  UserStats,
+  UpdateState
 } from '../shared/types'
 import type { ArticleMeta } from '../shared/frontmatter'
 
@@ -46,7 +51,7 @@ import type { ArticleMeta } from '../shared/frontmatter'
  */
 const api = {
   ping: (): Promise<string> => ipcRenderer.invoke('hqsf:ping'),
-  getAppInfo: (): Promise<{ version: string; platform: string; arch: string; packaged: boolean }> =>
+  getAppInfo: (): Promise<{ version: string; platform: string; arch: string; packaged: boolean; isAppImage?: boolean }> =>
     ipcRenderer.invoke('hqsf:get-app-info'),
   copyText: (text: string): Promise<ApiResult<null>> => ipcRenderer.invoke('hqsf:copy-text', text),
   /** 原生消息弹窗（替代渲染层 alert/confirm，避免 Electron 弹窗后输入框失焦的已知问题） */
@@ -233,6 +238,27 @@ const api = {
   /** 取消收藏（key=isMark 返回的 logid） */
   removeLog: (key: number | string): Promise<ApiResult<LogOpResult>> => ipcRenderer.invoke('hqsf:remove-log', key),
 
+
+  // ---- v0.1.10 设置与更新 ----
+  getSettings: (): Promise<ApiResult<AppSettings>> => ipcRenderer.invoke('hqsf:get-settings'),
+  updateSettings: (patch: Partial<AppSettings>): Promise<ApiResult<AppSettings>> =>
+    ipcRenderer.invoke('hqsf:update-settings', patch),
+  getChangelog: (): Promise<ApiResult<ChangelogData>> => ipcRenderer.invoke('hqsf:get-changelog'),
+  clearCache: (): Promise<ApiResult<ClearCacheResult>> => ipcRenderer.invoke('hqsf:clear-cache'),
+  uninstall: (): Promise<ApiResult<null>> => ipcRenderer.invoke('hqsf:uninstall'),
+  getUpdateState: (): Promise<ApiResult<UpdateState>> => ipcRenderer.invoke('hqsf:update-state'),
+  checkForUpdates: (): Promise<ApiResult<UpdateState>> => ipcRenderer.invoke('hqsf:update-check'),
+  downloadUpdate: (): Promise<ApiResult<null>> => ipcRenderer.invoke('hqsf:update-download'),
+  installUpdate: (): Promise<ApiResult<null>> => ipcRenderer.invoke('hqsf:update-install'),
+  onUpdateState: (cb: (state: UpdateState) => void): (() => void) => {
+    const listener = (_e: Electron.IpcRendererEvent, state: UpdateState): void => cb(state)
+    ipcRenderer.on('hqsf:update-state', listener)
+    return () => ipcRenderer.removeListener('hqsf:update-state', listener)
+  },
+  userUpdateProfile: (payload: UserProfileUpdatePayload): Promise<ApiResult<null>> =>
+    ipcRenderer.invoke('hqsf:user-update-profile', payload),
+  pickUploadUserImage: (): Promise<ApiResult<{ url: string } | null>> =>
+    ipcRenderer.invoke('hqsf:pick-upload-user-image'),
   // ---- v0.0.6：编辑器插入媒体 ----
   /** 弹系统文件框选图片并上传荒启（upload/full），返回图片 URL；取消返回 data: null */
   pickUploadImage: (): Promise<ApiResult<{ url: string } | null>> => ipcRenderer.invoke('media:pick-upload-image')

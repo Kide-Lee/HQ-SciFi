@@ -4,6 +4,8 @@ import { MainArea } from './components/MainArea'
 import { TopBar } from './components/TopBar'
 import { LoginView } from './components/LoginView'
 import { FirstRunAgreement } from './components/FirstRunAgreement'
+import { SettingsModal } from './components/SettingsModal'
+import { UpdateBanner } from './components/UpdateBanner'
 import { PrivateChatModal } from './components/PrivateChatModal'
 import { useAuthStore } from './stores/auth'
 import { useUiStore } from './stores/ui'
@@ -97,6 +99,8 @@ export default function App(): React.JSX.Element {
           <MainArea />
         </div>
       </div>
+      <UpdateBanner />
+      <SettingsModal />
       {loginOpen && <LoginView />}
       <PrivateChatModal />
     </>

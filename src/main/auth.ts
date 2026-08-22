@@ -89,6 +89,14 @@ export async function verifySessionToken(): Promise<{ valid: boolean; reachable:
   }
 }
 
+/** v0.1.10：更新本地会话中的用户信息（修改资料后侧栏/用户页即时生效） */
+export function updateSessionUserinfo(patch: Record<string, unknown>): void {
+  const s = loadSession()
+  if (!s) return
+  const nextUserinfo = { ...(s.userinfo ?? {}), ...patch }
+  saveSession({ token: s.token, userinfo: nextUserinfo })
+}
+
 /** 仅供主进程内部使用的 token */
 export function getStoredToken(): string | null {
   return loadSession()?.token ?? null
