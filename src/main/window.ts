@@ -6,6 +6,8 @@ import { registerImageProtocol } from './imgcache'
 import { loadApiConfig } from './net/apiconfig'
 import { getStoredToken, verifySessionToken } from './auth'
 import { clearSession } from './session'
+import { getAppSettings } from './settings'
+import { scheduleAutoUpdateCheck } from './updater'
 
 /**
  * v0.0.7：启动时校验一次 token——服务端确认失效（非网络异常）则立即丢弃本地会话，
@@ -62,6 +64,11 @@ export function createWindow(): BrowserWindow {
     win.webContents.focus()
   })
 
+  // v0.1.10：每次页面加载完成应用缩放与自定义 CSS/JS（首启和刷新均生效）
+  win.webContents.on('did-finish-load', () => {
+    applyWindowCustomCode(win)
+  })
+
   // v0.0.9：窗口重新获得焦点时也把焦点交还 webContents，降低输入法/键盘状态卡死概率
   win.on('focus', () => {
     if (!win.isDestroyed()) win.webContents.focus()
@@ -102,6 +109,40 @@ export function createWindow(): BrowserWindow {
   }
 
   return win
+}
+
+
+/** 已注入 CSS 的 id，便于更新时移除旧样式避免重复叠加 */
+const customCssKeys = new WeakMap<BrowserWindow, string>()
+
+/** v0.1.10：窗口加载完成后应用缩放与自定义代码 */
+export function applyWindowCustomCode(win: BrowserWindow): void {
+  if (win.isDestroyed()) return
+  const settings = getAppSettings()
+  try {
+    if (win.webContents.getZoomFactor() !== settings.zoomFactor) {
+      win.webContents.setZoomFactor(settings.zoomFactor)
+    }
+  } catch {
+    /* 窗口销毁竞态忽略 */
+  }
+  const prevKey = customCssKeys.get(win)
+  if (prevKey) {
+    customCssKeys.delete(win)
+    void win.webContents.removeInsertedCSS(prevKey).catch(() => undefined)
+  }
+  if (settings.customCss) {
+    void win.webContents.insertCSS(settings.customCss, { cssOrigin: 'user' }).then((key) => {
+      if (!win.isDestroyed()) customCssKeys.set(win, key)
+    }).catch(() => {
+      console.error('[settings] 自定义 CSS 注入失败')
+    })
+  }
+  if (settings.customJs) {
+    void win.webContents.executeJavaScript(settings.customJs).catch((err: unknown) => {
+      console.error('[settings] 自定义 JS 执行失败:', err)
+    })
+  }
 }
 
 /** 启动阶段出错：弹窗提示后退出（无 GUI 环境则只写 console，供 CI/日志诊断） */
@@ -147,6 +188,8 @@ export function initApp(): void {
       return
     }
     createWindow()
+    // v0.1.10：按设置定时检查 GitHub 新版本（失败静默）
+    scheduleAutoUpdateCheck()
     // v0.0.7：启动校验一次 token，失效则丢弃（并行执行，不阻塞窗口展示）
     void startupTokenCheck()
 

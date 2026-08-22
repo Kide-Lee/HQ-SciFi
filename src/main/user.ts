@@ -12,6 +12,7 @@ import type {
   UserFollowItem,
   UserMarkItem,
   UserProfile,
+  UserProfileUpdatePayload,
   UserSearchResult,
   UserStats
 } from '../shared/types'
@@ -91,7 +92,14 @@ export async function getSelfStatus(token: string | null): Promise<SelfStatus | 
   return {
     assets: num(d.assets),
     experience: optNum(d.experience),
-    lv: d.lv != null && d.lv !== '' ? (d.lv as number | string) : undefined
+    lv: d.lv != null && d.lv !== '' ? (d.lv as number | string) : undefined,
+    name: str(d.name) || undefined,
+    screenName: str(d.screenName) || undefined,
+    avatar: str(d.avatar) || undefined,
+    userBg: str(d.userBg) || undefined,
+    introduce: str(d.introduce) || undefined,
+    mail: str(d.mail) || undefined,
+    phone: str(d.phone) || undefined
   }
 }
 
@@ -516,4 +524,19 @@ export async function clockIn(token: string | null): Promise<ClockResult> {
   } catch (err) {
     return { ok: false, error: (err as Error).message }
   }
+}
+
+/** v0.1.10：修改本人资料（hqUsers/userEdit）。不支持修改密码（隐藏该功能）。 */
+export async function updateUserProfile(token: string, payload: UserProfileUpdatePayload): Promise<void> {
+  const params: Record<string, unknown> = {}
+  if (payload.screenName != null) params.screenName = payload.screenName
+  if (payload.avatar != null) params.avatar = payload.avatar
+  if (payload.userBg != null) params.userBg = payload.userBg
+  if (payload.introduce != null) params.introduce = payload.introduce
+  if (payload.mail != null) params.mail = payload.mail
+  if (payload.phone != null) params.phone = payload.phone
+  await apiRequest(endpoint('userEdit').path, {
+    method: 'POST',
+    body: { token, params: JSON.stringify(params) }
+  })
 }

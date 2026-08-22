@@ -1,6 +1,7 @@
 import type {
   AgreementData,
   ApiResult,
+  AppSettings,
   AppNotification,
   ChatMessage,
   ChatSession,
@@ -15,6 +16,8 @@ import type {
   EditRemoteResult,
   FollowFeedItem,
   GptModel,
+  ChangelogData,
+  ClearCacheResult,
   LocalNode,
   LoginResult,
   LogOpResult,
@@ -31,9 +34,11 @@ import type {
   UserFollowItem,
   UserMarkItem,
   UserProfile,
+  UserProfileUpdatePayload,
   UserSearchResult,
   UserSession,
-  UserStats
+  UserStats,
+  UpdateState
 } from '../shared/types'
 import type { ArticleMeta } from '../shared/frontmatter'
 
@@ -51,6 +56,8 @@ export type {
   EditRemoteResult,
   FollowFeedItem,
   GptModel,
+  ChangelogData,
+  ClearCacheResult,
   LocalNode,
   LoginResult,
   LogOpResult,
@@ -77,6 +84,7 @@ export interface AppInfo {
   platform: string
   arch: string
   packaged: boolean
+  isAppImage?: boolean
 }
 
 /** 无边框窗口控制（v0.0.3 自绘顶栏） */
@@ -202,6 +210,19 @@ export interface HqsfApi {
   addLog: (type: 'likes' | 'mark' | 'reward', params: Record<string, unknown>) => Promise<ApiResult<LogOpResult>>
   isMark: (cid: string) => Promise<ApiResult<MarkStatus>>
   removeLog: (key: number | string) => Promise<ApiResult<LogOpResult>>
+  /** v0.1.10：应用设置 */
+  getSettings: () => Promise<ApiResult<AppSettings>>
+  updateSettings: (patch: Partial<AppSettings>) => Promise<ApiResult<AppSettings>>
+  getChangelog: () => Promise<ApiResult<ChangelogData>>
+  clearCache: () => Promise<ApiResult<ClearCacheResult>>
+  uninstall: () => Promise<ApiResult<null>>
+  getUpdateState: () => Promise<ApiResult<UpdateState>>
+  checkForUpdates: () => Promise<ApiResult<UpdateState>>
+  downloadUpdate: () => Promise<ApiResult<null>>
+  installUpdate: () => Promise<ApiResult<null>>
+  onUpdateState: (cb: (state: UpdateState) => void) => () => void
+  userUpdateProfile: (payload: UserProfileUpdatePayload) => Promise<ApiResult<null>>
+  pickUploadUserImage: () => Promise<ApiResult<{ url: string } | null>>
   /** v0.0.6：弹系统文件框选图片并上传荒启（upload/full），返回图片 URL；取消返回 data: null */
   pickUploadImage: () => Promise<ApiResult<{ url: string } | null>>
 }

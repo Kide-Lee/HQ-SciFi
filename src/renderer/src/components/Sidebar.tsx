@@ -854,7 +854,11 @@ export function Sidebar(): React.JSX.Element {
       </div>
 
       <div className="sidebar-bottom">
-        <button className="settings-btn" title="设置（颜色/字号/字体）">
+        <button
+          className="settings-btn"
+          title="设置（颜色/字号/字体）"
+          onClick={() => useUiStore.getState().openSettings()}
+        >
           <Settings size={14} /> <span>设置</span>
         </button>
       </div>

@@ -80,6 +80,8 @@ interface UiState {
   searchActive: number
   /** v0.0.8：用户页目标 uid（null=不在用户页）。进入时保留当前 section/listContext/readingCid，返回时原视图自然恢复 */
   userPageUid: string | null
+  /** v0.1.10：设置弹窗开关 */
+  settingsOpen: boolean
   setSection: (section: TopSection) => void
   setSelectedId: (id: string | null) => void
   /** 打开栏目列表（作品库分类等） */
@@ -101,6 +103,9 @@ interface UiState {
   /** v0.0.8：打开用户页（target uid 为空/0 视为无效，由调用方拦截） */
   openUserPage: (uid: string | number) => void
   closeUserPage: () => void
+  /** v0.1.10：打开/关闭设置弹窗 */
+  openSettings: () => void
+  closeSettings: () => void
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -118,6 +123,7 @@ export const useUiStore = create<UiState>((set) => ({
   searchRegex: false,
   searchActive: 0,
   userPageUid: null,
+  settingsOpen: false,
   setSection: (section) => set({ section, selectedId: null, listContext: null }),
   setSelectedId: (selectedId) => set({ selectedId }),
   openList: (ctx) => set({ selectedId: ctx.title, listContext: ctx }),
@@ -140,5 +146,7 @@ export const useUiStore = create<UiState>((set) => ({
   openLogin: () => set({ loginOpen: true }),
   closeLogin: () => set({ loginOpen: false }),
   openUserPage: (uid) => set({ userPageUid: String(uid) }),
-  closeUserPage: () => set({ userPageUid: null })
+  closeUserPage: () => set({ userPageUid: null }),
+  openSettings: () => set({ settingsOpen: true }),
+  closeSettings: () => set({ settingsOpen: false })
 }))

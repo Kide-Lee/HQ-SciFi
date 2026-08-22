@@ -241,3 +241,9 @@ function trimReadCache(): void {
     getDb().prepare('DELETE FROM read_cache WHERE key = ?').run(oldest.key)
   }
 }
+
+
+/** v0.1.10：清除全部阅读缓存（设置「清除缓存」用，不影响文章索引/设置/会话） */
+export function clearReadCache(): void {
+  getDb().prepare('DELETE FROM read_cache').run()
+}

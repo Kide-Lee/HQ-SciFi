@@ -21,6 +21,63 @@ export interface ApiRequestOptions {
 /** IPC 返回约定：成功 { ok:true, data }，失败 { ok:false, error } */
 export type ApiResult<T> = { ok: true; data: T; total?: number } | { ok: false; error: string }
 
+// ---------- v0.1.10 设置 ----------
+
+/** 渲染层 UI 外观设置（localStorage 持久化，主进程不感知） */
+export type ThemeMode = 'light' | 'dark' | 'system'
+
+export interface UiSettings {
+  theme: ThemeMode
+  themeColor: string
+  uiFont: string
+  contentFont: string
+  codeFont: string
+  fontSize: number
+}
+
+/** 主进程持久化设置（userData/settings.json） */
+export interface AppSettings {
+  /** 每次启动自动检查 GitHub 新版本 */
+  autoUpdate: boolean
+  /** 是否启用硬件加速（关闭后需重启生效） */
+  hardwareAccel: boolean
+  /** 页面缩放比例（0.8 ~ 1.5） */
+  zoomFactor: number
+  /** 用户自定义 CSS（最高优先级） */
+  customCss: string
+  /** 用户自定义 JS（所有界面加载） */
+  customJs: string
+}
+
+/** 更新流程状态（主进程推送 / 渲染层请求共用） */
+export type UpdateState =
+  | { status: 'idle' }
+  | { status: 'checking' }
+  | { status: 'available'; version: string; notes?: string; url?: string }
+  | { status: 'not-available' }
+  | { status: 'downloading'; percent: number }
+  | { status: 'downloaded'; version: string; notes?: string }
+  | { status: 'error'; message: string }
+
+export interface ChangelogData {
+  version: string
+  markdown: string
+}
+
+export interface ClearCacheResult {
+  freedBytes: number
+}
+
+/** 用户资料修改载荷（v0.1.10；隐藏修改密码） */
+export interface UserProfileUpdatePayload {
+  screenName?: string
+  avatar?: string
+  userBg?: string
+  introduce?: string
+  mail?: string
+  phone?: string
+}
+
 // ---------- 文章索引 ----------
 
 /** 文章四态 + 本地未同步草稿 */
@@ -584,6 +641,14 @@ export interface SelfStatus {
   assets: number
   experience?: number
   lv?: number | string
+  /** v0.1.10：本人资料补充字段（设置用户面板用） */
+  name?: string
+  screenName?: string
+  avatar?: string
+  userBg?: string
+  introduce?: string
+  mail?: string
+  phone?: string
 }
 
 /** 用户页打开的会话信息（渲染层 user store 用） */

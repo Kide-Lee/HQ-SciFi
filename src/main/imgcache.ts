@@ -244,6 +244,40 @@ async function resolveImage(target: string): Promise<{ buf: Buffer; ct: string }
   }
 }
 
+
+/** v0.1.10：设置「清除缓存」——删除图片缓存目录并清空内存缓存 */
+export async function clearImageCache(): Promise<number> {
+  let freed = 0
+  try {
+    const dir = cacheDir()
+    // 统计删除前大小（尽力而为；读取失败按 0 处理）
+    try {
+      const entries = await readdir(dir)
+      for (const name of entries) {
+        const file = join(dir, name)
+        try {
+          const st = await stat(file)
+          if (st.isFile()) freed += st.size
+        } catch {
+          /* 文件可能已被删除 */
+        }
+      }
+    } catch {
+      /* 目录不存在 */
+    }
+    await rm(dir, { recursive: true, force: true, maxRetries: 2, retryDelay: 100 })
+    memCache.clear()
+    memBytes = 0
+    lastTouch.clear()
+    return freed
+  } catch {
+    memCache.clear()
+    memBytes = 0
+    lastTouch.clear()
+    return freed
+  }
+}
+
 /** 注册 hqsf-img:// 协议（app ready 后调用一次） */
 export function registerImageProtocol(): void {
   // 启动即清理一次超限缓存

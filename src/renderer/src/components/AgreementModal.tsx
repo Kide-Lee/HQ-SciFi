@@ -14,7 +14,8 @@ export function AgreementModal({
   error,
   onRetry,
   onCancel,
-  onDone
+  onDone,
+  doneText
 }: {
   title: string
   state: 'loading' | 'ok' | 'fail'
@@ -23,6 +24,7 @@ export function AgreementModal({
   onRetry?: () => void
   onCancel: () => void
   onDone: () => void
+  doneText?: string
 }): React.JSX.Element {
   return (
     <div className="agreement-modal-mask">
@@ -47,7 +49,7 @@ export function AgreementModal({
             取消
           </button>
           <button className="primary-btn" disabled={state !== 'ok'} onClick={onDone}>
-            我已阅读
+            {doneText ?? '我已阅读'}
           </button>
         </div>
       </div>
