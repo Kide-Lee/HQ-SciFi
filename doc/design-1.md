@@ -1,0 +1,132 @@
+# 黄芪饮片桌面客户端 — 应用设计文档（重构版）
+
+> **文档状态**：总纲
+> **文档定位**：本文档是 `doc/design.md` 的新版本，也是后续重构与开发的唯一设计基准与文档入口。**重构将完全依照本文件及其引用文档来完成**。
+> **与旧版关系**：`doc/design.md` 保留为历史设计基线；本文件最终应替代/合并旧版。
+> **执行方式**：本文件是“总纲 + 索引”，具体设计细节与开发任务见 `doc/design/` 下的分文档。
+
+---
+
+## 1. 文档导航
+
+| 文档 | 内容 |
+| --- | --- |
+| `doc/design-1.md` | 总纲：产品概要、架构概要、开发阶段总览、文档索引 |
+| `doc/design/product-scope.md` | 产品定位、功能范围、边界、界面信息架构 |
+| `doc/design/decisions.md` | 通过 grilling 确认的产品与 UX 决策记录 |
+| `doc/design/architecture.md` | 技术选型、总体架构、目录规划、通用设计约定 |
+| `doc/design/main-process.md` | 主进程各子系统设计 |
+| `doc/design/renderer-ui.md` | 渲染层通用 UI 组件与各 feature 重要组件设计 |
+| `doc/design/shared-contracts.md` | 共享类型、IPC 契约、Markdown 转换 |
+| `doc/design/ipc-inventory.md` | 当前 IPC 通道清单、分组与目标 handler 文件 |
+| `doc/design/task-matrix.md` | 现状文件 → 目标文件 → 阶段 的重构任务矩阵 |
+| `doc/design/test-plan.md` | 行为基线、阶段验证矩阵、回归验证计划 |
+| `doc/design/development-plan.md` | **重构现有项目的开发计划**：阶段、任务、验收标准、验证、风险、回滚 |
+| `doc/design/greenfield-development-plan.md` | **从零开发计划**：删除旧项目后按里程碑从零重建的完整计划 |
+
+## 2. 产品概要
+
+本应用为 [荒启科幻](https://www.huangqisf.com/h5/#/) 的电脑客户端，为用户提供 **写作 — 阅读 — 评审** 的一站式解决方案。
+
+核心价值：把荒启科幻的在线写作、投稿与社区阅读能力搬回本地 —— 用本地 Markdown 文件写作，随时同步草稿、一键发布，并在本地直接阅读与评审他人作品。
+
+- 功能范围与明确边界见 `product-scope.md`。
+- 已确认的产品与 UX 决策见 `decisions.md`。
+- 技术选型、架构分层与目录规划见 `architecture.md`。
+- 主进程子系统设计见 `main-process.md`。
+- 渲染层 UI 设计见 `renderer-ui.md`。
+- 共享契约见 `shared-contracts.md`。
+
+## 3. 当前状态摘要
+
+| 层 | 文件数 | 行数（约） |
+| --- | --- | --- |
+| 共享层 `src/shared/` | 4 | 841 |
+| 主进程 `src/main/` | 23 | 5,719 |
+| 预加载 `src/preload/` | 2 | 505 |
+| 渲染层 `src/renderer/src/` | 61 | 12,911 |
+| **合计** | **90** | **19,976** |
+
+当前 IPC 通道约 **79 个 handler**、preload `window.hqsf` 约 **81 个 invoke/事件订阅方法**；`AGENTS.md` 中“44 个 handler”的表述已过时。
+
+## 4. 架构总览
+
+### 4.1 进程边界
+
+```
+渲染进程 (React UI)
+      │ window.hqsf.*（类型化白名单 API）
+预加载层 (preload)
+      │ IPC
+主进程 (Electron)
+  ipc/       领域 handler 注册 + 统一返回
+  services/  应用服务：编排领域用例
+  adapters/  荒启 API 领域适配器
+  infra/     net/fs/db/session/settings/imgcache/updater/window
+  domain/    纯业务规则
+```
+
+### 4.2 主进程分层
+
+| 层 | 职责 |
+| --- | --- |
+| `bootstrap/` | 启动编排、单实例锁、测试模式、fail-fast |
+| `window/` | 窗口创建、安全配置、窗口行为 |
+| `ipc/` | 每个领域一个 handler 文件 |
+| `services/` | 应用服务，不直接依赖 electron |
+| `adapters/` | 荒启 API 请求与响应映射 |
+| `infra/` | 网络、数据库、文件、会话、设置、更新、图片缓存等 |
+| `domain/` | 纯业务规则：评分隔离、匿名脱敏等 |
+
+### 4.3 渲染层分层
+
+| 层 | 职责 |
+| --- | --- |
+| `app/` | 根组件、协议门、全局壳 |
+| `features/<feature>/` | 业务视图、局部状态、取数 action |
+| `components/` | 通用 UI 组件 |
+| `stores/` | 按 feature 划分的 Zustand store |
+| `lib/` | 纯函数与工具 |
+| `styles/` | 样式模块 |
+
+## 5. 核心设计原则
+
+1. **安全优先**：`contextIsolation + sandbox`、IPC 白名单、token 不下发、路径防穿越、HTML 白名单净化。
+2. **类型单一来源**：跨端类型与 IPC 契约集中在共享层。
+3. **API 适配隔离**：接口路径/字段差异集中在 API 配置与领域适配器。
+4. **IPC 契约统一**：`{ok:true,data} | {ok:false,error}`。
+5. **渐进式重构**：不改变用户可见功能，每阶段保持 typecheck/build 通过。
+
+## 6. 开发阶段总览
+
+> 两条路线：
+> - 保留现有代码 → 使用 `doc/design/development-plan.md`（重构版）。
+> - 删除旧项目、从零开发 → 使用 `doc/design/greenfield-development-plan.md`（从零版）。
+
+| 阶段 | 目标 | 主要交付 |
+| --- | --- | --- |
+| 阶段 0 | 建立行为基线 | 功能清单、核心路径验证清单、文档纠偏 |
+| 阶段 1 | 共享契约先行 | `shared/contracts/`、类型迁移、IPC 契约表 |
+| 阶段 2 | IPC 切分 | `main/ipc/`、按领域 handler 文件 |
+| 阶段 3 | 主进程服务化 | adapter + service + domain 分层 |
+| 阶段 4 | 渲染层 feature 化 | 通用 UI 组件 + 按 feature 拆组件/Store |
+| 阶段 5 | 文档收敛与质量增强 | 契约命名统一、文档同步、单测/端到端、可选 lint |
+
+## 7. 风险与开放问题
+
+- 回归风险高：当前无自动化测试，外部 API 无版本承诺。
+- 领域边界划分需要斟酌：阅读/评审/评论耦合较深。
+- 旧设计文档与代码存在漂移，需随重构同步。
+- 多平台与 `dev:test` 模式必须保持一致。
+- 自定义 CSS/JS、协议门等全局副作用不能被破坏。
+
+详细风险与缓解见 `development-plan.md`。
+
+## 8. 执行待办
+
+- [x] 建立开发框架：产品、架构、主进程、渲染层、共享契约、IPC 清单、任务矩阵、测试计划、开发计划。
+- [ ] 在 `development-plan.md` 中按阶段勾选完成状态。
+- [ ] 执行阶段 0：按 `test-plan.md` 建立行为基线。
+- [ ] 与 `doc/design.md` 梳理重复/过时内容。
+- [ ] 确认主进程/渲染层最终目录结构与命名规范。
+- [ ] 同步更新 `README.md`、`AGENTS.md`。
