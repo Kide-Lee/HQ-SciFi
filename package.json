@@ -1,6 +1,6 @@
 {
   "name": "hqsf-client",
-  "version": "0.1.10",
+  "version": "1.1.11",
   "description": "黄芪饮片 —— 荒启科幻（huangqisf.com）桌面客户端，写作-阅读-评审 一站式方案",
   "homepage": "https://www.huangqisf.com/",
   "desktopName": "huangqi-scifi",
@@ -18,8 +18,10 @@
     "build:linux": "electron-vite build && electron-builder --linux; rc=$?; node scripts/archive-release.mjs || rc=1; exit $rc",
     "build:win": "electron-vite build && node scripts/win-prebuild.mjs apply && electron-builder --win; rc=$?; node scripts/win-prebuild.mjs restore || rc=1; node scripts/archive-release.mjs || rc=1; exit $rc",
     "build:mac": "electron-vite build && electron-builder --mac; rc=$?; node scripts/archive-release.mjs || rc=1; exit $rc",
-    "test:agreement-parse": "node scripts/test-agreement-parse.mjs",
-    "test:comment-request": "node --experimental-strip-types scripts/test-comment-request-contract.mjs"
+    "test:comment-request": "node --experimental-strip-types scripts/test-comment-request-contract.mjs",
+    "test:activity-rules": "node --experimental-strip-types scripts/test-activity-rules.mjs",
+    "test:ipc-contracts": "node --experimental-strip-types scripts/test-ipc-contracts.mjs",
+    "test:lib-rules": "node --experimental-strip-types scripts/test-lib-rules.mjs"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",

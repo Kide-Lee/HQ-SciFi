@@ -12,17 +12,21 @@
 | 文档 | 内容 |
 | --- | --- |
 | `doc/design-1.md` | 总纲：产品概要、架构概要、开发阶段总览、文档索引 |
-| `doc/design/product-scope.md` | 产品定位、功能范围、边界、界面信息架构 |
-| `doc/design/decisions.md` | 通过 grilling 确认的产品与 UX 决策记录 |
-| `doc/design/architecture.md` | 技术选型、总体架构、目录规划、通用设计约定 |
-| `doc/design/main-process.md` | 主进程各子系统设计 |
-| `doc/design/renderer-ui.md` | 渲染层通用 UI 组件与各 feature 重要组件设计 |
-| `doc/design/shared-contracts.md` | 共享类型、IPC 契约、Markdown 转换 |
-| `doc/design/ipc-inventory.md` | 当前 IPC 通道清单、分组与目标 handler 文件 |
-| `doc/design/task-matrix.md` | 现状文件 → 目标文件 → 阶段 的重构任务矩阵 |
-| `doc/design/test-plan.md` | 行为基线、阶段验证矩阵、回归验证计划 |
-| `doc/design/development-plan.md` | **重构现有项目的开发计划**：阶段、任务、验收标准、验证、风险、回滚 |
-| `doc/design/greenfield-development-plan.md` | **从零开发计划**：删除旧项目后按里程碑从零重建的完整计划 |
+| `doc/design/简介.md` | 面向用户的应用介绍、交互逻辑、功能流程与边界 |
+| `doc/design/产品定位与范围.md` | 产品定位、功能范围、边界、界面信息架构 |
+| `doc/design/产品与UX决策记录.md` | 通过 grilling 确认的产品与 UX 决策记录 |
+| `doc/design/总体架构与技术设计.md` | 技术选型、总体架构、目录规划、通用设计约定 |
+| `doc/design/主进程子系统设计.md` | 主进程各子系统设计 |
+| `doc/design/渲染层UI设计.md` | 渲染层通用 UI 组件与各 feature 重要组件设计 |
+| `doc/design/共享层与契约设计.md` | 共享类型、IPC 契约、Markdown 转换 |
+| `doc/design/IPC通道清单.md` | 当前 IPC 通道清单、分组与目标 handler 文件 |
+| `doc/design/重构任务矩阵.md` | 现状文件 → 目标文件 → 阶段 的重构任务矩阵 |
+| `doc/design/测试与回归验证计划.md` | 行为基线、阶段验证矩阵、回归验证计划 |
+| `doc/design/开发计划（重构）.md` | **重构现有项目的开发计划**：阶段、任务、验收标准、验证、风险、回滚 |
+| `doc/design/从零开发计划.md` | **从零开发计划**：删除旧项目后按里程碑从零重建的完整计划 |
+| `doc/design/阶段0-行为样本.md` | 高风险纯函数当前行为样本，供重构回归对照 |
+| `doc/design/阶段0-旧文档迁移清单.md` | 旧 `design.md` 条款迁移结论与归档计划 |
+| `doc/design/阶段0-验证记录.md` | 阶段 0 基线验证结果（型检/构建/IPC 盘点） |
 
 ## 2. 产品概要
 
@@ -30,12 +34,12 @@
 
 核心价值：把荒启科幻的在线写作、投稿与社区阅读能力搬回本地 —— 用本地 Markdown 文件写作，随时同步草稿、一键发布，并在本地直接阅读与评审他人作品。
 
-- 功能范围与明确边界见 `product-scope.md`。
-- 已确认的产品与 UX 决策见 `decisions.md`。
-- 技术选型、架构分层与目录规划见 `architecture.md`。
-- 主进程子系统设计见 `main-process.md`。
-- 渲染层 UI 设计见 `renderer-ui.md`。
-- 共享契约见 `shared-contracts.md`。
+- 功能范围与明确边界见 `产品定位与范围.md`。
+- 已确认的产品与 UX 决策见 `产品与UX决策记录.md`。
+- 技术选型、架构分层与目录规划见 `总体架构与技术设计.md`。
+- 主进程子系统设计见 `主进程子系统设计.md`。
+- 渲染层 UI 设计见 `渲染层UI设计.md`。
+- 共享契约见 `共享层与契约设计.md`。
 
 ## 3. 当前状态摘要
 
@@ -47,7 +51,7 @@
 | 渲染层 `src/renderer/src/` | 61 | 12,911 |
 | **合计** | **90** | **19,976** |
 
-当前 IPC 通道约 **79 个 handler**、preload `window.hqsf` 约 **81 个 invoke/事件订阅方法**；`AGENTS.md` 中“44 个 handler”的表述已过时。
+当前 IPC 通道 **81 个 handler**、preload `window.hqsf` 共 **81 个 invoke + 2 个事件订阅方法**；`AGENTS.md` 中“44 个 handler”的表述已过时，已随阶段 0 更正。
 
 ## 4. 架构总览
 
@@ -95,13 +99,13 @@
 2. **类型单一来源**：跨端类型与 IPC 契约集中在共享层。
 3. **API 适配隔离**：接口路径/字段差异集中在 API 配置与领域适配器。
 4. **IPC 契约统一**：`{ok:true,data} | {ok:false,error}`。
-5. **渐进式重构**：不改变用户可见功能，每阶段保持 typecheck/build 通过。
+5. **决策单源**：用户可见功能以 `产品与UX决策记录.md` 为准；未登记的变更不允许。
 
 ## 6. 开发阶段总览
 
 > 两条路线：
-> - 保留现有代码 → 使用 `doc/design/development-plan.md`（重构版）。
-> - 删除旧项目、从零开发 → 使用 `doc/design/greenfield-development-plan.md`（从零版）。
+> - 保留现有代码 → 使用 `doc/design/开发计划（重构）.md`（重构版）。
+> - 删除旧项目、从零开发 → 使用 `doc/design/从零开发计划.md`（从零版）。
 
 | 阶段 | 目标 | 主要交付 |
 | --- | --- | --- |
@@ -120,13 +124,13 @@
 - 多平台与 `dev:test` 模式必须保持一致。
 - 自定义 CSS/JS、协议门等全局副作用不能被破坏。
 
-详细风险与缓解见 `development-plan.md`。
+详细风险与缓解见 `开发计划（重构）.md`。
 
 ## 8. 执行待办
 
 - [x] 建立开发框架：产品、架构、主进程、渲染层、共享契约、IPC 清单、任务矩阵、测试计划、开发计划。
-- [ ] 在 `development-plan.md` 中按阶段勾选完成状态。
-- [ ] 执行阶段 0：按 `test-plan.md` 建立行为基线。
+- [x] 在 `开发计划（重构）.md` 中按阶段勾选完成状态。
+- [x] 执行阶段 0：按 `测试与回归验证计划.md` 建立行为基线。
 - [ ] 与 `doc/design.md` 梳理重复/过时内容。
 - [ ] 确认主进程/渲染层最终目录结构与命名规范。
 - [ ] 同步更新 `README.md`、`AGENTS.md`。
