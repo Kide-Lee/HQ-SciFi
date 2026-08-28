@@ -42,6 +42,7 @@ import type {
   UpdateState
 } from '../shared/types'
 import type { ArticleMeta } from '../shared/frontmatter'
+import type { HqsfApi as HqsfContract } from '../shared/contracts/hqsf-api'
 
 /**
  * 暴露给渲染进程的白名单 API（window.hqsf）。
@@ -87,10 +88,8 @@ const api = {
   sendChatMessage: (chatid: string, msg: string): Promise<ApiResult<null>> =>
     ipcRenderer.invoke('hqsf:send-chat-message', chatid, msg),
 
-  // ---- 用户协议（登录前须阅读并同意） ----
+  // ---- 用户协议（本应用协议） ----
   getAgreement: (): Promise<ApiResult<AgreementData>> => ipcRenderer.invoke('hqsf:get-agreement'),
-  /** 荒启平台用户协议（网络抓取；失败时渲染层禁用勾选） */
-  getHuangqiAgreement: (): Promise<ApiResult<{ html: string }>> => ipcRenderer.invoke('hqsf:get-huangqi-agreement'),
 
   // ---- 窗口控制（v0.0.3 无边框窗口自绘顶栏；裸值接口，失败静默） ----
   windowControls: {
@@ -140,6 +139,9 @@ const api = {
   createLocalDir: (rel: string): Promise<ApiResult<string>> => ipcRenderer.invoke('hqsf:create-local-dir', rel),
   /** v0.0.6：删除本地文章文件（含二次确认由渲染层负责） */
   deleteLocalDoc: (path: string): Promise<ApiResult<null>> => ipcRenderer.invoke('hqsf:delete-local-file', path),
+  /** 重命名/移动本地文件或文件夹（相对存档根路径） */
+  renameLocalNode: (oldRel: string, newRel: string): Promise<ApiResult<{ from: string; to: string }>> =>
+    ipcRenderer.invoke('hqsf:rename-local-node', oldRel, newRel),
   chooseDocsDir: (): Promise<ApiResult<string | null>> => ipcRenderer.invoke('hqsf:choose-docs-dir'),
 
   // ---- 四态索引 ----
@@ -265,5 +267,9 @@ const api = {
 }
 
 export type HqsfApi = typeof api
+
+/** 阶段 1 契约引用：preload 实现与共享契约 `HqsfApi` 在编译期保持一致 */
+const _hqsfContractCheck: HqsfContract = api
+void _hqsfContractCheck
 
 contextBridge.exposeInMainWorld('hqsf', api)

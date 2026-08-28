@@ -159,14 +159,14 @@ export const useEditorStore = create<EditorState>((set, get) => {
 
     createDraft: async (title, dirRel) => {
       set({ busy: true, error: null })
-      const res = await window.hqsf.createLocalDraft(title, `# ${title}\n\n`, dirRel)
+      const res = await window.hqsf.createLocalDraft(title, '', dirRel)
       if (res.ok) {
         set({
           currentPath: res.data,
-          content: `# ${title}\n\n`,
+          content: '',
           meta: {},
           mode: 'wysiwyg',
-          toc: extractToc(`# ${title}\n\n`),
+          toc: extractToc(''),
           dirty: false,
           synced: false,
           busy: false

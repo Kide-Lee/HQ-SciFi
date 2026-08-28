@@ -2,7 +2,7 @@ import { app } from 'electron'
 import { join } from 'node:path'
 import { isTestMode } from './testmode'
 import { isHardwareAccelerationEnabled, loadAppSettings } from './settings'
-import { initApp } from './window'
+import { initApp } from './bootstrap'
 
 // 测试模式（本地 RuleApi 联调）：独立 userData（~/.config/hqsf-test），
 // 数据库/session/设置与正式使用完全隔离；须在 app ready 前设置

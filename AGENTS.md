@@ -22,26 +22,22 @@ Electron 桌面客户端，为 [荒启科幻](https://www.huangqisf.com/) 提供
 ## Architecture
 
 - `src/main/` — 主进程：
-  - `window.ts` 安全窗口（`contextIsolation:true` + `sandbox:true`）；`ipc.ts` 白名单 IPC（44 个 handler，全部 `{ok,data}|{ok,error}` 约定）
-  - `net/api.ts` 荒启 API 请求层（`net.fetch`，统一 `{code,msg,data,total}`，`code:1` 成功）；`net/apiconfig.ts` 配置驱动——baseUrl 与全部接口 path/method 从 `api.config.json` 读取（启动时加载，缺失抛 `ApiConfigError` 报错退出），代码不硬编码接口路径
-  - `db.ts` better-sqlite3 索引（articles/meta 表；存元数据，正文是磁盘 md 文件）
-  - `session.ts` safeStorage 加密 token 落盘（basic_text 后端降级标记 insecure）；`auth.ts` 登录/会话（token 不下发渲染层）
-  - `fs.ts` 本地存档（根目录 `~/文档/荒启科幻/草稿`，resolve+realpath 双防穿越）；`sync.ts` 同步引擎（拉取/推送/发布/冲突检测）
-  - `md2html.ts` markdown-it → Quill HTML（上传）；turndown HTML→md（拉回）
-  - `read.ts` 阅读与评审适配层（文章列表/详情、评审列表/提交/态度、作品库分类）
-- `src/preload/` — `contextBridge` 暴露 `window.hqsf`（白名单方法；不经过 token、不开放通用 API 代理）。
-- `src/shared/` — 三端共享类型单一来源（`types.ts`）。
-- `src/renderer/` — React UI：`LoginView`（账号密码/手机验证码）、`Sidebar`（用户卡 + 写作树：本地存档/草稿/待审核/已发布/已拒绝 + 同步按钮 + 栏目树）、`EditorPane`（双模式编辑：可视化 Milkdown v7/ProseMirror `MilkdownEditor`+`MilkdownToolbar` / 源码 CodeMirror 6 `SplitEditor` + 工具栏：新建/保存/同步到草稿/发布 + 状态角标）、`ReaderView`（M2 阅读视图：净化 HTML 正文 + 元信息 + 评审面板 `ReviewPanel` 五维表单）、`ArticleListView`（文章列表：排序/分页）、`lib/sanitize.ts`（远端 HTML 白名单净化防 XSS）、stores（`auth`/`docs`/`editor`/`reader`/`ui`）。
+  - `bootstrap/` 启动编排；`window/` 安全窗口与窗口行为；`ipc/` 领域 handler（`ipc.ts` 为历史入口，指向 `ipc/index.ts`）；`services/` 应用服务；`adapters/` API 适配与字段规整；`infra/` 网络/DB/FS/会话/设置/更新/媒体；`domain/` 纯业务规则
+  - 旧路径 `net/api.ts`、`net/apiconfig.ts`、`db.ts`、`fs.ts`、`session.ts`、`settings.ts`、`imgcache.ts`、`md2html.ts`、`updater.ts` 保留兼容 shim，指向 `infra/`
+  - IPC 白名单 81 个 handler，全部 `{ok,data}|{ok,error}` 约定
+- `src/preload/` — `contextBridge` 暴露 `window.hqsf`（81 个 invoke + 2 个事件订阅；白名单方法；不经过 token、不开放通用 API 代理）。
+- `src/shared/` — 三端共享类型单一来源（`domain/`；`types.ts` 为兼容重定向）；`contracts/` 固化 IPC 通道与 `HqsfApi` 契约。
+- `src/renderer/` — React UI：`features/<feature>/` 业务组件；`components/` 通用 UI（media/feedback/user/modal 子目录）；`lib/` 纯函数；`stores/` 按 feature 分（auth/docs/editor/reader/user/notifications/chat/settings/ui）。
 - `electron-builder.yml` — 打包配置（linux deb+AppImage、win NSIS；`asarUnpack` better-sqlite3）。
 
 ## Conventions
 
 - 如果认为用户的设计有模糊之处，应询问用户。
 - **IPC 返回约定**：成功 `{ok:true, data:业务载荷}`，失败 `{ok:false, error:string}`；主进程负责把 `ApiResponse` 解包成载荷。ping/getAppInfo 是 M0 遗留裸值接口。
-- **类型单一来源**：`src/shared/types.ts` 定义跨端类型（ArticleRow/PullResult/UserSession/LocalNode/ApiResult…），主进程/preload/渲染层都从它 import；改类型只改一处。
-- **API 调用坑**：`apiRequest` 默认 GET，GET 分支忽略 `body`；凡 POST 接口必须显式传 `method:'POST'`。接口路径一律经 `endpoint('接口名').path` 从配置取（新增接口需同时在 `api.config.json` 与 `net/apiconfig.ts` 的 `REQUIRED_ENDPOINTS` 中登记）。
+- **类型单一来源**：`src/shared/domain/` 定义跨端类型（ArticleRow/PullResult/UserSession/LocalNode/ApiResult…），`src/shared/types.ts` 为兼容重定向；主进程/preload/渲染层都从 domain import；改类型只改一处。
+- **API 调用坑**：`apiRequest` 默认 GET，GET 分支忽略 `body`；凡 POST 接口必须显式传 `method:'POST'`。接口路径一律经 `endpoint('接口名').path` 从配置取（新增接口需同时在 `api.config.json` 与 `infra/net/apiconfig.ts` 的 `REQUIRED_ENDPOINTS` 中登记）。
 - **token 安全**：token 只存在主进程（safeStorage），`window.hqsf` 不下发；渲染层拿不到任何凭据。
-- **路径安全**：所有本地文件 IPC 都经 `fs.ts` 的 `assertInside`（resolve + realpath 防 `..`/symlink 穿越），以 `getDocsRoot()` 为根。
+- **路径安全**：所有本地文件 IPC 都经 `infra/fs/index.ts` 的 `assertInside`（resolve + realpath 防 `..`/symlink 穿越），以 `getDocsRoot()` 为根。
 - 渲染层状态用 Zustand；UI 文案简体中文。
 - 窗口安全：不加载远程脚本、外部链接交系统浏览器（`setWindowOpenHandler` deny + `shell.openExternal`）。
 
