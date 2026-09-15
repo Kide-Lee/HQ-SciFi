@@ -18,5 +18,13 @@ ipcMain.handle('hqsf:window-close', (event) => {
 ipcMain.handle('hqsf:window-is-maximized', (event) => {
     return windowOf(event)?.isMaximized() ?? false
   })
+// v1.1.12：右键菜单「开发者工具」（与 Ctrl+F12 行为一致）
+ipcMain.handle('hqsf:toggle-devtools', (event) => {
+    const win = windowOf(event)
+    if (!win) return fail(new Error('窗口不存在'))
+    if (win.webContents.isDevToolsOpened()) win.webContents.closeDevTools()
+    else win.webContents.openDevTools()
+    return ok(null)
+  })
 }
 

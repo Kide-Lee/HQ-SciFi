@@ -40,6 +40,14 @@ export function ReviewPanel(): React.JSX.Element {
   const [editing, setEditing] = useState(false)
   const loggedIn = !!session
 
+  // v1.1.12：正文「引用到评审」——立即切到「我的评审」并进入编辑态，让引用文字直接可见可改
+  const pendingQuote = useReaderStore((s) => s.pendingReviewQuote)
+  useEffect(() => {
+    if (!pendingQuote) return
+    setTab('mine')
+    setEditing(true)
+  }, [pendingQuote])
+
   // v0.0.8：进行中/评审中活动的文章，其评审列表不提供「按评分」排序
   const actMid = detail?.active?.[0]?.mid
   const [actPhase, setActPhase] = useState<ActivityPhase | null>(null)

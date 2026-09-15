@@ -10,6 +10,7 @@ export {
   listLocalDocs,
   readLocalFile,
   renameLocalNode,
+  revealLocalFile,
   writeLocalFile
 } from '../infra/fs'
 export { clearArticles, clearReadCache, listArticles } from '../infra/db'

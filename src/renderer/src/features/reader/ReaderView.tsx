@@ -15,8 +15,11 @@ import { SkeletonReader } from '../../components/Skeletons'
 import { UserLevelBadge } from '../../components/UserLevelBadge'
 import { buildRegex } from '../../lib/searchText'
 import { clearSearchMarks, jumpToSearchMark, setActiveSearchMark, wrapSearchMatches } from '../../lib/searchJump'
-import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Eye, EyeOff, FileDown, MessageCircle, PenLine, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Copy, Eye, EyeOff, FileDown, Link2, MessageCircle, PenLine, Quote, X } from 'lucide-react'
 import type { ArticleDetail, ArticleType, CommentItem, MetaRef, ReviewItem, ReviewPayload } from '../../../../shared/types'
+import { useContextMenu, type ContextMenuItem } from '../../components/menu/ContextMenu'
+import { h5ArticleUrl } from '../../lib/articleUrl'
+import { readSelection } from '../../lib/selection'
 
 
 /** 从详情/用户信息里提取作者展示名（与侧栏同样的多字段容错） */
@@ -227,6 +230,35 @@ export function ReaderView(): React.JSX.Element {
   const reviewDisabled = useReaderStore((s) => s.reviewDisabled)
   const target = useReaderStore((s) => s.target)
   const clearTarget = useReaderStore((s) => s.clearTarget)
+
+  // v1.1.12：正文选中文字右键菜单（复制 / 复制为 Markdown / 引用到评审）
+  const showMenu = useContextMenu()
+  /** 只在正文有选区时出菜单；选区内容在 contextmenu 触发时取好（点菜单项后浏览器选区会失效） */
+  function handleBodyContextMenu(e: React.MouseEvent): void {
+    const snap = readSelection(bodyRef.current)
+    if (!snap) return
+    const items: ContextMenuItem[] = [
+      { label: '复制', icon: <Copy size={13} />, onSelect: () => void window.hqsf.copyText(snap.text) },
+      {
+        label: '复制链接',
+        icon: <Link2 size={13} />,
+        onSelect: () => void window.hqsf.copyText(h5ArticleUrl(cid))
+      }
+    ]
+    // 评审 tab 存在的条件与之保持一致（本人文章/禁用评审的分类没有评审入口）
+    if (session && !isMine && !reviewDisabled) {
+      items.push({
+        label: '引用到评审',
+        icon: <Quote size={13} />,
+        divided: true,
+        onSelect: () => {
+          useReaderStore.getState().quoteToReview(snap.text)
+          useUiStore.getState().openPanelTab('review')
+        }
+      })
+    }
+    showMenu(e, items)
+  }
   // v0.0.9：首页「最新评审」深链跳到禁用评审分类文章时，右栏无评审 tab 可消费目标，直接清理避免残留
   useEffect(() => {
     if (reviewDisabled && target?.reviewId && target.cid === cid) clearTarget()
@@ -450,6 +482,7 @@ export function ReaderView(): React.JSX.Element {
           <article
             ref={bodyRef}
             className="reader-body"
+            onContextMenu={handleBodyContextMenu}
             // 正文已经 sanitizeHtml 白名单净化，无脚本/事件/危险协议
             // v0.0.6：dangerouslySetInnerHTML 传稳定引用——React 按对象引用比较，
             // 若每次渲染新建对象会重写 innerHTML 导致正文 iframe（音乐播放器）被重建中断

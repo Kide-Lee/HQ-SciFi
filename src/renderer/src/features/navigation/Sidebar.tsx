@@ -5,9 +5,13 @@ import {
   ChevronRight,
   CircleDollarSign,
   CloudDownload,
+  CloudUpload,
+  Copy,
   FilePlus,
+  FolderInput,
   FolderOpen,
   Layers,
+  Pencil,
   PenLine,
   RefreshCw,
   Settings,
@@ -23,7 +27,7 @@ import { sortActivities, activityPhase, ACTIVITY_PHASE_LABEL } from '../../lib/a
 import { isReviewDisabledCategoryName } from '../../lib/category'
 import type { ArticleRow, LocalNode, MetaInfo, RemoteArticle } from '../../../../shared/types'
 import { PromptModal } from '../../components/PromptModal'
-import { LocalTreeMenu, type TreeMenuNode } from './LocalTreeMenu'
+import { useContextMenu, type ContextMenuItem } from '../../components/menu/ContextMenu'
 import { useUserStore } from '../../stores/user'
 import type { UserPageTab } from '../../../../shared/types'
 
@@ -61,6 +65,14 @@ const SECTION_ICONS: Record<TopSection, LucideIcon> = {
 const SIDEBAR_MIN = 180
 const SIDEBAR_MAX = 380
 const SIDEBAR_DEFAULT = 220
+
+/** 本地存档树右键菜单的目标节点（path=绝对路径，rel=相对存档根） */
+interface TreeMenuNode {
+  path: string
+  rel: string
+  name: string
+  isDir: boolean
+}
 
 /** 作品库分类节点（M2 动态拉取 metasList type=category 后填充） */
 const LIBRARY_DEFAULT = ['原创作品', '科幻杂谈', '官方公告', '外文翻译']
@@ -139,6 +151,7 @@ export function Sidebar(): React.JSX.Element {
   const pull = useDocsStore((s) => s.pull)
   const pulling = useDocsStore((s) => s.pulling)
   const lastPull = useDocsStore((s) => s.lastPull)
+  const push = useDocsStore((s) => s.push)
   const openDoc = useEditorStore((s) => s.open)
   const currentPath = useEditorStore((s) => s.currentPath)
   const currentDir = useEditorStore((s) => s.currentDir)
@@ -153,9 +166,64 @@ export function Sidebar(): React.JSX.Element {
   const loadMyReviewed = useReaderStore((s) => s.loadMyReviewed)
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
-  const [treeMenu, setTreeMenu] = useState<{ x: number; y: number; node: TreeMenuNode } | null>(null)
   const [renameMenu, setRenameMenu] = useState<TreeMenuNode | null>(null)
   const [moveMenu, setMoveMenu] = useState<TreeMenuNode | null>(null)
+  // v1.1.12：本地存档树右键菜单（重命名/移动 + 无按钮入口的同步到草稿/复制路径/在文件管理器中显示）
+  const showMenu = useContextMenu()
+
+  /** 在系统文件管理器中显示该节点 */
+  async function handleRevealNode(path: string): Promise<void> {
+    const res = await window.hqsf.revealInFolder(path)
+    if (!res.ok) {
+      void window.hqsf.showMessageBox({ type: 'error', title: '打开失败', message: res.error })
+    }
+  }
+
+  /** 单个本地文档同步到远端草稿（不打开编辑器也能推；未登录时菜单项置灰） */
+  async function handleSyncToDraft(node: TreeMenuNode): Promise<void> {
+    const res = await push(node.path, true)
+    const name = node.name.replace(/\.md$/i, '')
+    if (!res) {
+      void window.hqsf.showMessageBox({ type: 'error', title: '同步失败', message: '同步失败，请稍后重试' })
+      return
+    }
+    void window.hqsf.showMessageBox({
+      type: res.ok ? 'info' : 'error',
+      title: res.ok ? '已同步到草稿' : '同步失败',
+      message: res.ok ? `「${name}」已同步到草稿` : (res.error ?? '同步失败')
+    })
+  }
+
+  /** 组装本地存档树右键菜单项 */
+  function handleTreeContextMenu(e: React.MouseEvent, node: LocalNode): void {
+    const items: ContextMenuItem[] = [
+      { label: '重命名', icon: <Pencil size={13} />, onSelect: () => setRenameMenu(node) },
+      { label: '移动', icon: <FolderInput size={13} />, onSelect: () => setMoveMenu(node) }
+    ]
+    if (!node.isDir) {
+      items.push({
+        label: '同步到草稿',
+        icon: <CloudUpload size={13} />,
+        divided: true,
+        disabled: !session,
+        onSelect: () => void handleSyncToDraft(node)
+      })
+    }
+    items.push(
+      {
+        label: '复制路径',
+        icon: <Copy size={13} />,
+        divided: true,
+        onSelect: () => void window.hqsf.copyText(node.path)
+      },
+      {
+        label: '在文件管理器中显示',
+        icon: <FolderOpen size={13} />,
+        onSelect: () => void handleRevealNode(node.path)
+      }
+    )
+    showMenu(e, items, node.name)
+  }
 
   // v0.0.3：左栏折叠状态提升到 ui store（顶栏按钮切换，localStorage 持久化）
   const collapsed = useUiStore((s) => s.sidebarCollapsed)
@@ -480,10 +548,7 @@ export function Sidebar(): React.JSX.Element {
             <button
               className={`tree-dir-entry${open ? ' open' : ''}`}
               onClick={() => toggleExpand(k)}
-              onContextMenu={(e) => {
-                e.preventDefault()
-                setTreeMenu({ x: e.clientX, y: e.clientY, node: { rel: node.rel, name: node.name, isDir: true } })
-              }}
+              onContextMenu={(e) => handleTreeContextMenu(e, node)}
               title={node.path}
               style={{ paddingLeft: 22 + depth * 12 }}
             >
@@ -501,10 +566,7 @@ export function Sidebar(): React.JSX.Element {
           key={node.path}
           className={`tree-node ${selectedId === node.path ? 'active' : ''}`}
           onClick={() => void handleOpenLocal(node.path)}
-          onContextMenu={(e) => {
-            e.preventDefault()
-            setTreeMenu({ x: e.clientX, y: e.clientY, node: { rel: node.rel, name: node.name, isDir: false } })
-          }}
+          onContextMenu={(e) => handleTreeContextMenu(e, node)}
           title={node.path}
           style={{ paddingLeft: 22 + depth * 12 }}
         >
@@ -905,17 +967,7 @@ export function Sidebar(): React.JSX.Element {
         }}
       />
 
-      {/* 本地文件树右键菜单：重命名/移动 */}
-      {treeMenu && (
-        <LocalTreeMenu
-          x={treeMenu.x}
-          y={treeMenu.y}
-          node={treeMenu.node}
-          onRename={() => setRenameMenu(treeMenu.node)}
-          onMove={() => setMoveMenu(treeMenu.node)}
-          onClose={() => setTreeMenu(null)}
-        />
-      )}
+      {/* v1.1.12：本地存档树右键菜单由全局 ContextMenuHost 渲染（见 handleTreeContextMenu） */}
       {renameMenu && (
         <PromptModal
           open

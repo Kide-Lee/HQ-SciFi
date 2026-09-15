@@ -55,6 +55,14 @@ const api = {
   getAppInfo: (): Promise<{ version: string; platform: string; arch: string; packaged: boolean; isAppImage?: boolean }> =>
     ipcRenderer.invoke('hqsf:get-app-info'),
   copyText: (text: string): Promise<ApiResult<null>> => ipcRenderer.invoke('hqsf:copy-text', text),
+  /** 读取系统剪贴板文本（自绘右键菜单的「粘贴」用） */
+  readClipboardText: (): Promise<ApiResult<string>> => ipcRenderer.invoke('hqsf:read-clipboard-text'),
+  /** 读取系统剪贴板 HTML（编辑器「粘贴」保留格式用） */
+  readClipboardHtml: (): Promise<ApiResult<string>> => ipcRenderer.invoke('hqsf:read-clipboard-html'),
+  /** 在系统文件管理器中显示本地存档内的文件/文件夹（右键菜单用） */
+  revealInFolder: (path: string): Promise<ApiResult<null>> => ipcRenderer.invoke('hqsf:reveal-in-folder', path),
+  /** 打开/关闭开发者工具（右键菜单用） */
+  toggleDevTools: (): Promise<ApiResult<null>> => ipcRenderer.invoke('hqsf:toggle-devtools'),
   /** 原生消息弹窗（替代渲染层 alert/confirm，避免 Electron 弹窗后输入框失焦的已知问题） */
   showMessageBox: (options: {
     type?: 'none' | 'info' | 'error' | 'question' | 'warning'

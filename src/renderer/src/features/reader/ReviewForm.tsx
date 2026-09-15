@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Eye, EyeOff, FileDown, MessageCircle, PenLine, X } from 'lucide-react'
 import { anonymousAuthorDisplayName, cachedImageUrl, formatSize, formatTs, scoreColor, userAvatarUrl, userDisplayName } from '../../lib/sanitize'
+import { toQuoteLine } from '../../lib/selection'
 import { REVIEW_ORDERS, useReaderStore } from '../../stores/reader'
 import { useAuthStore } from '../../stores/auth'
 import { useUiStore } from '../../stores/ui'
@@ -64,6 +65,17 @@ export function ReviewForm({
     }
   })
   const [formError, setFormError] = useState<string | null>(null)
+
+  // v1.1.12：正文「引用到评审」——把选中文字（单行引用）追加到「综合评价」，消费后清空
+  const pendingQuote = useReaderStore((s) => s.pendingReviewQuote)
+  const consumedQuoteSeq = useRef(0)
+  useEffect(() => {
+    if (!pendingQuote || consumedQuoteSeq.current === pendingQuote.seq) return
+    consumedQuoteSeq.current = pendingQuote.seq
+    const line = toQuoteLine(pendingQuote.text)
+    setForm((f) => ({ ...f, zonghe: f.zonghe ? `${f.zonghe}\n${line}` : line }))
+    useReaderStore.getState().consumeReviewQuote()
+  }, [pendingQuote])
 
   const dims: Array<{ key: keyof typeof form; scoreKey: keyof typeof form; label: string; hint: string }> = [
     { key: 'dianzi', scoreKey: 'dianziScore', label: '设定', hint: '世界观与设定是否自洽、有想象力' },

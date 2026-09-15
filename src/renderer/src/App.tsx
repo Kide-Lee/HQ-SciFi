@@ -7,6 +7,7 @@ import { FirstRunAgreement } from './components/FirstRunAgreement'
 import { SettingsModal } from './components/SettingsModal'
 import { UpdateBanner } from './components/UpdateBanner'
 import { PrivateChatModal } from './components/PrivateChatModal'
+import { ContextMenuHost } from './components/menu/ContextMenu'
 import { useAuthStore } from './stores/auth'
 import { useUiStore } from './stores/ui'
 import { useNotificationStore } from './stores/notifications'
@@ -103,6 +104,8 @@ export default function App(): React.JSX.Element {
       <SettingsModal />
       {loginOpen && <LoginView />}
       <PrivateChatModal />
+      {/* v1.1.12：全局唯一的右键菜单宿主（文件树/编辑器/阅读正文共用） */}
+      <ContextMenuHost />
     </>
   )
 }

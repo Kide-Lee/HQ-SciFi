@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CheckCheck } from 'lucide-react'
+import { CheckCheck, ClipboardCopy, Copy } from 'lucide-react'
 import { useNotificationStore, type NotificationCategory } from '../../stores/notifications'
 import { useChatStore } from '../../stores/chat'
 import { cachedImageUrl, formatTs } from '../../lib/sanitize'
 import { useReaderStore } from '../../stores/reader'
 import { useUiStore } from '../../stores/ui'
 import { CommentFeedCard, ReviewFeedCard } from '../../components/FeedCards'
+import { useContextMenu, type ContextMenuItem } from '../../components/menu/ContextMenu'
+import { readSelection } from '../../lib/selection'
 import type { AppNotification, ChatSession } from '../../../../shared/types'
 
 type NotificationGroup = 'interact' | 'chat' | 'notice'
@@ -16,6 +18,17 @@ const CATEGORY_GROUPS: Array<{ key: NotificationGroup; label: string; categories
   { key: 'chat', label: '私聊', categories: ['chat'] },
   { key: 'notice', label: '通知', categories: ['fan', 'system', 'finance'] }
 ]
+
+/**
+ * v1.1.12：单条通知的复制文本。
+ * 互动类（评论/评审）在面板里复用信息流卡片，卡片上不显示标题，且 adapter 在服务端无 title 时
+ * 会兜底成「新消息」——所以这类只复制屏幕上可见的正文；纯通知才标题 + 正文拼接。
+ */
+function notificationCopyText(n: AppNotification): string {
+  const text = n.text.trim()
+  if (n.comment || n.review) return text
+  return [n.title.trim(), text].filter((s) => s !== '').join('\n')
+}
 
 /** 私聊用户卡片：头像 + 昵称 + 最近消息 + 时间；有未读时置顶展示并带角标 */
 function ChatSessionCard({ session, onOpen }: { session: ChatSession; onOpen: () => void }): React.JSX.Element {
@@ -60,6 +73,9 @@ export function NotificationPanel(): React.JSX.Element {
   const [chatLoading, setChatLoading] = useState(false)
   const [chatError, setChatError] = useState<string | null>(null)
   const [chatReloadKey, setChatReloadKey] = useState(0)
+
+  // v1.1.12：单条通知右键菜单（复制选中文字 / 复制本条内容）
+  const showMenu = useContextMenu()
 
   // 每次打开消息面板都重新拉取，保证列表和未读数是最新的
   useEffect(() => {
@@ -167,6 +183,34 @@ export function NotificationPanel(): React.JSX.Element {
     if (uid && uid !== '0') openUserPage(uid)
   }
 
+  /**
+   * v1.1.12：单条通知右键菜单——只放没有按钮入口的操作
+   * （跳转、标记已读等已有按钮入口的功能不重复进菜单）。
+   * 「复制」仅在该条目内有选中文字时出现；选区内容在 contextmenu 触发时取好快照
+   * （点菜单项会让浏览器选区失效）。标题与正文都为空时「复制本条内容」置灰。
+   */
+  function handleNotificationContextMenu(e: React.MouseEvent<HTMLDivElement>, n: AppNotification): void {
+    const snap = readSelection(e.currentTarget)
+    const items: ContextMenuItem[] = []
+    if (snap) {
+      items.push({
+        label: '复制',
+        icon: <Copy size={13} />,
+        disabled: false,
+        onSelect: () => void window.hqsf.copyText(snap.text)
+      })
+    }
+    const text = notificationCopyText(n)
+    items.push({
+      label: '复制本条内容',
+      icon: <ClipboardCopy size={13} />,
+      divided: items.length > 0,
+      disabled: text === '',
+      onSelect: () => void window.hqsf.copyText(text)
+    })
+    showMenu(e, items)
+  }
+
   return (
     <div className="notification-panel">
       <div className="notification-tabs">
@@ -234,7 +278,11 @@ export function NotificationPanel(): React.JSX.Element {
               // 评论/评审消息复用信息流卡片，保持与最新讨论/最新评审一致的视觉
               if (n.comment) {
                 return (
-                  <div key={n.id} className={n.read ? 'notification-feed' : 'notification-feed unread'}>
+                  <div
+                    key={n.id}
+                    className={n.read ? 'notification-feed' : 'notification-feed unread'}
+                    onContextMenu={(e) => handleNotificationContextMenu(e, n)}
+                  >
                     <CommentFeedCard
                       comment={n.comment}
                       onOpen={() => openMessage(n)}
@@ -258,7 +306,11 @@ export function NotificationPanel(): React.JSX.Element {
               }
               if (n.review) {
                 return (
-                  <div key={n.id} className={n.read ? 'notification-feed' : 'notification-feed unread'}>
+                  <div
+                    key={n.id}
+                    className={n.read ? 'notification-feed' : 'notification-feed unread'}
+                    onContextMenu={(e) => handleNotificationContextMenu(e, n)}
+                  >
                     <ReviewFeedCard
                       review={n.review}
                       onOpen={() => openMessage(n)}
@@ -281,7 +333,11 @@ export function NotificationPanel(): React.JSX.Element {
                 )
               }
               return (
-                <div key={n.id} className={`notification-item${n.read ? '' : ' unread'}`}>
+                <div
+                  key={n.id}
+                  className={`notification-item${n.read ? '' : ' unread'}`}
+                  onContextMenu={(e) => handleNotificationContextMenu(e, n)}
+                >
                   <div className="notification-item-head">
                     <span className="notification-item-title">
                       {!n.read && <span className="notification-dot" />}

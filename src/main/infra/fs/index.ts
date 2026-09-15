@@ -154,6 +154,13 @@ export async function deleteLocalFile(root: string, p: string): Promise<void> {
   await shell.trashItem(abs)
 }
 
+/** 在系统文件管理器中显示本地存档内的文件/文件夹（右键菜单用；越界路径抛错） */
+export function revealLocalFile(root: string, p: string): void {
+  const abs = assertInside(root, p)
+  if (!existsSync(abs)) throw new Error('文件不存在')
+  shell.showItemInFolder(abs)
+}
+
 /** 读本地 md 文件（仅限存档根目录内） */
 export function readLocalFile(root: string, p: string): string {
   const abs = assertInside(root, p)

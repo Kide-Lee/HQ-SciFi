@@ -17,6 +17,8 @@ import type { EditorView as CMEditorView } from '@codemirror/view'
 import type { LocalNode } from '../../../../shared/types'
 import { MilkdownEditor } from './MilkdownEditor'
 import { SplitEditor } from './SplitEditor'
+import { useContextMenu } from '../../components/menu/ContextMenu'
+import { buildEditorContextMenu } from './editorContextMenu'
 
 /** v0.0.6：统计树中 md 文档总数（递归） */
 function countAllDocs(nodes: LocalNode[]): number {
@@ -108,6 +110,8 @@ export function EditorPane(): React.JSX.Element {
   const [moveNode, setMoveNode] = useState<LocalNode | null>(null)
   const deleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // v1.1.12：编辑器右键菜单（撤销/重做/剪切/复制/粘贴/全选 + 链接三项；格式等已有按钮的不重复）
+  const showMenu = useContextMenu()
 
   const pullErrors = lastPull?.errors ?? []
 
@@ -393,7 +397,13 @@ export function EditorPane(): React.JSX.Element {
       )}
 
       <div className={`editor-body${currentPath ? ' editing' : ' home'}`}>
-        <div className="editor-main">
+        <div
+          className="editor-main"
+          onContextMenu={(e) => {
+            const items = buildEditorContextMenu(e, { pm: pmViewRef.current, cm: cmViewRef.current })
+            if (items) showMenu(e, items)
+          }}
+        >
           {currentPath ? (
             mode === 'wysiwyg' ? (
               <MilkdownEditor
