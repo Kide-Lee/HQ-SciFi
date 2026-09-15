@@ -7,6 +7,8 @@ ipcMain.handle('hqsf:copy-text', (_e, text: string) => {
     clipboard.writeText(String(text ?? ''))
     return ok(null)
   })
+ipcMain.handle('hqsf:read-clipboard-text', () => ok(clipboard.readText()))
+ipcMain.handle('hqsf:read-clipboard-html', () => ok(clipboard.readHTML()))
 ipcMain.handle('hqsf:get-app-info', () => ({
     version: app.getVersion(),
     platform: process.platform,

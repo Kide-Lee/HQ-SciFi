@@ -1,6 +1,6 @@
 import { ipcMain, BrowserWindow, shell } from 'electron'
 import { existsSync } from 'node:fs'
-import { assertInside, chooseDocsDir, createLocalDir, createLocalDraft, deleteLocalFile, ensureDocsRoot, getDocsRoot, listLocalDocs, readLocalFile, renameLocalNode, writeLocalFile, listArticles } from '../services/docs-service'
+import { assertInside, chooseDocsDir, createLocalDir, createLocalDraft, deleteLocalFile, ensureDocsRoot, getDocsRoot, listLocalDocs, readLocalFile, renameLocalNode, revealLocalFile, writeLocalFile, listArticles } from '../services/docs-service'
 import { ok, fail, trusted, sessionUid, windowOf, checkedUid } from './shared'
 
 export function registerDocsHandlers(): void {
@@ -66,6 +66,17 @@ ipcMain.handle('hqsf:rename-local-node', (event, oldRel: string, newRel: string)
     try {
       const result = renameLocalNode(getDocsRoot(), String(oldRel ?? ''), String(newRel ?? ''))
       return ok(result)
+    } catch (err) {
+      return fail(err)
+    }
+  })
+ipcMain.handle('hqsf:reveal-in-folder', (event, path: string) => {
+    const blocked = trusted(event)
+    if (blocked) return fail(blocked)
+    try {
+      // 只允许显示存档根目录内的条目（showItemInFolder 会把文件管理器窗口拉到前台）
+      revealLocalFile(getDocsRoot(), String(path ?? ''))
+      return ok(null)
     } catch (err) {
       return fail(err)
     }

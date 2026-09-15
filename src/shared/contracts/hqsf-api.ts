@@ -63,6 +63,14 @@ export interface HqsfApi {
   ping: () => Promise<string>
   getAppInfo: () => Promise<AppInfo>
   copyText: (text: string) => Promise<ApiResult<null>>
+  /** 读取系统剪贴板文本（自绘右键菜单的「粘贴」用——Chromium 禁用 execCommand('paste')） */
+  readClipboardText: () => Promise<ApiResult<string>>
+  /** 读取系统剪贴板的 HTML 片段（编辑器「粘贴」保留格式用；纯文本内容时可能为空串） */
+  readClipboardHtml: () => Promise<ApiResult<string>>
+  /** 在系统文件管理器中显示本地存档内的文件/文件夹（右键菜单用；越界路径拒绝） */
+  revealInFolder: (path: string) => Promise<ApiResult<null>>
+  /** 打开/关闭开发者工具（右键菜单「开发者工具」；与 Ctrl+F12 等价） */
+  toggleDevTools: () => Promise<ApiResult<null>>
   /** 原生消息弹窗（替代渲染层 alert/confirm，避免 Electron 弹窗后输入框失焦的已知问题） */
   showMessageBox: (options: {
     type?: 'none' | 'info' | 'error' | 'question' | 'warning'

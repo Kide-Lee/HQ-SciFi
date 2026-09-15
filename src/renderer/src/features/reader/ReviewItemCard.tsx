@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Eye, EyeOff, FileDown, MessageCircle, PenLine, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, ClipboardCopy, Copy, Eye, EyeOff, FileDown, MessageCircle, PenLine, Quote, X } from 'lucide-react'
 import { anonymousAuthorDisplayName, cachedImageUrl, formatSize, formatTs, scoreColor, userAvatarUrl, userDisplayName } from '../../lib/sanitize'
 import { REVIEW_ORDERS, useReaderStore } from '../../stores/reader'
 import { useAuthStore } from '../../stores/auth'
 import { useUiStore } from '../../stores/ui'
 import { ErrorBanner } from '../../components/ErrorBanner'
 import { UserLevelBadge } from '../../components/UserLevelBadge'
+import { useContextMenu, type ContextMenuItem } from '../../components/menu/ContextMenu'
+import { readSelection } from '../../lib/selection'
 import { ReviewInlineComments } from './ReviewInlineComments'
 import type { CommentItem, ReviewItem, ReviewPayload } from '../../../../shared/types'
 
@@ -21,6 +23,8 @@ export function ReviewItemCard({
   const setAttitude = useReaderStore((s) => s.setAttitude)
   const detail = useReaderStore((s) => s.detail)
   const openUserPage = useUiStore((s) => s.openUserPage)
+  const session = useAuthStore((s) => s.session)
+  const loggedIn = !!session
   // v0.0.5：评审评论内嵌于卡片，默认收起（点击「评论 N」展开/收起；「回复评审」展开并聚焦回复框）
   const [commentsOpen, setCommentsOpen] = useState(false)
   const [replyIntent, setReplyIntent] = useState(false)
@@ -54,8 +58,63 @@ export function ReviewItemCard({
   const reviewUid = String(review.uid ?? u.uid ?? '')
   const reviewUserClickable =
     reviewUid !== '' && reviewUid !== '0' && rName !== '匿名用户' && !review.isAi
+
+  // v1.1.12：评审卡片右键菜单（复制选中文字 / 复制本条内容 / 引用到回复框）
+  const showMenu = useContextMenu()
+  const cardRef = useRef<HTMLDivElement | null>(null)
+  const [quoteSeed, setQuoteSeed] = useState<{ seq: number; text: string } | null>(null)
+  const quoteSeqRef = useRef(0)
+
+  /** 评审全文（复制/引用用）：五维 + 综合评价，带维度名 */
+  const reviewText = useMemo(() => {
+    const dims: Array<[string, string | undefined]> = [
+      ['设定', review.dianzi],
+      ['文笔', review.wenbi],
+      ['人物', review.renwu],
+      ['情节', review.jiezou],
+      ['思想性', review.liyi],
+      ['综合', review.zonghe]
+    ]
+    return dims
+      .filter(([, v]) => (v ?? '').trim())
+      .map(([label, v]) => `${label}：${String(v).trim()}`)
+      .join('\n')
+  }, [review.dianzi, review.wenbi, review.renwu, review.jiezou, review.liyi, review.zonghe])
+
+  /** 引用到回复框：展开评审评论区，并把引用文字交给内嵌回复框（见 ReviewInlineComments.initialQuote） */
+  function quoteIntoReply(): void {
+    quoteSeqRef.current += 1
+    setQuoteSeed({ seq: quoteSeqRef.current, text: reviewText })
+    setCommentsOpen(true)
+    setReplyIntent(true)
+  }
+
+  function handleContextMenu(e: React.MouseEvent): void {
+    const snapshot = readSelection(cardRef.current)
+    const items: ContextMenuItem[] = []
+    if (snapshot) {
+      items.push({ label: '复制', icon: <Copy size={13} />, onSelect: () => void window.hqsf.copyText(snapshot.text) })
+    }
+    if (reviewText) {
+      items.push({
+        label: '复制本条内容',
+        icon: <ClipboardCopy size={13} />,
+        onSelect: () => void window.hqsf.copyText(reviewText)
+      })
+    }
+    if (loggedIn && reviewText) {
+      items.push({ label: '引用到回复框', icon: <Quote size={13} />, divided: true, onSelect: quoteIntoReply })
+    }
+    showMenu(e, items, rName)
+  }
+
   return (
-    <div className={`review-item ${hideScores ? 'hide-scores' : ''}`} data-review-id={String(review.id)}>
+    <div
+      className={`review-item ${hideScores ? 'hide-scores' : ''}`}
+      data-review-id={String(review.id)}
+      ref={cardRef}
+      onContextMenu={handleContextMenu}
+    >
       <div className="review-item-head">
         {avatar ? (
           <img
@@ -187,6 +246,7 @@ export function ReviewItemCard({
           review={review}
           autoFocusReply={replyIntent}
           onReplyFocused={() => setReplyIntent(false)}
+          initialQuote={quoteSeed}
         />
       )}
     </div>

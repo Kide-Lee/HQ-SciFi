@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { X } from 'lucide-react'
+import { ClipboardCopy, Copy, Quote, X } from 'lucide-react'
 import { useChatStore } from '../../stores/chat'
 import { cachedImageUrl, formatTs } from '../../lib/sanitize'
 import { useAuthStore } from '../../stores/auth'
+import { useContextMenu, type ContextMenuItem } from '../../components/menu/ContextMenu'
+import { readSelection, toQuoteLine } from '../../lib/selection'
 import type { ChatMessage } from '../../../../shared/types'
 
 /**
@@ -22,6 +24,10 @@ export function PrivateChatModal(): React.JSX.Element | null {
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
+  const inputRef = useRef<HTMLInputElement | null>(null)
+
+  // v1.1.12：聊天消息右键菜单（复制选中文字 / 复制本条内容 / 引用到回复框）
+  const showMenu = useContextMenu()
 
   useEffect(() => {
     if (!target) return
@@ -90,6 +96,48 @@ export function PrivateChatModal(): React.JSX.Element | null {
     }
   }
 
+  /**
+   * v1.1.12：单条消息右键菜单——只放没有按钮入口的操作（发送/关闭等已有按钮的不重复）。
+   * 「复制」仅在该消息气泡内有选中文字时出现；选区内容在 contextmenu 触发时就取好快照
+   * （点菜单项会让浏览器选区失效，所以不能用闭包里的实时读取）。空消息不出复制/引用两项。
+   */
+  function handleMessageContextMenu(e: React.MouseEvent<HTMLDivElement>, m: ChatMessage, senderName: string): void {
+    const snap = readSelection(e.currentTarget)
+    const items: ContextMenuItem[] = []
+    if (snap) {
+      items.push({
+        label: '复制',
+        icon: <Copy size={13} />,
+        disabled: false,
+        onSelect: () => void window.hqsf.copyText(snap.text)
+      })
+    }
+    const text = m.text.trim()
+    // 空消息没有可复制/可引用的内容
+    if (text) {
+      items.push(
+        {
+          label: '复制本条内容',
+          icon: <ClipboardCopy size={13} />,
+          divided: items.length > 0,
+          onSelect: () => void window.hqsf.copyText(m.text)
+        },
+        {
+          label: '引用到回复框',
+          icon: <Quote size={13} />,
+          onSelect: () => {
+            // 已有内容时换行追加，避免覆盖用户没发出去的草稿
+            const quote = toQuoteLine(m.text)
+            setInput((cur) => (cur.trim() ? `${cur}\n${quote}` : quote))
+            // 菜单关闭会抢走焦点，等一帧再聚焦输入框
+            window.requestAnimationFrame(() => inputRef.current?.focus())
+          }
+        }
+      )
+    }
+    showMenu(e, items, senderName)
+  }
+
   const avatar = target.avatar && /^https?:\/\//i.test(target.avatar) ? cachedImageUrl(target.avatar) : undefined
 
   return (
@@ -108,8 +156,13 @@ export function PrivateChatModal(): React.JSX.Element | null {
           {!loading && messages.length === 0 && <div className="muted chat-modal-empty">（暂无消息，打个招呼吧）</div>}
           {messages.map((m) => {
             const mine = String(m.uid) === myUid
+            const senderName = mine ? '我' : target.name
             return (
-              <div key={String(m.id)} className={`chat-msg${mine ? ' mine' : ''}`}>
+              <div
+                key={String(m.id)}
+                className={`chat-msg${mine ? ' mine' : ''}`}
+                onContextMenu={(e) => handleMessageContextMenu(e, m, senderName)}
+              >
                 <div className="chat-msg-bubble">{m.text}</div>
                 <div className="chat-msg-time">{formatTs(m.created)}</div>
               </div>
@@ -122,6 +175,7 @@ export function PrivateChatModal(): React.JSX.Element | null {
         <div className="chat-modal-input-row">
           <input
             className="chat-modal-input"
+            ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {

@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, ChevronUp, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, ClipboardCopy, Copy, Quote, X } from 'lucide-react'
 import { useReaderStore } from '../../stores/reader'
 import { useAuthStore } from '../../stores/auth'
 import { useUiStore } from '../../stores/ui'
 import { anonymousAuthorDisplayName, cachedImageUrl, formatTs } from '../../lib/sanitize'
 import { SkeletonComment } from '../../components/Skeletons'
 import { UserLevelBadge } from '../../components/UserLevelBadge'
+import { useContextMenu, type ContextMenuItem } from '../../components/menu/ContextMenu'
+import { readSelection, toQuoteLine } from '../../lib/selection'
 import type { CommentItem } from '../../../../shared/types'
 
 /**
@@ -134,6 +136,20 @@ export function CommentSection({ cid }: { cid: string }): React.JSX.Element {
     }
   }
 
+  /** v1.1.12：右键「引用到回复框」——选中回复对象，并把引用文字补进草稿（保留已输入内容） */
+  function quoteIntoReply(comment: CommentItem): void {
+    setReplyTo(comment)
+    const line = toQuoteLine(comment.text ?? '')
+    setDraft((d) => (d.trim() ? `${d.trimEnd()}\n${line}` : line))
+    requestAnimationFrame(() => {
+      const ta = replyBoxRef.current
+      if (ta) {
+        ta.focus()
+        autoGrow(ta)
+      }
+    })
+  }
+
   /** v0.0.6：评论框随内容自动增高（三行起步），最高为右栏高度的 1/3，超出后内部滚动 */
   function autoGrow(ta: HTMLTextAreaElement): void {
     ta.style.height = 'auto'
@@ -177,7 +193,11 @@ export function CommentSection({ cid }: { cid: string }): React.JSX.Element {
           const isCollapsed = collapsedSubs.has(String(c.coid))
           return (
             <div key={String(c.coid)} className="comment-item" data-coid={String(c.coid)}>
-              <CommentCard comment={c} onReply={() => setReplyTo(c)} />
+              <CommentCard
+                comment={c}
+                onReply={() => setReplyTo(c)}
+                onQuote={loggedIn ? () => quoteIntoReply(c) : undefined}
+              />
               {subs.length > 0 && (
                 <>
                   {/* v0.0.8.5：第一层评论上的收起/展开深层回复按钮 */}
@@ -196,6 +216,7 @@ export function CommentSection({ cid }: { cid: string }): React.JSX.Element {
                           <CommentCard
                             comment={sub}
                             onReply={() => setReplyTo(sub)}
+                            onQuote={loggedIn ? () => quoteIntoReply(sub) : undefined}
                             // 回复的是第一层评论 → 父就在上方，隐藏引用文本
                             hideParentQuote={String(sub.parent) === String(c.coid)}
                           />
@@ -258,12 +279,15 @@ export function CommentSection({ cid }: { cid: string }): React.JSX.Element {
 export function CommentCard({
   comment,
   onReply,
-  hideParentQuote = false
+  hideParentQuote = false,
+  onQuote
 }: {
   comment: CommentItem
   onReply: () => void
   /** v0.0.8.5：隐藏被回复父评论的引用（深层评论回复第一层评论时，父就在上方，引用冗余） */
   hideParentQuote?: boolean
+  /** v1.1.12：右键「引用到回复框」——由持有回复输入框的父组件实现（未登录时不传） */
+  onQuote?: () => void
 }): React.JSX.Element {
   const avatar = comment.avatar && /^https?:\/\//i.test(comment.avatar) ? cachedImageUrl(comment.avatar) : undefined
   const detail = useReaderStore((s) => s.detail)
@@ -274,8 +298,32 @@ export function CommentCard({
   // v0.0.8：评论者头像可点进入用户页（匿名/0 不可点）
   const commentUid = String(comment.authorId ?? '')
   const commentUserClickable = commentUid !== '' && commentUid !== '0' && author !== '匿名' && author !== '匿名用户'
+
+  // v1.1.12：评论右键菜单（复制选中文字 / 复制本条内容 / 引用到回复框）
+  const showMenu = useContextMenu()
+  const cardRef = useRef<HTMLDivElement | null>(null)
+  function handleContextMenu(e: React.MouseEvent): void {
+    // 选区在 contextmenu 触发时就要取好（点菜单项会让浏览器选区失效）
+    const snapshot = readSelection(cardRef.current)
+    const items: ContextMenuItem[] = []
+    if (snapshot) {
+      items.push({ label: '复制', icon: <Copy size={13} />, onSelect: () => void window.hqsf.copyText(snapshot.text) })
+    }
+    if (comment.text) {
+      items.push({
+        label: '复制本条内容',
+        icon: <ClipboardCopy size={13} />,
+        onSelect: () => void window.hqsf.copyText(comment.text)
+      })
+    }
+    if (onQuote && comment.text) {
+      items.push({ label: '引用到回复框', icon: <Quote size={13} />, divided: true, onSelect: onQuote })
+    }
+    showMenu(e, items, author)
+  }
+
   return (
-    <div className="comment-card">
+    <div className="comment-card" ref={cardRef} onContextMenu={handleContextMenu}>
       <div className="comment-card-head">
         {avatar ? (
           <img

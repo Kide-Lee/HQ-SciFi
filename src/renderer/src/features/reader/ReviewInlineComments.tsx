@@ -6,17 +6,21 @@ import { useAuthStore } from '../../stores/auth'
 import { useUiStore } from '../../stores/ui'
 import { ErrorBanner } from '../../components/ErrorBanner'
 import { CommentSection, CommentCard, ridOf, flatSubs } from './ReaderComments'
+import { toQuoteLine } from '../../lib/selection'
 import { UserLevelBadge } from '../../components/UserLevelBadge'
 import type { CommentItem, ReviewItem, ReviewPayload } from '../../../../shared/types'
 
 export function ReviewInlineComments({
   review,
   autoFocusReply,
-  onReplyFocused
+  onReplyFocused,
+  initialQuote
 }: {
   review: ReviewItem
   autoFocusReply?: boolean
   onReplyFocused?: () => void
+  /** v1.1.12：右键评审卡片「引用到回复框」带入的引用文字（{seq} 单调递增，用于判重） */
+  initialQuote?: { seq: number; text: string } | null
 }): React.JSX.Element {
   const comments = useReaderStore((s) => s.comments)
   const commentSubmitting = useReaderStore((s) => s.commentSubmitting)
@@ -66,6 +70,26 @@ export function ReviewInlineComments({
     () => comments.filter((c) => ridOf(c) === rid && (String(c.parent) === '0' || c.parent == null)),
     [comments, rid]
   )
+
+  // v1.1.12：评审卡片「引用到回复框」——把引用文字补进草稿（消费后不再重复；StrictMode 下 effect 会跑两次）
+  const consumedQuoteSeq = useRef(0)
+  useEffect(() => {
+    if (!initialQuote || consumedQuoteSeq.current === initialQuote.seq) return
+    consumedQuoteSeq.current = initialQuote.seq
+    const line = toQuoteLine(initialQuote.text)
+    setDraft((d) => (d.trim() ? `${d.trimEnd()}\n${line}` : line))
+    // 引用的是整条评审（不是某条评论）→ 作为顶层评论
+    setReplyTo(null)
+    requestAnimationFrame(() => replyBoxRef.current?.focus())
+  }, [initialQuote])
+
+  /** v1.1.12：右键某条评审评论「引用到回复框」 */
+  function quoteIntoReply(comment: CommentItem): void {
+    setReplyTo(comment)
+    const line = toQuoteLine(comment.text ?? '')
+    setDraft((d) => (d.trim() ? `${d.trimEnd()}\n${line}` : line))
+    requestAnimationFrame(() => replyBoxRef.current?.focus())
+  }
 
   // 通过「回复评审」按钮进入时聚焦回复框
   useEffect(() => {
@@ -143,7 +167,11 @@ export function ReviewInlineComments({
             const isCollapsed = collapsedSubs.has(String(c.coid))
             return (
               <div key={String(c.coid)} className="comment-item" data-coid={String(c.coid)}>
-                <CommentCard comment={c} onReply={() => setReplyTo(c)} />
+                <CommentCard
+                  comment={c}
+                  onReply={() => setReplyTo(c)}
+                  onQuote={loggedIn ? () => quoteIntoReply(c) : undefined}
+                />
                 {subs.length > 0 && (
                   <>
                     {/* v0.0.8.5：第一层评审评论上的收起/展开深层回复按钮 */}
@@ -162,6 +190,7 @@ export function ReviewInlineComments({
                             <CommentCard
                               comment={sub}
                               onReply={() => setReplyTo(sub)}
+                              onQuote={loggedIn ? () => quoteIntoReply(sub) : undefined}
                               // 回复的是第一层评论 → 父就在上方，隐藏引用文本
                               hideParentQuote={String(sub.parent) === String(c.coid)}
                             />

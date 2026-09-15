@@ -1,11 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowUp, HandCoins, Plus, Share2, Star, ThumbsUp, X } from 'lucide-react'
 import { useAuthStore } from '../../stores/auth'
+import { h5ArticleUrl } from '../../lib/articleUrl'
 import type { ArticleDetail } from '../../../../shared/types'
-
-/** H5 文章页公开链接（分享用；H5 前端包实测路由 pages/contents/info?cid=） */
-const H5_ARTICLE_URL = (cid: string): string =>
-  `https://www.huangqisf.com/h5/#/pages/contents/info?cid=${encodeURIComponent(cid)}`
 
 const DAY_MS = 24 * 3600 * 1000
 
@@ -175,7 +172,7 @@ export function ReaderInteractions({ detail }: { detail: ArticleDetail }): React
   }
 
   async function doShare(): Promise<void> {
-    const url = H5_ARTICLE_URL(cid)
+    const url = h5ArticleUrl(cid)
     const res = await window.hqsf.copyText(url)
     setNotice(res.ok ? '链接已复制，可分享给朋友' : '复制失败，请重试')
   }

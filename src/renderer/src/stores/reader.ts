@@ -34,6 +34,9 @@ export const REVIEW_ORDERS: Array<{ key: string; label: string }> = [
   { key: 'earnest', label: '按认真' }
 ]
 
+/** v1.1.12：「引用到评审」的单调序号（消费后置 null 也不回退，供 ReviewForm 判重） */
+let quoteSeq = 0
+
 interface ReaderState {
   // ---- 阅读 ----
   /** 当前阅读的文章 cid */
@@ -159,6 +162,15 @@ interface ReaderState {
   target: { cid: string; reviewId?: string; commentId?: string; replyCommentId?: string } | null
   setTarget: (t: { cid: string; reviewId?: string; commentId?: string; replyCommentId?: string } | null) => void
   clearTarget: () => void
+
+  // ---- v1.1.12：正文选中文字「引用到评审」 ----
+  /**
+   * 待消费的引用文本（seq 单调递增，供 ReviewForm 判重——StrictMode 下 effect 会跑两次）。
+   * 消费后立即清空；切换文章时也会清空，避免上一篇文章的选中文字漏到下一篇。
+   */
+  pendingReviewQuote: { seq: number; text: string } | null
+  quoteToReview: (text: string) => void
+  consumeReviewQuote: () => void
 }
 
 export const useReaderStore = create<ReaderState>((set, get) => ({
@@ -209,6 +221,8 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
       detailError: null,
       detailLoading: true,
       reviewDisabled: false,
+      // 换文章时丢弃上一篇的待引用文字，避免引用漏到下一篇评审
+      pendingReviewQuote: null,
       reviews: [],
       reviewsPage: 1,
       reviewsHasMore: true,
@@ -230,7 +244,7 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
   },
 
   closeArticle: () => {
-    set({ readingCid: null, detail: null, detailError: null, reviewDisabled: false, reviews: [], reviewsPage: 1, reviewsHasMore: true, comments: [], commentMessage: null })
+    set({ readingCid: null, detail: null, detailError: null, reviewDisabled: false, pendingReviewQuote: null, reviews: [], reviewsPage: 1, reviewsHasMore: true, comments: [], commentMessage: null })
     // 关闭阅读态后，侧栏选中回到编辑器当前打开的文档（若无则清除），避免高亮残留
     useUiStore.getState().setSelectedId(useEditorStore.getState().currentPath)
   },
@@ -451,6 +465,12 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
   target: null,
   setTarget: (target) => set({ target }),
   clearTarget: () => set({ target: null }),
+
+  // v1.1.12：正文引用到评审
+  pendingReviewQuote: null,
+  // seq 用模块级计数器（消费后置 null 也不回退），供 ReviewForm 判重
+  quoteToReview: (text) => set(() => ({ pendingReviewQuote: { seq: ++quoteSeq, text } })),
+  consumeReviewQuote: () => set({ pendingReviewQuote: null }),
 
   loadReviewTasks: async () => {
     // 幂等：已成功拉取过则不再重复请求（无任务时为空对象，用独立 loaded 标志）
