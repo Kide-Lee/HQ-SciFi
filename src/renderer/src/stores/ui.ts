@@ -3,6 +3,16 @@ import type { ActivityPhase } from '../lib/activity'
 
 export type TopSection = 'writing' | 'recommend' | 'serial' | 'activity' | 'library'
 
+/** v0.1.11：右栏两种模式——文章面板 / 设置面板 */
+export type PanelMode = 'article' | 'settings'
+
+/** 设置面板的 tab（顶栏「设置」按钮与 openPanelTab 据此选择模式） */
+export const SETTINGS_PANEL_TABS = ['history', 'messages', 'settings'] as const
+
+export function isSettingsPanelTab(tab: string): boolean {
+  return (SETTINGS_PANEL_TABS as readonly string[]).includes(tab)
+}
+
 export const SECTION_LABELS: Record<TopSection, string> = {
   writing: '写作',
   recommend: '推荐',
@@ -63,10 +73,17 @@ interface UiState {
    * v0.0.6+：从阅读/编辑器各一份合并为全局单份——所有视图均可调出右栏（搜索为基础 tab）。
    */
   panelOpen: boolean
+  /**
+   * v0.1.11：右栏模式——文章（目录/评论/评审/搜索）或设置（历史/消息/设置）。
+   * 顶栏「文章」「设置」按钮分别切换；关闭后重开时恢复各自上次停留的 tab。
+   */
+  panelMode: PanelMode
   /** 右栏当前 tab（key 由各视图 tabs 定义：文章页 toc/comments/review/search、编辑器 preview/toc/search 等） */
   panelTab: string
-  /** v0.0.9：当前右栏是否只剩全局「消息」tab（用于顶栏切换为通知图标） */
-  panelNotificationOnly: boolean
+  /** 文章面板上次停留的 tab（默认搜索） */
+  articleTab: string
+  /** 设置面板上次停留的 tab（默认设置） */
+  settingsTab: string
   /** v0.0.9：作品库首页是否处于搜索结果态（用于顶栏显示返回按钮） */
   librarySearchActive: boolean
   /**
@@ -80,20 +97,19 @@ interface UiState {
   searchActive: number
   /** v0.0.8：用户页目标 uid（null=不在用户页）。进入时保留当前 section/listContext/readingCid，返回时原视图自然恢复 */
   userPageUid: string | null
-  /** v0.1.10：设置弹窗开关 */
-  settingsOpen: boolean
   setSection: (section: TopSection) => void
   setSelectedId: (id: string | null) => void
   /** 打开栏目列表（作品库分类等） */
   openList: (ctx: ListContext) => void
   closeList: () => void
   setRevealTarget: (target: { section: TopSection; mid?: number | string; cid?: string } | null) => void
-  togglePanel: () => void
+  /** 切换右栏：已打开同一模式则收起，否则展开并恢复该模式上次的 tab */
+  togglePanel: (mode?: PanelMode) => void
+  closePanel: () => void
   toggleSidebarCollapsed: () => void
   setPanelTab: (tab: string) => void
-  /** 打开右栏并切到指定 tab（Ctrl+F 搜索用） */
+  /** 打开右栏并切到指定 tab（设置类 tab 自动进设置模式，其余进文章模式） */
   openPanelTab: (tab: string) => void
-  setPanelNotificationOnly: (v: boolean) => void
   setLibrarySearchActive: (v: boolean) => void
   setSearchQuery: (q: string) => void
   setSearchRegex: (v: boolean) => void
@@ -103,9 +119,6 @@ interface UiState {
   /** v0.0.8：打开用户页（target uid 为空/0 视为无效，由调用方拦截） */
   openUserPage: (uid: string | number) => void
   closeUserPage: () => void
-  /** v0.1.10：打开/关闭设置弹窗 */
-  openSettings: () => void
-  closeSettings: () => void
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -115,30 +128,54 @@ export const useUiStore = create<UiState>((set) => ({
   revealTarget: null,
   sidebarCollapsed: localStorage.getItem('hqsf-sidebar-collapsed') === '1',
   panelOpen: false,
+  panelMode: 'article',
   panelTab: 'search',
-  panelNotificationOnly: false,
+  articleTab: 'search',
+  settingsTab: 'settings',
   librarySearchActive: false,
   loginOpen: false,
   searchQuery: '',
   searchRegex: false,
   searchActive: 0,
   userPageUid: null,
-  settingsOpen: false,
   setSection: (section) => set({ section, selectedId: null, listContext: null }),
   setSelectedId: (selectedId) => set({ selectedId }),
   openList: (ctx) => set({ selectedId: ctx.title, listContext: ctx }),
   closeList: () => set({ listContext: null }),
   setRevealTarget: (revealTarget) => set({ revealTarget }),
-  togglePanel: () => set((s) => ({ panelOpen: !s.panelOpen })),
+  togglePanel: (mode) =>
+    set((s) => {
+      if (s.panelOpen && (!mode || s.panelMode === mode)) return { panelOpen: false }
+      const nextMode = mode ?? s.panelMode
+      return {
+        panelOpen: true,
+        panelMode: nextMode,
+        panelTab: nextMode === 'settings' ? s.settingsTab : s.articleTab
+      }
+    }),
+  closePanel: () => set({ panelOpen: false }),
   toggleSidebarCollapsed: () =>
     set((s) => {
       const v = !s.sidebarCollapsed
       localStorage.setItem('hqsf-sidebar-collapsed', v ? '1' : '0')
       return { sidebarCollapsed: v }
     }),
-  setPanelTab: (panelTab) => set({ panelTab }),
-  openPanelTab: (panelTab) => set({ panelOpen: true, panelTab }),
-  setPanelNotificationOnly: (panelNotificationOnly) => set({ panelNotificationOnly }),
+  setPanelTab: (tab) =>
+    set((s) =>
+      s.panelMode === 'settings'
+        ? { panelTab: tab, settingsTab: tab }
+        : { panelTab: tab, articleTab: tab }
+    ),
+  openPanelTab: (tab) =>
+    set((s) => {
+      const mode: PanelMode = isSettingsPanelTab(tab) ? 'settings' : 'article'
+      return {
+        panelOpen: true,
+        panelMode: mode,
+        panelTab: tab,
+        ...(mode === 'settings' ? { settingsTab: tab } : { articleTab: tab })
+      }
+    }),
   setLibrarySearchActive: (librarySearchActive) => set({ librarySearchActive }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
   setSearchRegex: (searchRegex) => set({ searchRegex }),
@@ -146,7 +183,5 @@ export const useUiStore = create<UiState>((set) => ({
   openLogin: () => set({ loginOpen: true }),
   closeLogin: () => set({ loginOpen: false }),
   openUserPage: (uid) => set({ userPageUid: String(uid) }),
-  closeUserPage: () => set({ userPageUid: null }),
-  openSettings: () => set({ settingsOpen: true }),
-  closeSettings: () => set({ settingsOpen: false })
+  closeUserPage: () => set({ userPageUid: null })
 }))

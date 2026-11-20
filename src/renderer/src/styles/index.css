@@ -153,6 +153,28 @@ body {
   border: 1.5px solid var(--bg);
 }
 
+/* v0.1.11：顶栏「设置」「文章」两个右栏按钮——常态显示各自图标，
+   hover 显示「右栏待打开」，展开后显示「右栏已打开」 */
+.panel-toggle .panel-ico {
+  display: none;
+}
+.panel-toggle .panel-ico.idle {
+  display: block;
+}
+.panel-toggle:not(.open):hover .panel-ico.idle {
+  display: none;
+}
+.panel-toggle:not(.open):hover .panel-ico.peek {
+  display: block;
+}
+.panel-toggle.open .panel-ico.idle,
+.panel-toggle.open .panel-ico.peek {
+  display: none;
+}
+.panel-toggle.open .panel-ico.open {
+  display: block;
+}
+
 .topbar-close:hover {
   background: #e81123;
   color: #fff;
@@ -191,21 +213,32 @@ body {
 }
 
 /* v0.0.3：右缘拖动分隔条（调整左栏宽度） */
+/* v0.1.11：左右栏拖动指示条统一样式，以右栏为准——透明底，hover/拖动时显示 accent-soft */
+.sidebar-resizer,
+.reader-divider {
+  cursor: col-resize;
+  background: transparent;
+  transition: background 0.15s;
+}
+
+.sidebar-resizer:hover,
+.sidebar-resizer:active,
+.reader-divider:hover,
+.reader-divider:active {
+  background: var(--accent-soft);
+}
+
 .sidebar-resizer {
   position: absolute;
   top: 0;
-  right: -3px;
-  width: 6px;
+  /* v0.1.11：指示条整体收进左栏内，避免顶栏（z-index 60）盖住越过边界的一半，
+     否则顶栏区域看起来只有 3.5px、顶栏以下却是 5px */
+  right: 0;
+  width: 5px;
   height: 100%;
-  cursor: col-resize;
   z-index: 20;
   /* v0.0.7：分隔条脱离父级 .sidebar 的 drag 区域，否则真实鼠标按下会被系统当作拖窗口 */
   -webkit-app-region: no-drag;
-}
-
-.sidebar-resizer:hover {
-  background: var(--accent);
-  opacity: 0.4;
 }
 
 .sidebar-top {
@@ -366,38 +399,6 @@ body {
   font-weight: 500;
 }
 
-.sidebar-bottom {
-  /* v0.0.6：折叠态 .tree-area 被隐藏后仍贴底（flex column 下 auto margin 吸收剩余空间） */
-  margin-top: auto;
-  padding: 10px 12px;
-  border-top: 1px solid var(--border);
-  /* v0.0.3：设置 + 折叠 两按钮并排 */
-  display: flex;
-  gap: 6px;
-}
-
-.settings-btn {
-  flex: 1;
-  min-width: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: transparent;
-  font: inherit;
-  color: var(--text-muted);
-  cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-}
-
-.settings-btn:hover {
-  color: var(--text);
-  border-color: var(--text-muted);
-}
-
 /* v0.0.3：左栏折叠态（窄条，仅模块图标） */
 .sidebar.collapsed {
   width: 56px !important;
@@ -471,23 +472,6 @@ body {
 }
 
 .sidebar.collapsed .tree-area {
-  display: none;
-}
-
-.sidebar.collapsed .sidebar-bottom {
-  flex-direction: column;
-  align-items: center;
-  padding: 10px 8px;
-}
-
-.sidebar.collapsed .settings-btn {
-  flex: none;
-  width: 36px;
-  justify-content: center;
-  padding: 8px 0;
-}
-
-.sidebar.collapsed .settings-btn span {
   display: none;
 }
 
@@ -1095,7 +1079,7 @@ body {
 .tree-group-title .caret {
   color: var(--text-muted);
   flex-shrink: 0;
-  transition: transform 0.15s ease;
+  transition: transform 0.2s ease;
 }
 
 .tree-group-title .caret.open {
@@ -1116,6 +1100,39 @@ body {
   flex-direction: column;
   gap: 1px;
   padding-left: 16px;
+}
+
+/* v1.1.12：左栏树分组 / 本地文件夹的展开与收起过渡。
+   用 grid-template-rows 0fr ↔ 1fr 让高度自适应，无需 JS 测量内容高度；
+   内层 min-height:0 + overflow:hidden 才能让行高真正收为 0。
+   动画容器始终在流内（收起时高度 0），内容子节点由 <Collapse> 在收起动画结束后卸载。 */
+.tree-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tree-collapse.open {
+  grid-template-rows: 1fr;
+}
+
+.tree-collapse > .tree-collapse-inner {
+  min-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.tree-collapse.open > .tree-collapse-inner {
+  opacity: 1;
+}
+
+/* 系统开启「减少动态效果」时直接切换，不做高度/淡入过渡 */
+@media (prefers-reduced-motion: reduce) {
+  .tree-collapse,
+  .tree-collapse > .tree-collapse-inner {
+    transition: none;
+  }
 }
 
 /* v0.0.2：活动树——组标题选中态 / 组标签 / 子项文本 / 任务徽章 */
@@ -1218,7 +1235,7 @@ body {
   border-right: 1.5px solid var(--text-muted);
   border-bottom: 1.5px solid var(--text-muted);
   transform: rotate(-45deg);
-  transition: transform 0.15s ease;
+  transition: transform 0.2s ease;
 }
 .tree-dir-entry.open::before {
   transform: rotate(45deg);
@@ -2665,87 +2682,7 @@ body {
   background: var(--bg-card);
 }
 
-/* v0.0.9：右栏 tab 溢出折叠——前 4 个直接显示，其余收进「更多」下拉 */
-.reader-panel-more {
-  position: relative;
-  display: flex;
-  flex-shrink: 0;
-  align-items: stretch;
-}
 
-.reader-panel-more-btn {
-  width: 42px;
-  padding: 0;
-  border: none;
-  border-left: 1px solid var(--border);
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 16px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.reader-panel-more-btn:hover,
-.reader-panel-more-btn.open {
-  color: var(--accent);
-  background: var(--bg-card);
-}
-
-.reader-panel-more-menu {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  z-index: 120;
-  min-width: 160px;
-  max-height: 320px;
-  overflow-y: auto;
-  padding: 4px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(31, 35, 41, 0.14);
-}
-
-.reader-panel-more-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
-  padding: 8px 10px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  font: inherit;
-  font-size: 13px;
-  color: var(--text-muted);
-  text-align: left;
-  cursor: pointer;
-}
-
-.reader-panel-more-item:hover {
-  background: var(--bg-hover, rgba(0, 0, 0, 0.06));
-  color: var(--text);
-}
-
-.reader-panel-more-item.active {
-  color: var(--accent);
-  font-weight: 600;
-  background: var(--accent-soft);
-}
-
-.reader-panel-more-badge {
-  flex-shrink: 0;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: 9px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 11px;
-  line-height: 18px;
-  text-align: center;
-}
 
 .reader-panel-scroll {
   flex: 1;
@@ -3967,13 +3904,6 @@ body {
 .reader-divider {
   flex-shrink: 0;
   width: 5px;
-  cursor: col-resize;
-  background: transparent;
-  transition: background 0.15s;
-}
-.reader-divider:hover,
-.reader-divider:active {
-  background: var(--accent-soft);
 }
 
 /* 评审栏字号与正文一致：主要文本元素统一 15px */
@@ -4185,13 +4115,15 @@ body {
   min-height: 0;
   flex: 1;
 }
-.notification-tabs {
+.notification-tabs,
+.settings-subtabs {
   display: flex;
   border-bottom: 1px solid var(--border);
   padding: 0 12px;
   flex-shrink: 0;
 }
-.notification-tab {
+.notification-tab,
+.settings-subtab {
   flex: 1;
   display: flex;
   align-items: center;
@@ -4206,7 +4138,8 @@ body {
   color: var(--text-muted);
   cursor: pointer;
 }
-.notification-tab.active {
+.notification-tab.active,
+.settings-subtab.active {
   color: var(--accent);
   font-weight: 600;
   border-bottom-color: var(--accent);
@@ -6563,78 +6496,6 @@ input[type='radio'] {
   font-size: calc(var(--font-size) + 1px);
 }
 
-/* 设置弹窗 */
-.settings-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 1200;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.45);
-  padding: 28px;
-}
-
-.settings-modal {
-  position: relative;
-  width: 760px;
-  max-width: 100%;
-  height: min(680px, calc(100vh - 56px));
-  display: flex;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.3);
-}
-
-.settings-nav {
-  width: 180px;
-  flex-shrink: 0;
-  border-right: 1px solid var(--border);
-  background: var(--bg-sidebar);
-  display: flex;
-  flex-direction: column;
-  padding: 16px 8px;
-  gap: 4px;
-}
-
-.settings-nav-title {
-  font-size: 16px;
-  font-weight: 700;
-  padding: 8px 12px 16px;
-}
-
-.settings-nav button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--text-muted);
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-  text-align: left;
-}
-
-.settings-nav button:hover,
-.settings-nav button.active {
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-
-.settings-nav-spacer {
-  flex: 1;
-}
-
-.settings-close-btn {
-  color: var(--text-muted) !important;
-  justify-content: center;
-}
-
 /* v0.1.10：设置面板内按钮图标与文字保持同一行 */
 .settings-panel .ghost-btn,
 .settings-panel .primary-btn {
@@ -6644,39 +6505,24 @@ input[type='radio'] {
   white-space: nowrap;
 }
 
-/* v0.1.10：设置弹窗右上角关闭按钮 */
-.settings-close-top {
-  position: absolute;
-  top: 10px;
-  right: 12px;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  z-index: 10;
-}
-.settings-close-top:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
-.settings-content {
-  flex: 1;
-  min-width: 0;
-  overflow-y: auto;
-  padding: 24px 28px 32px;
-}
-
 .settings-panel {
   display: flex;
   flex-direction: column;
   gap: 18px;
+}
+
+/* v0.1.11：右栏内嵌设置面板——子分页固定、内容区滚动 */
+.settings-panel-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.settings-panel-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px 18px 28px;
 }
 
 .settings-panel h2 {
@@ -7167,4 +7013,125 @@ input[type='radio'] {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* v1.1.12：未提交草稿恢复提示（评审表单 / 文章评论框 / 评审回复框） */
+.draft-restored-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 5px 10px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.draft-restored-hint .draft-discard {
+  margin-left: auto;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  color: var(--accent);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.draft-restored-hint .draft-discard:hover {
+  text-decoration: underline;
+}
+
+/* v1.1.12：右栏「历史」tab——卡片直接用列表/首页的 .article-card（见 ArticleCard），
+   这里只补：滚动列表容器、移除按钮（卡片本身是 button，按钮只能叠在角上）与空态 */
+.history-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+.history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.history-count {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.history-clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  color: var(--accent);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.history-clear:hover {
+  text-decoration: underline;
+}
+.history-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+/* 卡片保持自身高度，避免在 flex 列容器里被压缩 */
+.history-list > * {
+  flex-shrink: 0;
+}
+.history-empty {
+  padding: 20px 0;
+  text-align: center;
+}
+.history-item {
+  position: relative;
+}
+/* 移除按钮叠在卡片右上角（卡片整体是 button，不能嵌套按钮） */
+.history-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: var(--bg-card);
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0.75;
+}
+.history-remove:hover {
+  border-color: var(--border);
+  color: var(--danger);
+  opacity: 1;
+}
+/* 标题让出右上角按钮位置，避免长标题压到按钮下 */
+.history-item .article-card-title-text {
+  padding-right: 18px;
+}
+/* 窄右栏：卡片统计行改为可换行，避免计数项被裁掉 */
+.history-item .article-card-meta {
+  flex-wrap: wrap;
+}
+.history-item .article-card-stats {
+  flex-wrap: wrap;
 }

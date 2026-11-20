@@ -12,6 +12,7 @@ import type {
 import { useUiStore } from './ui'
 import { useEditorStore } from './editor'
 import { useDocsStore } from './docs'
+import { useHistoryStore } from './history'
 import { isReviewDisabledArticle } from '../lib/category'
 
 /** 列表排序（对应官方 topList：评分/点赞/评论/阅读/时间/回复；size 按字数为本地排序） */
@@ -233,6 +234,8 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
       const res = await window.hqsf.getRemoteArticle(cid)
       if (res.ok) {
         set({ detail: res.data, detailLoading: false, reviewDisabled: isReviewDisabledArticle(res.data) })
+        // v1.1.12：记入阅读历史（右栏「历史」tab；同篇去重后置顶）
+        useHistoryStore.getState().record(res.data)
         void get().loadReviews(cid)
         void get().loadComments(cid)
       } else {

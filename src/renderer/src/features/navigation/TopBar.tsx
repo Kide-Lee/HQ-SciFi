@@ -1,5 +1,20 @@
 import { useEffect, useState } from 'react'
-import { Bell, Copy, Eye, Minus, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, PenLine, Square, Undo2, X } from 'lucide-react'
+import {
+  Bell,
+  Copy,
+  Eye,
+  FileText,
+  Minus,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
+  PenLine,
+  Settings,
+  Square,
+  Undo2,
+  X
+} from 'lucide-react'
 import { SECTION_LABELS, useUiStore } from '../../stores/ui'
 import { useReaderStore } from '../../stores/reader'
 import { useEditorStore } from '../../stores/editor'
@@ -49,10 +64,9 @@ export function TopBar(): React.JSX.Element {
   const editMode = useEditorStore((s) => s.mode)
   const setEditMode = useEditorStore((s) => s.setMode)
   const panelOpen = useUiStore((s) => s.panelOpen)
+  const panelMode = useUiStore((s) => s.panelMode)
   const panelTab = useUiStore((s) => s.panelTab)
-  const panelNotificationOnly = useUiStore((s) => s.panelNotificationOnly)
   const togglePanel = useUiStore((s) => s.togglePanel)
-  const openPanelTab = useUiStore((s) => s.openPanelTab)
   const totalUnread = useNotificationStore((s) => s.totalUnread)
   const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed)
   const toggleSidebar = useUiStore((s) => s.toggleSidebarCollapsed)
@@ -101,20 +115,20 @@ export function TopBar(): React.JSX.Element {
   }, [])
   const isMac = platform === 'darwin'
 
-  /** v0.0.9：有未读通知或右栏只剩消息 tab 时，右栏按钮变为通知按钮；在消息页再点一次可收起右栏 */
-  const notificationButton = totalUnread > 0 || panelNotificationOnly
-  function handleRightPanelButton(): void {
-    if (panelNotificationOnly) {
-      // 右栏只有消息 tab：打开即消息页，再点一次直接收起
-      if (panelOpen) togglePanel()
-      else openPanelTab('messages')
-    } else if (totalUnread > 0) {
-      if (panelOpen && panelTab === 'messages') togglePanel()
-      else openPanelTab('messages')
-    } else {
-      togglePanel()
-    }
-  }
+  // v0.1.11：文章栏只在阅读页/编辑器页可用（用户页、栏目列表页没有业务 tab）
+  const articleAvailable = !userPageUid && (!!readingCid || section === 'writing')
+  const settingsActive = panelOpen && panelMode === 'settings'
+  const articleActive = panelOpen && panelMode === 'article'
+  // v0.1.11：有未读通知时，「设置」按钮恢复为旧的通知按钮样式（铃铛 + 红点），点击直达消息
+  const notificationButton = totalUnread > 0
+  const messagesActive = settingsActive && panelTab === 'messages'
+
+  // 离开文章页/编辑器后收起残留的文章栏，避免回到文章页时无故重新弹出
+  useEffect(() => {
+    if (articleAvailable) return
+    const ui = useUiStore.getState()
+    if (ui.panelOpen && ui.panelMode === 'article') ui.closePanel()
+  }, [articleAvailable])
 
   return (
     <header className={isMac ? 'topbar topbar-mac' : 'topbar'}>
@@ -182,32 +196,59 @@ export function TopBar(): React.JSX.Element {
         {title}
       </div>
       <div className="topbar-controls">
-        {/* v0.0.6+：所有视图均可调出右栏（搜索为基础 tab，故按钮恒显示） */}
-        {/* v0.0.9：有未读通知时变成通知按钮并显示小红点 */}
+        {/* v0.1.11：右栏按钮拆为「设置」（历史/消息/设置）与「文章」（目录/评论/评审/搜索）两个 */}
+        {/* 「文章」仅在阅读页/编辑器页出现；图标规则：常态显示各自图标 → hover 显示「右栏待打开」→ 展开后只显示「右栏已打开」 */}
         <button
-          className={`topbar-btn${notificationButton ? ' has-notification' : ''}`}
-          onClick={handleRightPanelButton}
+          className={`topbar-btn panel-toggle${settingsActive ? ' open' : ''}${
+            notificationButton ? ' has-notification' : ''
+          }`}
+          onClick={() => {
+            if (!notificationButton) {
+              togglePanel('settings')
+              return
+            }
+            const ui = useUiStore.getState()
+            if (ui.panelOpen && ui.panelMode === 'settings' && ui.panelTab === 'messages') {
+              ui.closePanel()
+            } else {
+              ui.openPanelTab('messages')
+            }
+          }}
           title={
             notificationButton
-              ? panelOpen && panelTab === 'messages'
+              ? messagesActive
                 ? '收起消息'
                 : '查看消息'
-              : panelOpen
-                ? '收起右栏'
-                : '展开右栏'
+              : settingsActive
+                ? '收起设置栏（历史 / 消息 / 设置）'
+                : '展开设置栏（历史 / 消息 / 设置）'
           }
+          aria-label={notificationButton ? '消息' : '设置栏'}
+          aria-expanded={notificationButton ? messagesActive : settingsActive}
         >
+          {/* 有未读时常态图标换成铃铛（保留红点）；hover / 展开图标与普通状态一致 */}
           {notificationButton ? (
-            <>
-              <Bell size={14} />
-              {totalUnread > 0 && <span className="topbar-notify-dot" />}
-            </>
-          ) : panelOpen ? (
-            <PanelRightClose size={14} />
+            <Bell size={14} className="panel-ico idle" />
           ) : (
-            <PanelRightOpen size={14} />
+            <Settings size={14} className="panel-ico idle" />
           )}
+          <PanelRightOpen size={14} className="panel-ico peek" />
+          <PanelRightClose size={14} className="panel-ico open" />
+          {notificationButton && <span className="topbar-notify-dot" />}
         </button>
+        {articleAvailable && (
+          <button
+            className={`topbar-btn panel-toggle${articleActive ? ' open' : ''}`}
+            onClick={() => togglePanel('article')}
+            title={articleActive ? '收起文章栏（目录 / 评论 / 评审 / 搜索）' : '展开文章栏（目录 / 评论 / 评审 / 搜索）'}
+            aria-label="文章栏"
+            aria-expanded={articleActive}
+          >
+            <FileText size={14} className="panel-ico idle" />
+            <PanelRightOpen size={14} className="panel-ico peek" />
+            <PanelRightClose size={14} className="panel-ico open" />
+          </button>
+        )}
         {/* macOS 用原生红绿灯，不渲染自绘窗口按钮 */}
         {!isMac && (
           <>

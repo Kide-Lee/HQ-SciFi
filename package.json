@@ -1,6 +1,6 @@
 {
   "name": "hqsf-client",
-  "version": "1.1.11",
+  "version": "1.1.12",
   "description": "黄芪饮片 —— 荒启科幻（huangqisf.com）桌面客户端，写作-阅读-评审 一站式方案",
   "homepage": "https://www.huangqisf.com/",
   "desktopName": "huangqi-scifi",
@@ -21,7 +21,9 @@
     "test:comment-request": "node --experimental-strip-types scripts/test-comment-request-contract.mjs",
     "test:activity-rules": "node --experimental-strip-types scripts/test-activity-rules.mjs",
     "test:ipc-contracts": "node --experimental-strip-types scripts/test-ipc-contracts.mjs",
-    "test:lib-rules": "node --experimental-strip-types scripts/test-lib-rules.mjs"
+    "test:lib-rules": "node --experimental-strip-types scripts/test-lib-rules.mjs",
+    "test:draft-cache": "node --experimental-strip-types scripts/test-draft-cache.mjs",
+    "test:read-history": "node --experimental-strip-types scripts/test-read-history.mjs"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",

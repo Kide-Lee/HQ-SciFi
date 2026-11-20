@@ -1,2 +1,2 @@
-export * from './SettingsModal'
+export * from './SettingsPanel'
 export * from './UpdateBanner'

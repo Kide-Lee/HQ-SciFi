@@ -1,21 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import {
-  AlertTriangle,
-  Check,
-  Circle,
-  LogOut,
-  Paintbrush,
-  Settings as SettingsIcon,
-  Trash2,
-  User,
-  X
-} from 'lucide-react'
 import MarkdownIt from 'markdown-it'
-import { useAuthStore } from '../../stores/auth'
-import { useUiStore } from '../../stores/ui'
-import { useSettingsStore, THEME_COLORS, FONT_CANDIDATES, CODE_FONT_CANDIDATES } from '../../stores/settings'
-import { useDocsStore } from '../../stores/docs'
-import type { UpdateState } from '../../../../shared/types'
 
 export function ChangelogModal({ onClose }: { onClose: () => void }): React.JSX.Element {
   const [content, setContent] = useState<string>('')

@@ -1,32 +1,21 @@
-import { useEffect, useMemo, useState } from 'react'
-import {
-  AlertTriangle,
-  Check,
-  Circle,
-  LogOut,
-  Paintbrush,
-  Settings as SettingsIcon,
-  Trash2,
-  User,
-  X
-} from 'lucide-react'
-import MarkdownIt from 'markdown-it'
-import { useAuthStore } from '../../stores/auth'
+import { useEffect, useState } from 'react'
+import { Trash2 } from 'lucide-react'
 import { useUiStore } from '../../stores/ui'
-import { useSettingsStore, THEME_COLORS, FONT_CANDIDATES, CODE_FONT_CANDIDATES } from '../../stores/settings'
+import { useSettingsStore } from '../../stores/settings'
 import { useDocsStore } from '../../stores/docs'
 import type { UpdateState } from '../../../../shared/types'
 
 export function SystemPanel({
   onOpenChangelog,
-  onOpenOwnAgreement
+  onOpenOwnAgreement,
+  onClose
 }: {
   onOpenChangelog: () => void
   onOpenOwnAgreement: () => void
+  onClose: () => void
 }): React.JSX.Element {
   const app = useSettingsStore((s) => s.app)
   const updateAppSettings = useSettingsStore((s) => s.updateAppSettings)
-  const close = useUiStore((s) => s.closeSettings)
   const openUserPage = useUiStore((s) => s.openUserPage)
   const refreshLocal = useDocsStore((s) => s.refreshLocal)
   const [version, setVersion] = useState('')
@@ -196,7 +185,7 @@ export function SystemPanel({
           <button
             className="settings-link"
             onClick={() => {
-              close()
+              onClose()
               openUserPage(2369)
             }}
           >

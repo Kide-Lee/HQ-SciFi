@@ -115,6 +115,7 @@ export function ReaderView(): React.JSX.Element {
 
   // v0.0.3：右栏（目录/评论/评审/搜索）展开与 tab 由 ui store 管理（顶栏「展开右栏」按钮切换；v0.0.6+ 全局单份）
   const panelOpen = useUiStore((s) => s.panelOpen)
+  const panelMode = useUiStore((s) => s.panelMode)
   const panelTab = useUiStore((s) => s.panelTab)
   const openUserPage = useUiStore((s) => s.openUserPage)
   // v0.0.7+：搜索词/正则/活动序号（与 SearchPanel 共享，驱动正文高亮）
@@ -429,16 +430,20 @@ export function ReaderView(): React.JSX.Element {
                 <button
                   className="review-toggle"
                   onClick={() => {
-                    const { panelOpen, panelTab, togglePanel, setPanelTab } = useUiStore.getState()
-                    // v0.0.6：右栏已是评审 → 收起；否则展开右栏并切到评审
-                    if (panelOpen && panelTab === 'review') {
+                    const { panelOpen, panelMode, panelTab, togglePanel, openPanelTab } =
+                      useUiStore.getState()
+                    // v0.0.6：右栏已是评审 → 收起；否则切到文章栏的评审 tab
+                    if (panelOpen && panelMode === 'article' && panelTab === 'review') {
                       togglePanel()
                     } else {
-                      if (!panelOpen) togglePanel()
-                      setPanelTab('review')
+                      openPanelTab('review')
                     }
                   }}
-                  title={panelOpen && panelTab === 'review' ? '收起右栏评审' : '在右栏查看与撰写评审'}
+                  title={
+                    panelOpen && panelMode === 'article' && panelTab === 'review'
+                      ? '收起右栏评审'
+                      : '在右栏查看与撰写评审'
+                  }
                 >
                   <PenLine size={14} /> 评审
                 </button>
