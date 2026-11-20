@@ -35,12 +35,14 @@
 
 | 平台 | 文件 |
 | --- | --- |
-| Windows | [hq-scifi.Setup.1.1.11.exe](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v1.1.11/hq-scifi.Setup.1.1.11.exe) |
-| Linux | [hq-scifi-1.1.11.AppImage](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v1.1.11/hq-scifi-1.1.11.AppImage)（无需安装，直接运行） |
-| Linux | [hq-scifi_1.1.11_amd64.deb](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v1.1.11/hq-scifi_1.1.11_amd64.deb)（Debian/Ubuntu 系） |
-| macOS | [hq-scifi-1.1.11-arm64.dmg](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v1.1.11/hq-scifi-1.1.11-arm64.dmg)（Apple Silicon，M 系列） |
-| macOS | [hq-scifi-1.1.11-x64.dmg](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v1.1.11/hq-scifi-1.1.11-x64.dmg)（Intel） |
+| Windows | [hq-scifi.Setup.1.1.12.exe](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v1.1.12/hq-scifi.Setup.1.1.12.exe) |
+| Linux | [hq-scifi-1.1.12.AppImage](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v1.1.12/hq-scifi-1.1.12.AppImage)（无需安装，直接运行） |
+| Linux | [hq-scifi_1.1.12_amd64.deb](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v1.1.12/hq-scifi_1.1.12_amd64.deb)（Debian/Ubuntu 系） |
+| macOS | [hq-scifi-1.1.12-arm64.dmg](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v1.1.12/hq-scifi-1.1.12-arm64.dmg)（Apple Silicon，M 系列） |
+| macOS | [hq-scifi-1.1.12-x64.dmg](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v1.1.12/hq-scifi-1.1.12-x64.dmg)（Intel） |
 
+> **v1.1.12**：**右栏重组与阅读体验**——顶栏右栏按钮拆为「设置」「文章」：设置栏固定 历史 / 消息 / 设置（设置内含 系统 / 界面 / 用户），文章栏按视图显示 目录 / 评论 / 评审 / 搜索，两栏各自记住上次页签；有未读通知时设置按钮显示铃铛 + 红点；移除左栏底部设置按钮与独立设置弹窗。新增阅读历史（右栏「历史」，上限 200 篇）；评审 / 评论 / 评审内评论的未提交草稿自动缓存并在切 tab、刷新、重启后恢复（保留 30 天，可一键丢弃）；左栏树形内容展开 / 收起加入 200ms 动画；左右栏拖动指示条统一。更新日志见 [doc/CHANGELOG.md](doc/CHANGELOG.md)。
+>
 > **v1.1.11**：**架构重构与行为收口**——主进程按 bootstrap / window / ipc / services / adapters / infra / domain 分层，IPC 按领域拆分（81 个 handler），共享契约与渲染层 feature / 通用 UI 目录落地；用户可见行为：启动始终进入推荐首页、评审面板默认“所有评审”、作品库默认评分排序、文件树右键与写作首页卡片支持重命名 / 移动、新建草稿纯空白、阅读页右栏默认关闭；登录仅需本应用《黄芪饮片用户协议》，**不再要求荒启平台用户协议**；修复密码框按 Enter 绕过协议直接登录的问题；新增 activity / lib / ipc-contracts 测试脚本。更新日志见 [doc/CHANGELOG.md](doc/CHANGELOG.md)。
 >
 > **v0.0.8**：**新增用户系统**——点击头像进入用户页（头像 / 昵称 / 等级 / UID / 粉丝 / 文章 / 评论 / 关注 / 介绍 / 主页背景），主页四栏与左栏子页（动态 / 收藏 / 粉丝 / 文章 / 评审 / 评论）；关注动态聚合、签到领能量币、统计直达子页、全应用头像入口打通；**统一落实投稿期 / 评稿期匿名与评分规则**（进行中 / 评审中活动的文章与评审在所有位置不暴露评分与作者名，服务端占位评论直接隐藏）。**v0.0.7**：**未登录也能直接使用**——本地写作 / 浏览栏目 / 匿名阅读公开文章不再被登录页挡住，登录改为覆盖层模态（左栏用户卡「点击登录」唤起）；**首启协议门**——首次启动（或协议更新）须阅读并勾选同意《黄芪饮片用户协议》才能进入；**启动时自动校验登录态**，token 失效自动丢弃并退回未登录（离线不误登出）；修复顶层评论发布必败（评论请求契约对齐）。**v0.0.6**：编辑器升级为**可视化编辑（milkdown 所见即所得）+ 源码**双模式，编辑栏重构（发布表单 / 元数据 frontmatter / 字数限制 / 楷体 / 插入公式·音乐·视频·图片）；右栏全局化并新增**全局搜索 / 替换**（Ctrl+F，Word 导航窗格版式）；远端文章可直接「**编辑**」「**转存为草稿**」拉到本地（写作闭环补齐）；搜索高亮与骨架屏等交互打磨；**新增 macOS 支持**（dmg + zip，x64 + arm64）。**v0.0.5**：写作体验大改——写作首页本地存档（文件夹组织 + 面包屑导航 + 按编辑时间/字数排序 + 摘要区居中 / 无摘要提示、删除移入系统回收站）、左栏递归文件树、文章配图随同步下载到本地并在发布时自动上传（`.image` 隐藏目录）；评审与评论卡片两行头部布局、评审态度 emoji 反应、评审评论并入评审卡片内嵌评论区；右栏收起展开动画、正文音乐不因边栏操作中断等；**v0.0.4**：无边框窗口与自绘顶栏（页面标题居中 / 窗口控件 / 返回列表）、左栏图标与折叠调宽、阅读页右栏 tab 化（目录 / 评论 / 评审）与评论-评审双向联动、互动悬浮按钮、写作首页本地存档、文章卡片统一高度、图片加载失败兜底等；**v0.0.3**：v0.0.2 样式改进交付（排序倒序 / 字数 / 并列排名、栏目首页、活动树与红点、评审「我的 / 所有评审」与编辑、拖动分栏、活动卡片统计等）；**v0.0.2**：修复 Windows 版无法打开界面的问题（Linux 交叉打包时原生模块 `better-sqlite3` 误打包为 Linux 版二进制，现自动注入 Windows 版 prebuild）。更新日志见 [doc/CHANGELOG.md](doc/CHANGELOG.md) 与 [Releases](https://github.com/Kide-Lee/HQ-SciFi/releases)。

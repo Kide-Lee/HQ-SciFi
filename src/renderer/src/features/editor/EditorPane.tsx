@@ -58,6 +58,7 @@ export function EditorPane(): React.JSX.Element {
   const panelOpen = useUiStore((s) => s.panelOpen)
   const panelTab = useUiStore((s) => s.panelTab)
   const setPanelTab = useUiStore((s) => s.setPanelTab)
+  const openPanelTab = useUiStore((s) => s.openPanelTab)
   // v0.0.7+：搜索词/正则/活动序号（与 SearchPanel 共享，驱动 WYSIWYG 装饰与源码高亮）
   const searchQuery = useUiStore((s) => s.searchQuery)
   const searchRegex = useUiStore((s) => s.searchRegex)
@@ -254,7 +255,7 @@ export function EditorPane(): React.JSX.Element {
   function jumpToEditorToc(idx: number): void {
     if (mode === 'split') {
       // 右栏同一时刻只渲染当前 tab：预览 tab 未激活时内容不在 DOM，先切过去再滚动
-      setPanelTab('preview')
+      openPanelTab('preview')
       setTimeout(() => {
         const scope = document.querySelector('.editor-pane .reader-panel .editor-preview-body')
         const el = scope?.querySelectorAll('h1,h2,h3,h4,h5,h6')[idx]

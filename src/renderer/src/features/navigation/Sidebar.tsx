@@ -14,7 +14,6 @@ import {
   Pencil,
   PenLine,
   RefreshCw,
-  Settings,
   Sparkles
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -27,6 +26,7 @@ import { sortActivities, activityPhase, ACTIVITY_PHASE_LABEL } from '../../lib/a
 import { isReviewDisabledCategoryName } from '../../lib/category'
 import type { ArticleRow, LocalNode, MetaInfo, RemoteArticle } from '../../../../shared/types'
 import { PromptModal } from '../../components/PromptModal'
+import { Collapse } from '../../components/Collapse'
 import { useContextMenu, type ContextMenuItem } from '../../components/menu/ContextMenu'
 import { useUserStore } from '../../stores/user'
 import type { UserPageTab } from '../../../../shared/types'
@@ -551,12 +551,16 @@ export function Sidebar(): React.JSX.Element {
               onContextMenu={(e) => handleTreeContextMenu(e, node)}
               title={node.path}
               style={{ paddingLeft: 22 + depth * 12 }}
+              aria-expanded={open}
             >
               {/* v0.0.6：展开箭头由 CSS 伪元素 ::before 绘制（不占流内宽度，目录名与文件名左边缘自然对齐） */}
               <span className="tree-dir-name">{node.name}</span>
             </button>
-            {open && node.children && (
-              <div className="tree-dir-children">{renderLocalTree(node.children, depth + 1)}</div>
+            {node.children && (
+              /* 文件夹展开/收起：高度过渡（内容在收起动画结束后卸载，深层目录仍按需渲染） */
+              <Collapse open={open}>
+                <div className="tree-dir-children">{renderLocalTree(node.children, depth + 1)}</div>
+              </Collapse>
             )}
           </div>
         )
@@ -773,27 +777,35 @@ export function Sidebar(): React.JSX.Element {
 
             {/* 本地存档 */}
             <div className="tree-group">
-              <button className="tree-group-title" onClick={() => toggleExpand('local')}>
+              <button
+                className="tree-group-title"
+                onClick={() => toggleExpand('local')}
+                aria-expanded={expanded.has('local')}
+              >
                 <ChevronRight size={12} className={`caret${expanded.has('local') ? ' open' : ''}`} /> 本地存档
               </button>
-              {expanded.has('local') && (
+              <Collapse open={expanded.has('local')}>
                 <div className="tree-group-body">
                   {localTree.length === 0 && <div className="tree-empty muted">（空目录，点「+ 新建草稿」开始）</div>}
                   {/* v0.0.6：本地存档递归文件树（文件夹可展开；.image 已在主进程过滤） */}
                   {renderLocalTree(localTree)}
                 </div>
-              )}
+              </Collapse>
             </div>
 
             {/* 远端四态 */}
             {REMOTE_GROUPS.map(({ key, label }) => (
               <div className="tree-group" key={key}>
-                <button className="tree-group-title" onClick={() => toggleExpand(key)}>
+                <button
+                  className="tree-group-title"
+                  onClick={() => toggleExpand(key)}
+                  aria-expanded={expanded.has(key)}
+                >
                   <ChevronRight size={12} className={`caret${expanded.has(key) ? ' open' : ''}`} />
                   {label}
                   {groups[key].length > 0 && <span className="count">{groups[key].length}</span>}
                 </button>
-                {expanded.has(key) && (
+                <Collapse open={expanded.has(key)}>
                   <div className="tree-group-body">
                     {groups[key].length === 0 && <div className="tree-empty muted">（暂无）</div>}
                     {groups[key].map((row) => {
@@ -814,7 +826,7 @@ export function Sidebar(): React.JSX.Element {
                       )
                     })}
                   </div>
-                )}
+                </Collapse>
               </div>
             ))}
           </div>
@@ -839,11 +851,12 @@ export function Sidebar(): React.JSX.Element {
                   <button
                     className="tree-group-title"
                     onClick={() => toggleExpand(`serial:${g.type}`)}
+                    aria-expanded={expanded.has(`serial:${g.type}`)}
                   >
                     <ChevronRight size={12} className={`caret${expanded.has(`serial:${g.type}`) ? ' open' : ''}`} /> {g.label}
                     {has && <span className="count">{metas!.length}</span>}
                   </button>
-                  {expanded.has(`serial:${g.type}`) && (
+                  <Collapse open={expanded.has(`serial:${g.type}`)}>
                     <div className="tree-group-body">
                       {!has && <div className="tree-empty muted">（加载中 …）</div>}
                       {has &&
@@ -858,7 +871,7 @@ export function Sidebar(): React.JSX.Element {
                           </button>
                         ))}
                     </div>
-                  )}
+                  </Collapse>
                 </div>
               )
             })}
@@ -882,6 +895,7 @@ export function Sidebar(): React.JSX.Element {
                     className={`tree-group-title ${selectedId === m.name ? 'active' : ''}`}
                     onClick={() => toggleActivity(m)}
                     title={m.description || m.name}
+                    aria-expanded={expanded.has(`active:${midKey}`)}
                   >
                     <ChevronRight size={12} className={`caret${expanded.has(`active:${midKey}`) ? ' open' : ''}`} />
                     <span className="tree-group-label">{m.name}</span>
@@ -891,7 +905,7 @@ export function Sidebar(): React.JSX.Element {
                       {phaseLabel && <span className={`activity-badge phase-${phase}`}>{phaseLabel}</span>}
                     </span>
                   </button>
-                  {expanded.has(`active:${midKey}`) && (
+                  <Collapse open={expanded.has(`active:${midKey}`)}>
                     <div className="tree-group-body">
                       {loading && <div className="tree-empty muted">（加载中 …）</div>}
                       {!loading && articles.length === 0 && (
@@ -922,7 +936,7 @@ export function Sidebar(): React.JSX.Element {
                         )
                       })}
                     </div>
-                  )}
+                  </Collapse>
                 </div>
               )
             })}
@@ -943,16 +957,6 @@ export function Sidebar(): React.JSX.Element {
         )}
         </>
         )}
-      </div>
-
-      <div className="sidebar-bottom">
-        <button
-          className="settings-btn"
-          title="设置（颜色/字号/字体）"
-          onClick={() => useUiStore.getState().openSettings()}
-        >
-          <Settings size={14} /> <span>设置</span>
-        </button>
       </div>
 
       {/* v0.0.8：新建草稿弹窗（替代 window.prompt，Electron 渲染进程不支持） */}

@@ -4,7 +4,6 @@ import { MainArea } from './components/MainArea'
 import { TopBar } from './components/TopBar'
 import { LoginView } from './components/LoginView'
 import { FirstRunAgreement } from './components/FirstRunAgreement'
-import { SettingsModal } from './components/SettingsModal'
 import { UpdateBanner } from './components/UpdateBanner'
 import { PrivateChatModal } from './components/PrivateChatModal'
 import { ContextMenuHost } from './components/menu/ContextMenu'
@@ -101,7 +100,6 @@ export default function App(): React.JSX.Element {
         </div>
       </div>
       <UpdateBanner />
-      <SettingsModal />
       {loginOpen && <LoginView />}
       <PrivateChatModal />
       {/* v1.1.12：全局唯一的右键菜单宿主（文件树/编辑器/阅读正文共用） */}

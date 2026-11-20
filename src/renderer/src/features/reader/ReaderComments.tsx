@@ -8,6 +8,9 @@ import { SkeletonComment } from '../../components/Skeletons'
 import { UserLevelBadge } from '../../components/UserLevelBadge'
 import { useContextMenu, type ContextMenuItem } from '../../components/menu/ContextMenu'
 import { readSelection, toQuoteLine } from '../../lib/selection'
+import { isEmptyCommentDraft, readCommentDraft, type CommentDraft } from '../../lib/draftCache'
+import { DraftRestoredHint } from './DraftRestoredHint'
+import { useDraftSync } from './useDraftSync'
 import type { CommentItem } from '../../../../shared/types'
 
 /**
@@ -64,20 +67,70 @@ export function CommentSection({ cid }: { cid: string }): React.JSX.Element {
 
   const session = useAuthStore((s) => s.session)
   const loggedIn = !!session
+  const uid = String(session?.userinfo?.uid ?? '')
 
-  const [draft, setDraft] = useState('')
-  const [replyTo, setReplyTo] = useState<CommentItem | null>(null)
+  // v1.1.12：未提交的评论草稿（正文 + 回复目标）按「账号 + 文章」缓存，离开/刷新后恢复
+  const draftRef = { kind: 'comment' as const, uid, cid }
+  const [restored] = useState<CommentDraft | null>(() => readCommentDraft(draftRef))
+  const [draft, setDraft] = useState(restored?.text ?? '')
+  /**
+   * 回复目标只留 coid + 显示名：不持有评论对象，评论列表重拉（发表后 loadComments）
+   * 或翻页都不会把回复对象弄丢，提交时 parent 始终有效。
+   */
+  const [replyTo, setReplyTo] = useState<{ coid: string; author: string } | null>(
+    restored && restored.parent ? { coid: restored.parent, author: restored.parentAuthor } : null
+  )
   const [localErr, setLocalErr] = useState<string | null>(null)
+  const [hintDismissed, setHintDismissed] = useState(false)
   const replyBoxRef = useRef<HTMLTextAreaElement | null>(null)
   // v0.0.8.5：已收起深层评论的第一层评论 coid 集合
   const [collapsedSubs, setCollapsedSubs] = useState<Set<string>>(new Set())
+
+  const draftValue = useMemo(
+    () => ({ text: draft, parent: replyTo?.coid ?? '', parentAuthor: replyTo?.author ?? '' }),
+    [draft, replyTo]
+  )
+  const forgetDraft = useDraftSync({
+    ref: draftRef,
+    value: draftValue,
+    isEmpty: isEmptyCommentDraft,
+    enabled: loggedIn && cid !== ''
+  })
+  const showRestoredHint =
+    restored !== null && !hintDismissed && JSON.stringify(draftValue) === JSON.stringify(restored)
+
+  /** 选中回复目标（只保留 coid + 显示名） */
+  function replyToComment(c: CommentItem): void {
+    setReplyTo({
+      coid: String(c.coid),
+      author: anonymousAuthorDisplayName(detail, c.authorId, c.author || '匿名')
+    })
+  }
+
+  /** 丢弃恢复出来的草稿（正文与回复目标一并清空） */
+  function discardDraft(): void {
+    forgetDraft()
+    setDraft('')
+    setReplyTo(null)
+    setHintDismissed(true)
+  }
+
+  // v1.1.12：恢复出来的多行草稿在挂载时按内容撑高（autoGrow 原本只在 onChange 时触发）
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => {
+      const ta = replyBoxRef.current
+      // 右栏收起时宽度为 0，scrollHeight 会被逐字换行撑爆，此时不测量
+      if (ta && ta.value && ta.clientWidth > 0) autoGrow(ta)
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [])
 
   // v0.0.8.7：首页「最新讨论」点回复普通评论 → 自动选中目标评论并聚焦回复框
   useEffect(() => {
     if (!target?.replyCommentId || target.reviewId) return
     const c = comments.find((item) => String(item.coid) === String(target.replyCommentId))
     if (!c) return
-    setReplyTo(c)
+    replyToComment(c)
     // preventScroll：聚焦不抢滚动；这里自己负责定位到目标评论，避免与父级深链 effect 的执行顺序耦合
     replyBoxRef.current?.focus({ preventScroll: true })
     const el = document.querySelector(`.reader-panel [data-coid="${CSS.escape(String(target.replyCommentId))}"]`)
@@ -131,6 +184,8 @@ export function CommentSection({ cid }: { cid: string }): React.JSX.Element {
     setLocalErr(null)
     const ok = await submitComment({ cid, text, parent: replyTo?.coid })
     if (ok) {
+      // 发表成功：立刻清掉草稿（列表重拉/组件卸载都可能发生，不能依赖 effect 收尾）
+      forgetDraft()
       setDraft('')
       setReplyTo(null)
     }
@@ -138,7 +193,7 @@ export function CommentSection({ cid }: { cid: string }): React.JSX.Element {
 
   /** v1.1.12：右键「引用到回复框」——选中回复对象，并把引用文字补进草稿（保留已输入内容） */
   function quoteIntoReply(comment: CommentItem): void {
-    setReplyTo(comment)
+    replyToComment(comment)
     const line = toQuoteLine(comment.text ?? '')
     setDraft((d) => (d.trim() ? `${d.trimEnd()}\n${line}` : line))
     requestAnimationFrame(() => {
@@ -195,7 +250,7 @@ export function CommentSection({ cid }: { cid: string }): React.JSX.Element {
             <div key={String(c.coid)} className="comment-item" data-coid={String(c.coid)}>
               <CommentCard
                 comment={c}
-                onReply={() => setReplyTo(c)}
+                onReply={() => replyToComment(c)}
                 onQuote={loggedIn ? () => quoteIntoReply(c) : undefined}
               />
               {subs.length > 0 && (
@@ -215,7 +270,7 @@ export function CommentSection({ cid }: { cid: string }): React.JSX.Element {
                         <div key={String(sub.coid)} className="comment-item comment-sub" data-coid={String(sub.coid)}>
                           <CommentCard
                             comment={sub}
-                            onReply={() => setReplyTo(sub)}
+                            onReply={() => replyToComment(sub)}
                             onQuote={loggedIn ? () => quoteIntoReply(sub) : undefined}
                             // 回复的是第一层评论 → 父就在上方，隐藏引用文本
                             hideParentQuote={String(sub.parent) === String(c.coid)}
@@ -240,16 +295,13 @@ export function CommentSection({ cid }: { cid: string }): React.JSX.Element {
       {/* v0.0.6：未登录不显示发表框，改为登录提示 */}
       {loggedIn ? (
         <form className="comment-form" onSubmit={(e) => void handleSubmit(e)}>
+          {showRestoredHint && <DraftRestoredHint onDiscard={discardDraft} />}
           <textarea
             ref={replyBoxRef}
             className="comment-input"
             rows={3}
             value={draft}
-            placeholder={
-              replyTo
-                ? `回复 @${anonymousAuthorDisplayName(detail, replyTo.authorId, replyTo.author || '匿名')}`
-                : '写下你的评论…'
-            }
+            placeholder={replyTo ? `回复 @${replyTo.author}` : '写下你的评论…'}
             onChange={(e) => {
               setDraft(e.target.value)
               setLocalErr(null)

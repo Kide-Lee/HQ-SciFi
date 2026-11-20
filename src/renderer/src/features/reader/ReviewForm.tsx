@@ -5,21 +5,40 @@ import { toQuoteLine } from '../../lib/selection'
 import { REVIEW_ORDERS, useReaderStore } from '../../stores/reader'
 import { useAuthStore } from '../../stores/auth'
 import { useUiStore } from '../../stores/ui'
+import {
+  DEFAULT_REVIEW_SCORE,
+  emptyReviewDraft,
+  isEmptyReviewDraft,
+  readReviewDraft,
+  sameReviewDraft,
+  type ReviewDraft
+} from '../../lib/draftCache'
+import { DraftRestoredHint } from './DraftRestoredHint'
+import { useDraftSync } from './useDraftSync'
 import type { CommentItem, ReviewItem, ReviewPayload } from '../../../../shared/types'
 
-export function emptyForm() {
+export function emptyForm(): ReviewDraft {
+  return emptyReviewDraft()
+}
+
+/**
+ * v1.1.12：编辑模式——已有评审 → 表单值。
+ * 同时充当草稿「基线」：表单与它一致即视为「没有未提交的修改」，不写草稿。
+ */
+export function formFromReview(initial: ReviewItem): ReviewDraft {
+  const parts = parseScoreParts(initial.score)
   return {
-    dianzi: '',
-    wenbi: '',
-    renwu: '',
-    jiezou: '',
-    liyi: '',
-    zonghe: '',
-    dianziScore: 5,
-    wenbiScore: 5,
-    renwuScore: 5,
-    jiezouScore: 5,
-    liyiScore: 5
+    dianzi: initial.dianzi ?? '',
+    wenbi: initial.wenbi ?? '',
+    renwu: initial.renwu ?? '',
+    jiezou: initial.jiezou ?? '',
+    liyi: initial.liyi ?? '',
+    zonghe: initial.zonghe ?? '',
+    dianziScore: parts ? parts[0] : DEFAULT_REVIEW_SCORE,
+    wenbiScore: parts ? parts[1] : DEFAULT_REVIEW_SCORE,
+    renwuScore: parts ? parts[3] : DEFAULT_REVIEW_SCORE,
+    jiezouScore: parts ? parts[2] : DEFAULT_REVIEW_SCORE,
+    liyiScore: parts ? parts[4] : DEFAULT_REVIEW_SCORE
   }
 }
 
@@ -46,25 +65,33 @@ export function ReviewForm({
   /** 编辑模式下的「退回评审展示」按钮（v0.0.2） */
   onCancel?: () => void
 }): React.JSX.Element {
-  const [form, setForm] = useState(() => {
-    const base = emptyForm()
-    if (!initial) return base
-    const parts = parseScoreParts(initial.score)
-    return {
-      dianzi: initial.dianzi ?? '',
-      wenbi: initial.wenbi ?? '',
-      renwu: initial.renwu ?? '',
-      jiezou: initial.jiezou ?? '',
-      liyi: initial.liyi ?? '',
-      zonghe: initial.zonghe ?? '',
-      dianziScore: parts ? parts[0] : 5,
-      wenbiScore: parts ? parts[1] : 5,
-      renwuScore: parts ? parts[3] : 5,
-      jiezouScore: parts ? parts[2] : 5,
-      liyiScore: parts ? parts[4] : 5
-    }
-  })
+  const uid = String(useAuthStore((s) => s.session?.userinfo?.uid ?? ''))
+  // v1.1.12：草稿定位——新评审用 new、编辑用 edit:<评审 id>，两者互不覆盖
+  const draftRef = { kind: 'review' as const, uid, cid, sub: initial ? `edit:${initial.id}` : 'new' }
+  /** 草稿基线：与它一致即视为「没有未提交的修改」（编辑态=已有评审原文） */
+  const baseline = useMemo(() => (initial ? formFromReview(initial) : emptyForm()), [initial])
+  /** 挂载时恢复的未提交草稿（提示条只在内容保持原样时展示） */
+  const [restored] = useState<ReviewDraft | null>(() => readReviewDraft(draftRef))
+  const [form, setForm] = useState<ReviewDraft>(() => restored ?? baseline)
   const [formError, setFormError] = useState<string | null>(null)
+  const [hintDismissed, setHintDismissed] = useState(false)
+
+  // v1.1.12：未提交的评审即时写入草稿缓存；提交成功后 forgetDraft 清除
+  const forgetDraft = useDraftSync({
+    ref: draftRef,
+    value: form,
+    isEmpty: (f) => (initial ? sameReviewDraft(f, baseline) : isEmptyReviewDraft(f)),
+    enabled: cid !== ''
+  })
+  const showRestoredHint =
+    restored !== null && !hintDismissed && JSON.stringify(form) === JSON.stringify(restored)
+
+  /** 丢弃恢复出来的草稿，回到空白/已有评审原文 */
+  function discardDraft(): void {
+    forgetDraft()
+    setForm(baseline)
+    setHintDismissed(true)
+  }
 
   // v1.1.12：正文「引用到评审」——把选中文字（单行引用）追加到「综合评价」，消费后清空
   const pendingQuote = useReaderStore((s) => s.pendingReviewQuote)
@@ -123,14 +150,15 @@ export function ReviewForm({
       liyiScore: Number(form.liyiScore),
       id: initial?.id
     })
-    if (ok && initial) {
-      // 编辑保存成功后退出编辑态由父组件处理（父组件持有编辑态）
-    }
+    // 提交成功后立刻清掉草稿：父组件可能在同一批次里卸载本表单（如保存后退出编辑态），
+    // 不能依赖 effect 收尾，否则下次进来会把刚提交的内容当成「未提交草稿」恢复
+    if (ok) forgetDraft()
   }
 
   return (
     <div className="review-form">
       <h4>{initial ? '编辑你的评审' : '发表你的评审'}</h4>
+      {showRestoredHint && <DraftRestoredHint onDiscard={discardDraft} />}
       {dims.map((d) => (
         <div key={d.key} className="review-form-dim">
           <div className="review-form-row">
