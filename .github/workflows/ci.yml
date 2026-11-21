@@ -138,27 +138,34 @@ jobs:
           set -o pipefail
           cargo check --manifest-path src-tauri/Cargo.toml --all-targets 2>&1 | tee "$RUNNER_TEMP/check.log"
 
-      - name: 诊断（仅失败时：把编译错误推到 ci-logs 分支）
-        if: steps.shell_check.outcome == 'failure'
+      # 把 cargo 输出与结论回写到 `ci-logs` 分支（always）：本机沙箱只有 api.github.com 可达、
+      # 且有 60 次/小时的匿名限额，抓不到 Actions 日志时可以直接 `git ls-remote` 看结论。
+      - name: 状态回写（ci-logs 分支）
+        if: always()
         run: |
           mkdir -p "$RUNNER_TEMP/diag"
-          {
-            echo "# ci 壳层编译错误"
-            echo
-            echo "- commit: $GITHUB_SHA"
-            echo "- run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-            echo
-            echo '```'
-            cat "$RUNNER_TEMP/check.log"
-            echo '```'
-          } > "$RUNNER_TEMP/diag/README.md"
           cd "$RUNNER_TEMP/diag"
           git init -q
           git checkout -q -b ci-logs
           git config user.name "ci"
           git config user.email "ci@users.noreply.github.com"
-          git add -A
-          git commit -qm "ci: shell check errors for $GITHUB_SHA"
+          {
+            echo "# 壳层 cargo check"
+            echo
+            echo "- commit: $GITHUB_SHA"
+            echo "- outcome: ${{ steps.shell_check.outcome }}"
+            echo "- run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo
+            echo '```'
+            if [ -f "$RUNNER_TEMP/check.log" ]; then
+              tail -c 200000 "$RUNNER_TEMP/check.log"
+            else
+              echo "(cargo check 未执行，无输出)"
+            fi
+            echo '```'
+          } > README.md
+          git add README.md
+          git commit -qm "ci: shell check ${{ steps.shell_check.outcome }} for $GITHUB_SHA"
           git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci-logs
 
       # 把失败状态传递下去（continue-on-error 只是为了让「诊断」步骤有机会跑）。
