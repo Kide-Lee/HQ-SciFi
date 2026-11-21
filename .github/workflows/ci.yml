@@ -173,12 +173,104 @@ jobs:
         if: steps.shell_check.outcome == 'failure'
         run: exit 1
 
-  # 汇总三个 job 的结论并推到 `ci-status` 分支：本机只有 api.github.com（且匿名限额 60/h），
+  # 启动冒烟：把 Tauri 应用在 Linux runner 上真的跑起来（本机没有 WebKitGTK，只能在这里证明）。
+  smoke:
+    name: 启动冒烟（Xvfb）
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Linux 系统依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
+            librsvg2-dev patchelf pkg-config xvfb xdotool dbus-x11
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "src-tauri -> target"
+
+      - name: 安装前端依赖
+        run: npm ci
+
+      - name: 构建渲染层
+        run: npm run build
+
+      - name: 准备 api.config.json（CI 兜底）
+        shell: bash
+        run: |
+          if [ ! -f api.config.json ]; then
+            cp api.config.example.json api.config.json
+            echo "::warning::未提供正式 api.config.json，冒烟用示例地址"
+          fi
+
+      - run: node src-tauri/scripts/gen-tauri-commands.mjs --write
+
+      - run: node src-tauri/scripts/prepare-resources.mjs
+
+      - name: 安装 tauri-cli
+        run: cargo install tauri-cli --version "^2" --locked
+
+      - name: 构建（不打包，只要可执行文件）
+        working-directory: src-tauri
+        run: cargo tauri build --no-bundle
+
+      - name: 启动冒烟
+        id: smoke_check
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          export HOME="$RUNNER_TEMP/apphome"
+          mkdir -p "$HOME"
+          xvfb-run -a -s "-screen 0 1280x800x24" \
+            dbus-run-session -- bash scripts/smoke-tauri.sh 2>&1 | tee "$RUNNER_TEMP/smoke.log"
+
+      # 冒烟失败时的可读输出（日志接口要 admin，只能回写到分支）。
+      - name: 回写冒烟日志
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/smoke-status" && cd "$RUNNER_TEMP/smoke-status"
+          git init -q && git checkout -q -b smoke-logs
+          git config user.name "ci"
+          git config user.email "ci@users.noreply.github.com"
+          {
+            echo "# 启动冒烟"
+            echo
+            echo "- commit: $GITHUB_SHA"
+            echo "- outcome: ${{ steps.smoke_check.outcome }}"
+            echo "- run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo
+            echo '```'
+            if [ -f "$RUNNER_TEMP/smoke.log" ]; then
+              tail -c 200000 "$RUNNER_TEMP/smoke.log"
+            else
+              echo "(冒烟未产生输出)"
+            fi
+            echo '```'
+          } > README.md
+          git add README.md
+          git commit -qm "ci: smoke ${{ steps.smoke_check.outcome }} for $GITHUB_SHA"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" smoke-logs
+
+      - name: 失败传递
+        if: steps.smoke_check.outcome == 'failure'
+        run: exit 1
+
+  # 汇总三层闸门 + 冒烟的结论并推到 `ci-status` 分支：本机只有 api.github.com（且匿名限额 60/h），
   # Actions 日志接口要 admin，所以用 `git ls-remote origin ci-status` + commit message 读结论。
   # 壳层 cargo 输出详情仍在 `ci-logs` 分支（shell job 自己回写）。
   status:
     name: 汇总状态（回写 ci-status 分支）
-    needs: [core, tsc, shell]
+    needs: [core, tsc, shell, smoke]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -195,10 +287,11 @@ jobs:
             echo "- core: ${{ needs.core.result }}"
             echo "- tsc: ${{ needs.tsc.result }}"
             echo "- shell: ${{ needs.shell.result }}"
+            echo "- smoke: ${{ needs.smoke.result }}"
             echo "- run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           } > README.md
           git add README.md
-          git commit -qm "ci: core=${{ needs.core.result }} tsc=${{ needs.tsc.result }} shell=${{ needs.shell.result }} for ${GITHUB_SHA:0:7}"
+          git commit -qm "ci: core=${{ needs.core.result }} tsc=${{ needs.tsc.result }} shell=${{ needs.shell.result }} smoke=${{ needs.smoke.result }} for ${GITHUB_SHA:0:7}"
           git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci-status
 
   # 三平台出包在 release.yml（tag 触发），CI 不跑，省时间。
