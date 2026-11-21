@@ -257,7 +257,7 @@ node_modules/.bin/tsc --noEmit -p tsconfig.node.json
 - 产物先 `upload-artifact`、再统计体积：首轮（`d05c3f2`）三平台**打包本身全部成功**，却被我写在后面的 `du` 统计步骤判成失败（步骤顺序问题），所以统计改成 `continue-on-error`。
 - 结论回写 `release-status` 分支（含各平台产物大小）：Actions 日志接口要 admin、`raw.githubusercontent.com` 不可达，只有 git 协议稳定可读。
 
-实测体积（run 44884693708，commit `3251c68`，单平台除 macOS 均为原生 runner）：
+实测体积（run 44887380550，commit `f763510`）：
 
 | 产物 | Tauri 2.0.0 | Electron 1.2.13 | 变化 |
 | --- | --- | --- | --- |
@@ -272,7 +272,7 @@ node_modules/.bin/tsc --noEmit -p tsconfig.node.json
 1. **AppImage 只小了 30%**：Tauri 的 AppImage 仍是自包含 rootfs（二进制 + 资源 + KaTeX/turndown 等），而 Electron 那 124 MB 里大头也是它自带的 Chromium。真正的量级差主要体现在 deb/NSIS/dmg 这类「只装应用本体」的格式上。
 2. **Linux 不再自包含渲染引擎**：deb/AppImage 依赖系统 `libwebkit2gtk-4.1`，与 1.x「拷过去就能跑」不同；这是体积收益的代价，需在下载页写明依赖。
 
-状态：**四类产物全部构建成功并上传**（run 44886779679，commit `f2c8b90`）：Linux deb/AppImage、Windows NSIS、macOS arm64 与 x64 dmg。macOS 的 x64 由 arm64 runner 用 `cargo tauri build --target x86_64-apple-darwin` 交叉产出（`macos-13` 这类 Intel runner 已排不到队，改为交叉编译更稳）。**仍未验证**：安装/首次启动/签名/公证/自动更新源。
+状态：**四类产物全部构建成功并上传**（run 44887380550，commit `f763510`；首次四平台全绿为 run 44886779679）：Linux deb/AppImage、Windows NSIS、macOS arm64 与 x64 dmg。macOS 的 x64 由 arm64 runner 用 `cargo tauri build --target x86_64-apple-darwin` 交叉产出（`macos-13` 这类 Intel runner 已排不到队，改为交叉编译更稳）。**仍未验证**：安装/首次启动/签名/公证/自动更新源。
 
 ---
 
