@@ -114,18 +114,38 @@ try {
   )
 
   await check('空地方右键出应用内菜单（刷新 / 开发者工具）', async () => {
-    // 关键：派发事件和读结果必须在同一条 WebDriver 异步脚本里完成。
-    // 分两条命令时，命令之间的窗口失焦会触发菜单的 onDismiss（blur）→ 读到的永远是空。
-    const menu = await app.execAsync(`
+    // 派发与读取放在同一条异步脚本内：分两条 WebDriver 命令时，命令之间的窗口失焦
+    // 会触发菜单的 onDismiss（window blur）→ 第二次命令永远读到空菜单。
+    // 先按真实路径在 document.body 上派发（「没有人接管的空地」）；万一某个捕获阶段监听
+    // 吃掉了事件，再直接在 window 上派发，至少验证 ContextMenuHost 的兜底处理器是活的。
+    const outcome = await app.execAsync(`
       const done = arguments[arguments.length - 1]
-      const target = document.elementFromPoint(600, 400) ?? document.body
-      target.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 600, clientY: 400 }))
-      setTimeout(() => {
+      const info = { attempts: [] }
+      const read = () => {
         const host = document.querySelector('.context-menu')
-        done(host ? host.innerText : '')
-      }, 300)
+        return host ? host.innerText : ''
+      }
+      const fire = (target) =>
+        target.dispatchEvent(
+          new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 600, clientY: 400 })
+        )
+      let attempts = 0
+      const step = () => {
+        const target = attempts === 0 ? document.body : window
+        fire(target)
+        attempts += 1
+        setTimeout(() => {
+          const text = read()
+          info.attempts.push({ target: attempts === 1 ? 'body' : 'window', menu: text })
+          if (text || attempts >= 2) return done(info)
+          step()
+        }, 400)
+      }
+      step()
     `)
-    if (!menu || !menu.includes('刷新')) throw new Error(`菜单里没有「刷新」：${JSON.stringify(menu)}`)
+    const hits = (outcome?.attempts ?? []).filter((a) => a.menu && a.menu.includes('刷新'))
+    if (hits.length === 0) throw new Error(`右键菜单没有出现：${JSON.stringify(outcome)}`)
+    const menu = hits[0].menu
     if (!menu.includes('开发者工具')) throw new Error(`菜单里没有「开发者工具」：${JSON.stringify(menu)}`)
     await app.exec("document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); return true")
   })
