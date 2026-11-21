@@ -258,7 +258,14 @@ node_modules/.bin/tsc --noEmit -p tsconfig.node.json
 - 产物先 `upload-artifact`、再统计体积：首轮（`d05c3f2`）三平台**打包本身全部成功**，却被我写在后面的 `du` 统计步骤判成失败（步骤顺序问题），所以统计改成 `continue-on-error`。
 - 结论回写 `release-status` 分支（含各平台产物大小）：Actions 日志接口要 admin、`raw.githubusercontent.com` 不可达，只有 git 协议稳定可读。
 
-实测体积（run 44887380550，commit `f763510`）：
+产物自检（`scripts/verify-bundles.mjs`，每个平台构建后立刻跑，run 44889638130 起生效）：
+
+- Linux：deb 的 `Version` 前缀与 `tauri.conf.json` 一致、`Depends` 必须含 `webkit2gtk-4.1` 且不得出现 `4.0`、deb 内含三个打包资源与 `/bin/<productName>`、AppImage 有可执行位且不小于 20 MB（太小说明没打进运行时）。
+- Windows：NSIS 安装包的 `ProductVersion` 必须是当前版本（读 `VersionInfo`）。
+- macOS：挂载 dmg → 读 `.app/Contents/Info.plist` 的 `CFBundleIdentifier`（必须 `com.huangqisf.client`）与 `CFBundleShortVersionString`，并检查 `Contents/Resources` 下三个资源 → 卸载。
+- 打 tag 时额外断言 `RELEASE_TAG` 与 `version` 一致，专门防「改了 Cargo.toml 忘了改 tauri.conf.json」这种版本漂移；本机跑（无产物时应报「没有找到 .deb 产物」）已验证脚本行为。
+
+实测体积（run 44889638130，commit `4deb9d7`，2.0.14）：
 
 | 产物 | Tauri 2.0.14 | Electron 1.2.13 | 变化 |
 | --- | --- | --- | --- |
