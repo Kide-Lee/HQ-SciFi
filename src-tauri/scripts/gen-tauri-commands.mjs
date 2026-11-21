@@ -688,6 +688,8 @@ function buildFile() {
     ...generated.map((g) => g.fnName),
     // 页面内 Ctrl+F12 的接收端（手写在 dispatch.rs，不是契约通道）。
     'crate::dispatch::__hqsf_toggle_devtools',
+    // 渲染层 console/异常转发（手写在 dispatch.rs，不是契约通道）。
+    'crate::dispatch::__hqsf_log',
   ];
   const register = [
     '',
@@ -748,6 +750,9 @@ if (verify) {
   }
   if (!file.includes('        crate::dispatch::__hqsf_toggle_devtools,')) {
     problems.push('register() 缺内部命令 __hqsf_toggle_devtools');
+  }
+  if (!file.includes('        crate::dispatch::__hqsf_log,')) {
+    problems.push('register() 缺内部命令 __hqsf_log');
   }
 
   for (const channel of channels) {

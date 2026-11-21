@@ -168,6 +168,54 @@ pub fn __hqsf_toggle_devtools(state: State<'_, AppState>) -> HqsfResult<()> {
     Ok(())
 }
 
+/// 渲染层日志文件上限（超过后滚动成 `renderer.log.1`，只保留一份备份）。
+const RENDERER_LOG_MAX_BYTES: u64 = 1_048_576;
+/// 单条日志最多保留的字符数（避免一条超长 message 把文件顶爆）。
+const RENDERER_LOG_LINE_MAX_CHARS: usize = 2_000;
+
+/// 内部命令：接收渲染层 `console.*` 与未捕获异常，追加到 `<data_dir>/logs/renderer.log`。
+///
+/// 为什么需要它：release 包默认不编译 `devtools` feature，用户机器上看不到 console；
+/// 有了这个文件，用户报「某处白屏/报错」时可以直接把日志发回来（等价于 1.x 里
+/// 让用户开 devtools 复制控制台）。渲染层由 `lib.rs` 注入的 `CONSOLE_FORWARD_JS` 调用，
+/// 壳层只落盘、不做任何判断；写盘失败也不影响页面（渲染层侧已 try/catch）。
+#[tauri::command]
+pub fn __hqsf_log(level: String, message: String, state: State<'_, AppState>) -> HqsfResult<()> {
+    use std::io::Write;
+
+    let dir = state.core.paths.data_dir.join("logs");
+    std::fs::create_dir_all(&dir)
+        .map_err(|e| HqsfError(CoreError::app(format!("创建日志目录失败：{e}"))))?;
+    let path = dir.join("renderer.log");
+    if let Ok(meta) = std::fs::metadata(&path) {
+        if meta.len() > RENDERER_LOG_MAX_BYTES {
+            let _ = std::fs::rename(&path, dir.join("renderer.log.1"));
+        }
+    }
+
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let mut line = format!("[{ts}] {level} ");
+    line.extend(
+        message
+            .chars()
+            .take(RENDERER_LOG_LINE_MAX_CHARS)
+            .map(|c| if c == '\n' || c == '\r' { ' ' } else { c }),
+    );
+    line.push('\n');
+
+    let mut file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+        .map_err(|e| HqsfError(CoreError::app(format!("打开渲染层日志失败：{e}"))))?;
+    file.write_all(line.as_bytes())
+        .map_err(|e| HqsfError(CoreError::app(format!("写入渲染层日志失败：{e}"))))?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
