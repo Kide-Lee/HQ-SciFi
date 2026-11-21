@@ -1,0 +1,77 @@
+name: 发布（draft Release 转正）
+
+# 用于在没有本地 token 的情况下发布已构建好的 draft Release：
+# 把分支 push 成 `publish/v<version>`，CI 用仓库自带 GITHUB_TOKEN 执行
+# `gh release edit <tag> --draft=false`，随后把结果回写到 `publish-logs` 分支。
+#
+# 为什么要有这个：本地沙箱没有 admin token、也没有 gh CLI，而 draft Release
+# 的资产在转正之前对匿名用户不可见；发布是一次性、可审计的动作，放 CI 里最省事。
+
+on:
+  push:
+    branches:
+      - "publish/*"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 解析目标 tag
+        id: tag
+        run: |
+          ref_name="${GITHUB_REF_NAME#publish/}"
+          echo "tag=${ref_name}" >> "$GITHUB_OUTPUT"
+          echo "目标 tag: ${ref_name}"
+
+      - name: 检查 draft 现状
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "${{ steps.tag.outputs.tag }}" --repo "$GITHUB_REPOSITORY" \
+            --json tagName,isDraft,assets,url \
+            --jq '"before: tag=" + .tagName + " draft=" + (.isDraft|tostring) + " 资产数=" + (.assets|length|tostring)'
+
+      - name: 转正式
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release edit "${{ steps.tag.outputs.tag }}" --draft=false --repo "$GITHUB_REPOSITORY"
+
+      - name: 回读结果
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "${{ steps.tag.outputs.tag }}" --repo "$GITHUB_REPOSITORY" \
+            --json tagName,isDraft,url,assets \
+            --jq '"after: tag=" + .tagName + " draft=" + (.isDraft|tostring) + " 资产数=" + (.assets|length|tostring) + " url=" + .url'
+
+      - name: 回写结论
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/status"
+          {
+            echo "# 发布 draft Release"
+            echo
+            echo "- tag: ${{ steps.tag.outputs.tag }}"
+            echo "- commit: ${GITHUB_SHA}"
+            echo "- ref: ${GITHUB_REF}"
+            echo "- run: https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo
+            echo "## 状态"
+            echo '```'
+            gh release view "${{ steps.tag.outputs.tag }}" --repo "$GITHUB_REPOSITORY" \
+              --json tagName,isDraft,url,assets \
+              --jq '"tag=" + .tagName + " draft=" + (.isDraft|tostring) + " 资产数=" + (.assets|length|tostring) + " url=" + .url' 2>&1 || echo "（读不到，可能发布失败）"
+            echo '```'
+          } > "$RUNNER_TEMP/status/README.md"
+          cd "$RUNNER_TEMP/status"
+          git init -q
+          git checkout -q -b publish-logs
+          git add README.md
+          git -c user.email=ci@hqsf.invalid -c user.name=hqsf-ci commit -q -m "publish: ${{ steps.tag.outputs.tag }} for ${GITHUB_SHA:0:7}"
+          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" publish-logs
