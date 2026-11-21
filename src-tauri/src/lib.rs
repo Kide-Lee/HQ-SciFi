@@ -493,9 +493,18 @@ fn create_main_window(app: &AppHandle) -> anyhow::Result<WebviewWindow> {
             }
             NewWindowResponse::Deny
         })
-        // 1.x 的安全不变式：主框架只允许留在应用自身 origin，外链一律外部打开。
+        // 1.x 的安全不变式：只允许留在应用自身 origin，外链一律外部打开。
+        //
+        // 注意：wry 的 `decide-policy` 回调（`PolicyDecisionType::NavigationAction`）**不区分
+        // 主框架与子框架**，阅读正文里的 `<iframe>`（网易云 / QQ 音乐 / B 站嵌入播放器）
+        // 首次导航也会走这里；若一律 `false`，播放器位置就是「一块透明空白」。
+        // 所以对三个播放器端点开一个极窄白名单（判定在内核 `domain::embed`）：
+        // 只放行播放器页面本身，播放器内部点出来的普通页面仍然交系统浏览器。
         .on_navigation(|url| {
             if is_app_url(url) {
+                return true;
+            }
+            if hqsf_core::domain::embed::is_embedded_media_url(url.as_str()) {
                 return true;
             }
             if matches!(url.scheme(), "http" | "https") {

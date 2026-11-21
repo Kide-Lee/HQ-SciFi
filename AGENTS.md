@@ -76,6 +76,8 @@ node_modules/.bin/vite build --config vite.web.config.ts  # 渲染层构建（ou
 - **远程图片一律走图片缓存协议**：`<img src={...}>`、`style={{backgroundImage:url(...)}}`、正文 HTML 里的图片都必须经 `lib/sanitize.ts` 的 `cachedImageUrl()`（内部是 `bridge/protocol.ts` 的 `imageCacheUrl`，把 https 换成 `hqsf-img` 协议，非 http(s) 原样返回、幂等）。直接写 `src={远端url}` 在 Tauri 的 WebView 里拿不到图（v2.0.14 的推荐页轮播封面、左下角用户头像就是这么丢的），也没有离线缓存。
 - **内核编码约定**详见 `doc/design/Rust实现约定.md`（含文件所有权、端口使用、测试写法）；多 agent 并行时严格遵守其中的单写者清单。
 
+- **内嵌媒体必须留在应用内**：阅读正文里的播放器是 `<iframe>`（网易云 / QQ 音乐 / B 站嵌入页），壳层 `src-tauri/src/lib.rs` 的 `on_navigation` 用 `hqsf_core::domain::embed::is_embedded_media_url` 放行这三个端点。原因是 wry 的 `decide-policy`（`PolicyDecisionType::NavigationAction`）**不区分主框架与子框架**，子框架导航也会问一次；一律拒绝就会得到「一块透明空白」，并且会把播放页弹到系统浏览器。新增播放器来源时同时改 `crates/hqsf-core/src/domain/embed.rs` 的白名单与 `src/renderer/src/lib/sanitize.ts` 的 `playerFromUrl`。
+
 ## Notes
 
 - **本机沙箱限制**：`~` 根只读 → `~/.cargo`、`~/.cache` 不可写，cargo 必须 `export CARGO_HOME=$PWD/.cargo-home`；本机**没有全局 npm**（需要时用 `COREPACK_HOME=$PWD/.corepack corepack npm …`；脚本直接用 `node_modules/.bin/*`）；`/tmp` 不跨命令持久；删文件用 `find -delete`（`rm` 走回收站会报只读）。
