@@ -89,18 +89,32 @@ jobs:
         env:
           API_CONFIG_B64: ${{ secrets.HQSF_API_CONFIG_B64 }}
         run: |
+          # 日志本机读不到，所以把「配置从哪来、指向哪个后端」也回写到 release-status 分支，
+          # 否则没法确认这版安装包到底连的是不是正式后端。
+          mkdir -p "$RUNNER_TEMP/meta"
+          describe() {
+            python3 -c "import json;d=json.load(open('api.config.json'));print(d.get('baseUrl'), len(d.get('endpoints',{})))"
+          }
           if [ -n "${API_CONFIG_B64:-}" ]; then
             printf '%s' "$API_CONFIG_B64" | base64 -d > api.config.json
-            python3 -c "import json,sys;d=json.load(open('api.config.json'));print('配置来源: secret HQSF_API_CONFIG_B64, baseUrl =', d.get('baseUrl'), ', endpoints =', len(d.get('endpoints',{})))"
+            read -r baseurl count <<<"$(describe)"
             echo "::notice::使用仓库 secret HQSF_API_CONFIG_B64 作为 api.config.json"
+            echo "来源: secret HQSF_API_CONFIG_B64" > "$RUNNER_TEMP/meta/config-source.txt"
           elif [ -f api.config.json ]; then
+            read -r baseurl count <<<"$(describe)"
             echo "::notice::使用工作区已有的 api.config.json"
+            echo "来源: 工作区 api.config.json" > "$RUNNER_TEMP/meta/config-source.txt"
           else
             cp api.config.example.json api.config.json
+            read -r baseurl count <<<"$(describe)"
             echo "::warning::未配置 secret HQSF_API_CONFIG_B64，包内使用示例配置——安装后连不通真实服务"
             echo "### ⚠️ 本版安装包使用示例 API 配置" >> "$GITHUB_STEP_SUMMARY"
             echo "未提供 `HQSF_API_CONFIG_B64` secret，安装包内的 API 地址是示例地址。" >> "$GITHUB_STEP_SUMMARY"
+            echo "来源: 示例 api.config.example.json（⚠️ 未配置 secret）" > "$RUNNER_TEMP/meta/config-source.txt"
           fi
+          echo "baseUrl: $baseurl" >> "$RUNNER_TEMP/meta/config-source.txt"
+          echo "endpoints: $count" >> "$RUNNER_TEMP/meta/config-source.txt"
+          cat "$RUNNER_TEMP/meta/config-source.txt"
 
       # 两个 gitignored 生成物：缺任何一个都会在 `cargo tauri build` 里失败。
       - name: 生成 dispatch（gitignored 产物）
@@ -222,6 +236,7 @@ jobs:
           path: |
             ${{ runner.temp }}/meta/sizes.txt
             ${{ runner.temp }}/meta/verify.txt
+            ${{ runner.temp }}/meta/config-source.txt
             ${{ runner.temp }}/meta/appimage-smoke.log
           if-no-files-found: warn
 
@@ -342,6 +357,16 @@ jobs:
             echo "- build: ${{ needs.build.result }}"
             echo "- release: ${{ needs.release.result }}"
             echo "- run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo
+            echo "## 打包时使用的 API 配置"
+            echo
+            for f in "$GITHUB_WORKSPACE"/meta/*/config-source.txt; do
+              [ -f "$f" ] || continue
+              echo "### $(basename "$(dirname "$f")")"
+              echo '```'
+              cat "$f"
+              echo '```'
+            done
             echo
             echo "## 产物大小"
             echo
