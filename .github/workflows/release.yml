@@ -120,6 +120,17 @@ jobs:
         working-directory: src-tauri
         run: cargo tauri build ${{ matrix.args }}
 
+      # 装出来的东西对不对：版本号、系统依赖、包内资源、bundle id。
+      # 打 tag 时还会把 tag 号和 tauri.conf.json 的 version 对齐检查。
+      - name: 产物自检（版本 / 依赖 / 资源 / bundle id）
+        shell: bash
+        run: |
+          if [[ "$RELEASE_TAG" == v* ]]; then
+            node scripts/verify-bundles.mjs --expect-version "${RELEASE_TAG#v}"
+          else
+            node scripts/verify-bundles.mjs
+          fi
+
       # 先用 glob 抓 bundle 目录（不依赖手写矩阵路径），产物缺失时这一步就会红。
       - uses: actions/upload-artifact@v4
         with:
