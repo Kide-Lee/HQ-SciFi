@@ -13,7 +13,8 @@
 - 本地数据会自动从旧版目录迁移（只复制不删除，旧版本仍可直接运行；迁移失败会在启动时提示，不会静默丢数据）。
 - 删除文件/草稿改为移入**系统回收站**（可恢复），不再直接删除。
 - 本地文件树与写作首页的排序由拼音序改为「目录优先 + 忽略大小写字典序」（Rust 侧无 ICU，拼音序待后续补齐）。
-- 安装包体积显著减小（Linux AppImage / deb、Windows NSIS、macOS dmg 均随 Tauri 出包变化）；Linux 需系统提供 `libwebkit2gtk-4.1`（deb 已声明依赖，AppImage 需自备）。
+- 安装包显著变小：**Linux deb 14 MB**（1.x 94.8 MB）、**Windows NSIS 7.8 MB**（1.x 90.8 MB）、**macOS dmg 11 MB**（arm64，1.x 115.4 MB）；Linux AppImage 87 MB（1.x 124.2 MB，仍自包含因此降幅较小）。
+- Linux 版**不再自带渲染引擎**：依赖系统 `libwebkit2gtk-4.1`（deb 已声明依赖，AppImage 需自备）；这是体积收益的代价。
 
 ### 工程
 - 新增本仓首个 CI：`.github/workflows/ci.yml`（Rust fmt/clippy/test/绑定漂移 + 渲染层 `tsc` + 壳层 `cargo check`）与 `release.yml`（tag `v*` 三平台出包）。
