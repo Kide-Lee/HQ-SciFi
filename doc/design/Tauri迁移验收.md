@@ -350,6 +350,11 @@ Platform secure storage failure: DBus error: The name org.freedesktop.secrets wa
 | 5 | `324c4b1` | `FileNotFoundError: doc/CHANGELOG.md` + 正文退回链接 | release job 没有 checkout，读不到 `doc/CHANGELOG.md`（构建 job 有，但 job 之间不共享工作区） | release job 顶部加 `actions/checkout@v4`（`fetch-depth: 1`） |
 | 6 | `b0782a3` | —（成功） | run 44915315627：`build=success`、`release=success`、`Release 状态: tag=v2.0.14 draft=true 资产数=5`，正文为 CHANGELOG 抽取内容 | — |
 
+发布环节（`v2.0.14` 首次走完整链路）：
+- 新增 `.github/workflows/publish.yml`：push `publish/<tag>` 分支即用仓库 `GITHUB_TOKEN` 执行 `gh release edit <tag> --draft=false`，结论回写 `publish-logs`。本地无 admin token / 无 `gh`，这是唯一可审计的转正路径。
+- run 44916435422（commit `2ed6d12`）：`tag=v2.0.14 draft=false 资产数=5`，页面 URL 变为 `https://github.com/Kide-Lee/HQ-SciFi/releases/tag/v2.0.14`；正文是 CHANGELOG 抽取内容。
+- 本地留档：五个安装包下载到 `dist/releases/2.0.14/`（131 MB，逐个体积与 Release API 一致，`sha256sum -c` 通过），附 `README.txt` 与 `SHA256SUMS`；取包脚本沉淀为 `.dsh/skills/release-packaging/scripts/fetch-assets.sh`。
+
 最终 run 44915315627（`b0782a3`）：`build=success`、`release=success`，资产数 5、正文与标题都正确（更早的 run 44911431158（`2a6abe0`）首次打通；同一 commit 的四门禁 run 44911418367 也是 `core/tsc/shell/smoke` 全绿。draft Release 里的 5 个资产名形如 `hq-scifi_2.0.14_amd64.deb`、`hq-scifi_2.0.14_amd64.AppImage`、`hq-scifi_2.0.14_x64-setup.exe`、`hq-scifi_2.0.14_aarch64.dmg`、`hq-scifi_2.0.14_x64.dmg`。
 
 两条运维事实：

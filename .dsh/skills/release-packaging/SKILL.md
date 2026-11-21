@@ -110,6 +110,28 @@ node_modules/.bin/vite build --config vite.web.config.json
 
 本机无 npm；需要 npm 时用 `COREPACK_HOME=$PWD/.corepack corepack npm …`。
 
+## 把 draft 转正式（本地没有 token 时）
+
+发布是一次性、可审计的动作，但本地沙箱没有 admin token 也没有 `gh` CLI；用仓库自带 `GITHUB_TOKEN` 在 CI 里做：
+
+```bash
+git push origin HEAD:refs/heads/publish/v2.0.14      # 分支名 publish/<tag>
+git fetch --force origin publish-logs && git show origin/publish-logs:README.md
+```
+
+`publish-logs` 里应看到 `tag=v2.0.14 draft=false 资产数=5 url=…/releases/tag/v2.0.14`。
+之后用匿名 API 复核：`curl -s .../releases/tags/v2.0.14 | python3 -m json.tool | head`（`draft: false` 且 5 个资产）。
+发布前 draft 的页面 URL 形如 `releases/tag/untagged-<hash>`，转正后才变成 `releases/tag/v2.0.14`。
+
+## 本地留档（把安装包放进 dist/releases/<version>/）
+
+```bash
+bash .dsh/skills/release-packaging/scripts/fetch-assets.sh 2.0.14
+```
+
+只有**已发布**的 Release 能匿名下载（draft 资产匿名 401）；脚本会校验体积、给 AppImage 加可执行位、写 `SHA256SUMS`。
+`dist/` 在 `.gitignore` 里，不会进仓库。
+
 ## 产物怎么拿给用户
 
 - 临时验证：`release` → artifact `bundle-{linux,windows,macos-arm64,macos-x64}`（14 天）。
