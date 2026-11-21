@@ -34,6 +34,26 @@ async function check(name, fn) {
 
 const app = await startApp(APP)
 try {
+  // 先记录页面状态：如果渲染层没跑起来，这条日志能直接区分「页面没加载」与「加载了但 JS 报错」。
+  try {
+    const diag = await app.exec(`
+      const root = document.querySelector('#root')
+      return {
+        href: String(location.href),
+        readyState: String(document.readyState),
+        title: String(document.title),
+        htmlLen: document.documentElement ? document.documentElement.outerHTML.length : -1,
+        rootChildren: root ? root.childElementCount : -1,
+        bodyText: (document.body ? document.body.innerText : '').slice(0, 200),
+        head: document.documentElement ? document.documentElement.outerHTML.slice(0, 600) : '',
+        scripts: Array.from(document.scripts).map((s) => s.src || '(inline)').slice(0, 10),
+      }
+    `)
+    console.log(`--- 页面诊断 ---\n${JSON.stringify(diag, null, 2)}`)
+  } catch (error) {
+    console.log(`页面诊断失败（可能页面还没起来）：${error.message}`)
+  }
+
   await check('页面加载完成（#root 有内容）', () =>
     waitFor('#root 渲染出子节点', () =>
       app.exec("return !!document.querySelector('#root') && document.querySelector('#root').childElementCount > 0")

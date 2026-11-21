@@ -20,7 +20,7 @@ DRIVER_BIN="${TAURI_DRIVER_BIN:-tauri-driver}"
 NATIVE_DRIVER="${NATIVE_DRIVER_BIN:-$(command -v WebKitWebDriver)}"
 
 if [ -z "$APP" ] || [ ! -x "$APP" ]; then
-  echo "::error::找不到可执行文件（APP_BIN=${APP_BIN:-<空>}，先 cargo build --features devtools）"
+  echo "::error::找不到可执行文件（APP_BIN=${APP_BIN:-<空>}，先 cargo build --features devtools,custom-protocol）"
   echo "--- src-tauri/target/debug 内容 ---"
   ls -la src-tauri/target/debug/ 2>/dev/null | head -20 || echo "(目录不存在)"
   exit 1
