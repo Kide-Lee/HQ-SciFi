@@ -136,7 +136,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/meta"
           {
-            find src-tauri/target -type f \
+            find src-tauri/target -type f -path '*/bundle/*' \
               \( -name '*.deb' -o -name '*.AppImage' -o -name '*.exe' -o -name '*.dmg' \) \
               -exec du -h {} + || true
           } > "$RUNNER_TEMP/meta/sizes.txt" 2>&1
