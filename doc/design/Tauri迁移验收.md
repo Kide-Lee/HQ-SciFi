@@ -165,7 +165,7 @@ node_modules/.bin/tsc --noEmit -p tsconfig.node.json
 | --- | --- | --- | --- | --- |
 | 1 | **中文输入法 + contenteditable**（Milkdown/ProseMirror/CodeMirror） | 高 | 需 WebKitGTK 图形环境 | Linux 真机手测：拼音/五笔候选窗、长文本、撤销栈 |
 | 2 | **媒体播放**（正文三个 iframe：music.163.com / i.y.qq.com / player.bilibili.com） | 高 | 需 GStreamer `gst-libav` | Linux deb 安装后放 H.264 视频；Windows 走 WebView2 |
-| 3 | **壳层编译**（`src-tauri` 1,909 行 + 85 命令 dispatch） | 高 | 无 pkg-config / libwebkit2gtk-4.1-dev | CI `shell` job 的 `cargo check`；先跑 `gen-tauri-commands.mjs --verify` |
+| 3 | ~~**壳层编译**~~ ✅ 已通过 | — | 无 pkg-config / libwebkit2gtk-4.1-dev | CI `shell` job `cargo check --all-targets` 于 run 44879836235（`990af64`）通过；见 §4.4 |
 | 4 | 三平台出包与体积指标 | 中 | 交叉编译不可行 | `release.yml` 首次真跑，记录 §6.3 量化指标 |
 | 5 | 真机数据迁移（含 146 帧 WAL 的真实库） | 中 | 需在真机 appData 上跑 | 装包后首次启动，核对 read_cache 18 行与文章数 |
 | 6 | keyring 在 Linux（Secret Service）/ Windows（DPAPI）的行为 | 中 | 同上 | 登录→重启→会话恢复 |
@@ -226,6 +226,18 @@ node_modules/.bin/tsc --noEmit -p tsconfig.node.json
 | 设置即时生效 | ✅ `on_page_load(Finished)` 每次重放 zoom/css/js；**内核侧已修**「customCss 清空不生效」的残留（空串也调 `insert_css`，壳层语义=只清理），加了回归测试 |
 | 更新状态 | ✅ `AppState.updater: Arc<UpdateStateStore>`，四条 `update-*` 共享 |
 
+## 4.4 CI 真跑记录（壳层编译已在干净环境通过）
+
+| 轮次 | commit | 结果 | 说明 |
+| --- | --- | --- | --- |
+| 1 | `67c3ff5` | shell ❌ | 拿不到日志（匿名 API 需 admin、`raw.githubusercontent.com` 不可达）→ 建 `ci-logs` 回写通道 |
+| 2 | `6d6dd41` | shell ❌ | `resource path 'resources/agreement.md' doesn't exist`：`bundle.resources` 编译期校验 gitignored 生成物 |
+| 3 | `74f27d4` | shell ❌ | 同一根因：修法步骤被误插进 `tsc` job（两个 runner 隔离，壳层 job 仍缺文件） |
+| 4 | `20b006e` | shell ❌ | 资源已就绪；暴露 `E0308`：dispatch 把 `domain::sync::ArticleMeta` 写成同名 `adapters::read::ArticleMeta` |
+| 5 | `990af64` | shell ✅ | 改名 `ArticleMetaBrief` + 生成器同名门禁；`cargo check --all-targets` 通过（run 44879836235），内核/TS job 同轮通过 |
+
+`ci-logs` 分支的用途：本机沙箱只有 `api.github.com` 可达且有 60 次/小时匿名限额、Actions 日志接口需要 admin，所以 CI 每次把「cargo check 结论 + 输出尾部」推到 `ci-logs` 分支（`README.md`），本地用 `git fetch --force origin ci-logs` 或 `git ls-remote origin ci-logs` 即可判断，不烧 API 限额。
+
 ---
 
 ## 5. 回滚与共存
@@ -239,7 +251,7 @@ node_modules/.bin/tsc --noEmit -p tsconfig.node.json
 ## 6. 剩余工作
 
 1. ✅ 壳层集成（dispatch / 协议 / 迁移 / 设置重放）——代码级完成。
-2. ⏳ **CI 首次真跑**：`shell` job 的 `cargo check --manifest-path src-tauri/Cargo.toml` 是第一个真正的编译校验，重点看 CI 的 Top 5（`State<'_, AppState>` 生命周期、`WholePayload` 的 `CommandArg` 与 tauri 2.12 trait 是否完全对上、`generate_context!` 嵌入 `out/renderer`、异步协议 handler 的 `Send` 约束、capabilities 最小集是否够用）。
+2. ✅ **CI 首次真跑**：`shell` job 的 `cargo check --all-targets` 已于 `990af64` 通过（`State<'_, AppState>`、`WholePayload: CommandArg`、`generate_context!`、异步协议 handler、capabilities 都在真实编译里过了）；失败与修复过程见 §4.1.1 与 §4.4。
 3. ⏳ 三平台真机验证（§4 列表），记录 §6.3 量化指标。
 4. ⏳ 发布：`v2.0.0` tag → draft release → 对外；发布前必须在构建机提供真实 `api.config.json`（当前 `release.yml` 用 example 兜底，装出来会连示例地址）。
 5. ⏳ 收尾清理：真机验证通过后删除 `src/main`/`src/preload`（1.x Electron 主进程）、`better-sqlite3` 依赖与 `electron-builder.yml`、`scripts/win-prebuild.mjs`。
