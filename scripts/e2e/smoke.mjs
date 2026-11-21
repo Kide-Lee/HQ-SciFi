@@ -60,6 +60,29 @@ try {
     )
   )
 
+  await check('首启协议门可走完（首次运行需要先同意用户协议）', async () => {
+    const gate = await app.exec("return !!document.querySelector('.agreement-body') && !!document.querySelector('.firstrun-accept')")
+    if (!gate) return // 已有本地同意记录（重复运行），跳过
+    // 真实路径：滚到底 → 勾选 → 同意并进入。read 状态由 onScroll 触发，所以必须真的改 scrollTop。
+    await app.exec(`
+      const body = document.querySelector('.agreement-body')
+      body.scrollTop = body.scrollHeight
+      body.dispatchEvent(new Event('scroll', { bubbles: true }))
+      return true
+    `)
+    await waitFor('协议滚动到底部、勾选框可用', () =>
+      app.exec("const c = document.querySelector('.firstrun-check input'); return !!c && !c.disabled")
+    )
+    await app.exec("const c = document.querySelector('.firstrun-check input'); c.click(); return c.checked")
+    await waitFor('「同意并进入」可点击', () => {
+      return app.exec("const b = document.querySelector('.firstrun-accept'); return !!b && !b.disabled")
+    })
+    await app.exec("document.querySelector('.firstrun-accept').click(); return true")
+    await waitFor('进入主界面（左栏出现）', () =>
+      app.exec("return !!document.querySelector('.app-shell .sidebar')")
+    )
+  })
+
   await check('窗口标题为「黄芪饮片」', async () => {
     const title = await app.title()
     if (title !== '黄芪饮片') throw new Error(`标题是 ${JSON.stringify(title)}`)
