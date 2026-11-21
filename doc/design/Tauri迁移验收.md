@@ -337,7 +337,7 @@ Platform secure storage failure: DBus error: The name org.freedesktop.secrets wa
 
 ---
 
-## 4.5.2 正式发版：draft Release 的创建（三轮修复）
+## 4.5.2 正式发版：draft Release 的创建（六轮修复）
 
 `v2.0.14` 是第一次走「tag → 构建 → 建 draft Release」的完整链路，`release` job 连挂三轮，每轮的错误都只能靠 `release-logs` 分支回读（Actions 日志接口要 admin）：
 
@@ -346,11 +346,14 @@ Platform secure storage failure: DBus error: The name org.freedesktop.secrets wa
 | 1 | `3652c40` | `softprops/action-gh-release@v2` | 第三方 action 把 manifest 里的全部指纹当资产上传（`dist/` 里有 422 个文件：AppImage 的 `.AppDir/` 整树、dmg 的 `create-dmg` 脚本），并且它的报错文本拿不到 | 改用 `gh` CLI，自己控制文件清单，并把失败原因回写 `release-logs` |
 | 2 | `4251e82` | 日志只有前 100 行清单 | GH Actions 的 `shell: bash` 默认带 `-e`，`find … | head -50` 触发 SIGPIPE（141）直接打死脚本，`gh` 从未执行 | 清单命令加 `|| true`；同时按扩展名只挑真的安装包（5 个：deb / AppImage / setup.exe / 两个 dmg） |
 | 3 | `38cbd23` | `failed to run git: fatal: not a git repository` | `release` job 没有 `checkout`，`gh` 默认从 `.git` 推仓库上下文 | 所有 `gh` 命令显式 `--repo "$GITHUB_REPOSITORY"` |
+| 4 | `3f1aac5` | 日志停在「上传 5 个安装包」之后 | release job 没有 `mkdir -p "$RUNNER_TEMP/meta"`（那句只在 build job 的 api.config 步里），`cp release-notes.md` 在 `-e` 下直接失败 | 先 `mkdir -p`，并给正文抽取加 `if ! … then` 兜底 |
+| 5 | `324c4b1` | `FileNotFoundError: doc/CHANGELOG.md` + 正文退回链接 | release job 没有 checkout，读不到 `doc/CHANGELOG.md`（构建 job 有，但 job 之间不共享工作区） | release job 顶部加 `actions/checkout@v4`（`fetch-depth: 1`） |
+| 6 | `b0782a3` | —（成功） | run 44915315627：`build=success`、`release=success`、`Release 状态: tag=v2.0.14 draft=true 资产数=5`，正文为 CHANGELOG 抽取内容 | — |
 
-最终 run 44911431158（`2a6abe0`）：`build=success`、`release=success`；同一 commit 的四门禁 run 44911418367 也是 `core/tsc/shell/smoke` 全绿。draft Release 里的 5 个资产名形如 `hq-scifi_2.0.14_amd64.deb`、`hq-scifi_2.0.14_amd64.AppImage`、`hq-scifi_2.0.14_x64-setup.exe`、`hq-scifi_2.0.14_aarch64.dmg`、`hq-scifi_2.0.14_x64.dmg`。
+最终 run 44915315627（`b0782a3`）：`build=success`、`release=success`，资产数 5、正文与标题都正确（更早的 run 44911431158（`2a6abe0`）首次打通；同一 commit 的四门禁 run 44911418367 也是 `core/tsc/shell/smoke` 全绿。draft Release 里的 5 个资产名形如 `hq-scifi_2.0.14_amd64.deb`、`hq-scifi_2.0.14_amd64.AppImage`、`hq-scifi_2.0.14_x64-setup.exe`、`hq-scifi_2.0.14_aarch64.dmg`、`hq-scifi_2.0.14_x64.dmg`。
 
 两条运维事实：
-- **draft 只有登录的仓库成员看得到**，匿名 `GET /releases` 查不到，所以「匿名 API 里没有 v2.0.14」不等于失败。
+- **draft 只有登录的仓库成员看得到**，匿名 `GET /releases` 查不到，所以「匿名 API 里没有 v2.0.14」不等于失败。draft 的页面 URL 在发布前形如 `releases/tag/untagged-<hash>`，`tagName` 仍是 `v2.0.14`，点 Publish 后会变成 `releases/tag/v2.0.14`，这不是故障。
 - `2a6abe0` 那版**还没有配置 `HQSF_API_CONFIG_B64` secret**，包内是示例配置；配好 secret 后又在 `0000287` 上重打了一版（run 44913027007，`build=success`/`release=success`）：四平台 `release-status` 的「打包时使用的 API 配置」都显示 `来源: secret HQSF_API_CONFIG_B64`、`baseUrl: https://api.huangqisf.com/`、`endpoints: 41`，五个资产覆盖上传进同一个 draft Release。
 
 整条流程与全部已知坑已沉淀为项目 skill `.dsh/skills/release-packaging/`（含 `scripts/read-status.sh` 一键读五个回写分支）。

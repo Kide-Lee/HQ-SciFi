@@ -83,6 +83,11 @@ AppImage 另有 `scripts/smoke-tauri.sh`（Xvfb + `dbus-run-session`）：等窗
 10. **draft 里会残留上一轮的垃圾资产**：第一版用 `softprops/action-gh-release` 时，它把 `dist/` 里 422 个文件逐个上传，中途失败 → draft 里留下几百个无用资产（实测 273 个）。现在 `release` job 在新建前会先 `gh release delete --yes` 掉**旧的 draft**（已是正式发布版则只 `upload --clobber`，不删除），并在日志里打印最终 `Release 资产数`，应等于 5。
 11. **版本号三处**：`Cargo.toml`、`src-tauri/Cargo.toml`、`src-tauri/tauri.conf.json`（`package.json` 2.0 起也是发布版本号，1.x 时代是 1.2.13）。
 
+## Release job 的两个必备动作（否则静默失败）
+
+1. **先 `actions/checkout@v4`**：release job 与 build job 不共享工作区，没有 checkout 就读不到 `doc/CHANGELOG.md`，正文会退回链接（python 抛 `FileNotFoundError`，日志里只有那一行）。
+2. **先 `mkdir -p "$RUNNER_TEMP/meta"`**：`meta/` 是 build job 里的 api.config 步建的，release job 里不存在；`cp` 到它会在 `set -e` 下直接打死脚本（日志会停在「上传 N 个安装包」之后，看不到任何报错）。
+
 ## Release 正文与标题（别用占位）
 
 - **标题 = tag 名**（`v2.0.14`），与历史版本一致；不要写「黄芪饮片 v…」这类别名，页面列表里会与其他版本不同形。
