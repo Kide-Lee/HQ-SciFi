@@ -618,10 +618,16 @@ export function Sidebar(): React.JSX.Element {
   return (
     <aside
       className={`sidebar${collapsed ? ' collapsed' : ''}${resizing ? ' dragging' : ''}${isMac ? ' sidebar-mac' : ''}`}
+      data-hqsf-drag-region=""
       style={collapsed ? undefined : { width: sidebarWidth }}
     >
       {/* v0.0.3：右缘拖动分隔条（仅展开态） */}
-      {!collapsed && <div className="sidebar-resizer" onMouseDown={onSidebarResizeDown} title="拖动调整左栏宽度" />}
+      {!collapsed && <div
+          className="sidebar-resizer"
+          data-hqsf-no-drag=""
+          onMouseDown={onSidebarResizeDown}
+          title="拖动调整左栏宽度"
+        />}
       <div className="sidebar-top">
         <div className="user-card-col">
           <div className="user-card">

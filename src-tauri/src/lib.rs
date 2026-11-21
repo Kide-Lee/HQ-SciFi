@@ -23,13 +23,19 @@
 //!      **不用** 全局快捷键插件：那是系统级注册（应用不聚焦时也生效），与 1.x 语义不符。
 //!   5. **`hqsf-img` 自定义协议**：Tauri 的协议 origin 随平台变（Windows/Android 是
 //!      `http://hqsf-img.localhost/...`，其它平台是 `hqsf-img://localhost/...`），
-//!      所以渲染层的 URL 拼装也必须按平台分支；协议处理逻辑本身留给 media lane（TODO）。
+//!      所以渲染层的 URL 拼装也必须按平台分支；协议实现见 [`handle_image_protocol`]
+//!      （异步注册 + 后台线程抓图，缓存/超时/Content-Type 全在 `hqsf_core::infra::media`）。
 //!   6. **api.config.json**：1.x 启动时 `loadApiConfig()` 失败即退出；v2 由内核
 //!      `services::net::api_config()` 每次调用现读（见 `crates/hqsf-core/src/services/net.rs`），
 //!      壳层不缓存、不预校验 —— 启动不会因为缺配置而无窗口，首个需要网络的命令会返回
 //!      `[API 配置]` 错误（比 1.x 的「静默无窗口」更可诊断）。
-//!   7. **窗口全关**：Tauri 默认「最后一个窗口关闭即退出」（非 macOS 与 1.x 一致）；
-//!      macOS 用 `RunEvent::Reopen` 重建窗口（对齐 1.x `activate`）。
+//!   7. **窗口全关**：Tauri 默认「最后一个窗口关闭即退出」（非 macOS 与 1.x 一致；macOS 与 1.x
+//!      的「关窗不退出」不同）。**刻意不加** `RunEvent::ExitRequested` 的 `api.prevent_exit()`：
+//!      加了就要自己接管整个 macOS 窗口生命周期，本轮取舍是保留 Tauri 默认、行为可预测；
+//!      `RunEvent::Reopen` 仍保留为「窗口被隐藏/最小化后点 Dock」的拉回前台兜底。
+//!   8. **启动后台任务**：1.x 在 `createWindow()` 之后 `void scheduleAutoUpdateCheck()` /
+//!      `startupTokenCheck()`；这里是 `spawn_startup_tasks()` 起两条 detach 线程（会话校验、
+//!      延迟 10s 的更新检查），失败全部静默、不阻塞窗口展示。
 //!
 //! 启动路径禁止 `unwrap()`/`expect()`：所有失败都转成 `anyhow::Error` 或显式 `eprintln!` + 退出码。
 
@@ -47,8 +53,11 @@ use hqsf_core::commands::system::HostInfo;
 use hqsf_core::infra::db::Db;
 use hqsf_core::infra::media;
 use hqsf_core::infra::migrate::{self, MigrateOptions, MigrationStatus};
-use hqsf_core::infra::updater::UpdateStateStore;
+use hqsf_core::infra::session;
+use hqsf_core::infra::updater::{UpdateStateStore, auto_check_enabled};
 use hqsf_core::ports::Platform;
+use hqsf_core::services::updater::check_for_github_update;
+use hqsf_core::services::{auth, settings};
 use tauri::http::{Request, Response, StatusCode};
 use tauri::webview::{NewWindowResponse, PageLoadEvent};
 use tauri::{
@@ -113,12 +122,7 @@ impl PendingStartupError {
 /// `process.env.APPIMAGE`。`is_test_mode` 与 [`paths::detect_test_mode`] 同源。
 pub fn build_host_info(app: &AppHandle) -> HostInfo {
     HostInfo {
-        platform: match std::env::consts::OS {
-            "windows" => "windows",
-            "macos" => "macos",
-            _ => "linux",
-        }
-        .to_string(),
+        platform: host_platform_name().to_string(),
         // 与 `process.arch` 取值对齐（x64 / arm64），不是 Rust 的 `x86_64`。
         arch: match std::env::consts::ARCH {
             "x86_64" => "x64",
@@ -132,11 +136,131 @@ pub fn build_host_info(app: &AppHandle) -> HostInfo {
         packaged: !cfg!(debug_assertions),
         // 1.x `!!process.env.APPIMAGE`：只有 Linux 有这个概念，其它平台省略（序列化时跳过）。
         is_app_image: if cfg!(target_os = "linux") {
-            Some(std::env::var_os("APPIMAGE").is_some())
+            Some(has_appimage())
         } else {
             None
         },
     }
+}
+
+/// 宿主平台名（`process.platform` 的取值口径）。
+///
+/// 差异：1.x 在 macOS 上是 `"darwin"`，这里统一写 `"macos"`（`HostInfo.platform` 与
+/// `auto_check_enabled` 共用同一套取值，避免两处各写一份）。对 `auto_check_enabled` 无影响 ——
+/// 它只区分 `"linux"`（`crates/hqsf-core/src/infra/updater.rs:243`）。
+fn host_platform_name() -> &'static str {
+    match std::env::consts::OS {
+        "windows" => "windows",
+        "macos" => "macos",
+        _ => "linux",
+    }
+}
+
+/// 是否运行在 AppImage 里（1.x `!!process.env.APPIMAGE`）。
+///
+/// 非 Linux 平台读到的环境变量必然为空，但仍在所有平台编译（`cfg!` 是运行期判断，
+/// 不是 `#[cfg]`），所以不会产生 unused 告警。
+fn has_appimage() -> bool {
+    std::env::var_os("APPIMAGE").is_some()
+}
+
+/// 1.x 自动更新检查的启动延迟（`src/main/infra/updater/index.ts:91` 的 `10_000` ms）。
+const AUTO_UPDATE_DELAY: Duration = Duration::from_secs(10);
+
+/// 启动后的两个一次性后台任务（各一条线程，互不依赖，均不阻塞窗口展示）。
+///
+/// 1.x 对照：`initApp()` 在 `createWindow()` 之后调 `scheduleAutoUpdateCheck()` /
+/// `startupTokenCheck()`（`src/main/bootstrap/index.ts:86-87`）。Electron 那两个都是
+/// `void …` 风格的「发出去就不管」，这里同样不等结果、不向渲染层广播任何事件：
+/// - 更新检查的结果由内核写进 `UpdateStateStore` 并发 `hqsf:update-state`；
+/// - 会话失效只清本地（1.x 这一步也**不**发 `signOut`，渲染层下次 `getSession` 拿到 null）。
+fn spawn_startup_tasks(app: AppHandle) {
+    // (a) 启动会话校验（1.x `startupTokenCheck()`，`src/main/bootstrap/index.ts:20-31`）。
+    let token_app = app.clone();
+    std::thread::spawn(move || {
+        let (core, _) = match startup_task_state(&token_app) {
+            Some(snapshot) => snapshot,
+            None => return,
+        };
+        startup_token_check(&core);
+    });
+
+    // (b) 延迟 10s 的自动更新检查（1.x `scheduleAutoUpdateCheck()`，
+    //     `src/main/infra/updater/index.ts:80-92`）。
+    let updater_app = app;
+    std::thread::spawn(move || {
+        let (core, updater) = match startup_task_state(&updater_app) {
+            Some(snapshot) => snapshot,
+            None => return,
+        };
+        schedule_auto_update_check(&core, &updater);
+    });
+}
+
+/// 从 `AppHandle` 取启动任务需要的两个 `Arc`（拿不到 state 就放弃任务，不 panic）。
+///
+/// 为什么单独克隆而不是线程里长期持有 `State<'_, AppState>`：`State` 是对 manage 表的借用，
+/// 只在 handle 存活期内有效；后台线程要跑很久（更新检查还要 sleep 10s），克隆 `Arc` 更干净。
+fn startup_task_state(app: &AppHandle) -> Option<(Arc<CoreCtx>, Arc<UpdateStateStore>)> {
+    let state = app.try_state::<AppState>()?;
+    Some((Arc::clone(&state.core), Arc::clone(&state.updater)))
+}
+
+/// 校验一次本地会话：**只有**服务端明确判定 token 失效时才清本地会话。
+///
+/// 1.x（`src/main/bootstrap/index.ts:20-31`）：
+/// `if (!getStoredToken()) return; const {valid, reachable} = await verifySessionToken();
+///  if (!valid && reachable) clearSession()`——网络异常/校验异常不误清（离线可继续本地写作）。
+/// `verify_session_token` 内部已经把这些错误折成 `{valid:false, reachable:false}` 返回，
+/// 这里再兜一层 `Err`（只可能是钥匙串/文件读写问题），同样不动会话。
+fn startup_token_check(core: &CoreCtx) {
+    match auth::stored_token(core) {
+        Ok(Some(_)) => {}
+        Ok(None) => return,
+        Err(error) => {
+            eprintln!("[hqsf] 启动会话校验：读取本地会话失败，跳过：{error}");
+            return;
+        }
+    }
+
+    let result = match auth::verify_session_token(core) {
+        Ok(result) => result,
+        Err(error) => {
+            eprintln!("[hqsf] 启动会话校验：校验请求异常，保留本地会话：{error}");
+            return;
+        }
+    };
+
+    if result.valid || !result.reachable {
+        // 有效，或「判不了」（网络/配置问题）——都保持登录态。
+        return;
+    }
+
+    // 服务端已响应且明确拒绝：丢弃本地会话，退回未登录。1.x 这里不调 `logout()`。
+    match session::clear(core) {
+        Ok(()) => eprintln!("[hqsf] 启动会话校验：服务端判定登录已失效，已清除本地会话"),
+        Err(error) => eprintln!("[hqsf] 启动会话校验：清除本地会话失败：{error}"),
+    }
+}
+
+/// 按设置延迟自动检查一次更新（失败静默）。
+///
+/// 1.x（`src/main/infra/updater/index.ts:80-92`）：
+/// `if (!getAppSettings().autoUpdate) return; if (process.platform === 'linux' &&
+///  !process.env.APPIMAGE) return; setTimeout(() => void checkForGitHubUpdate().catch(() => undefined), 10_000)`。
+/// 判定条件复用内核 `auto_check_enabled`（Linux deb 包不支持自动更新，AppImage/NSIS/macOS 可以）。
+fn schedule_auto_update_check(core: &CoreCtx, store: &UpdateStateStore) {
+    let auto_update = settings::get(core).auto_update;
+    if !auto_check_enabled(auto_update, host_platform_name(), has_appimage()) {
+        return;
+    }
+
+    // 1.x 用 `setTimeout(...).unref?.()`：延迟 10s 且不阻止进程退出。这里的后台线程是
+    // detach 的，进程退出时自然结束，不需要 unref 等价物。
+    std::thread::sleep(AUTO_UPDATE_DELAY);
+    // 错误静默（1.x `.catch(() => undefined)`）：`check_for_github_update` 自己会把失败写进
+    // store 的 `error` 状态并发事件，壳层不再重复处理。
+    let _ = check_for_github_update(core, store);
 }
 
 /// 组装内核上下文（失败即启动失败）。
@@ -501,8 +625,11 @@ pub fn run() -> anyhow::Result<()> {
             return Ok(());
         }
 
-        // TODO(next card): 1.x bootstrap 里 `scheduleAutoUpdateCheck()` / `startupTokenCheck()`
-        // 对应 updater lane 与 auth lane，等对应命令实现后在这里挂启动任务。
+        // 1.x bootstrap 收尾（`src/main/bootstrap/index.ts:12-40`、`:86-87`）：
+        // `startupTokenCheck()` 与 `scheduleAutoUpdateCheck()`。两者都**不阻塞**启动 ——
+        // 各起一条独立后台线程，窗口该显示就显示，失败一律静默（离线可继续本地写作）。
+        spawn_startup_tasks(app.handle().clone());
+
         Ok(())
     });
 
@@ -510,7 +637,7 @@ pub fn run() -> anyhow::Result<()> {
         .build(tauri::generate_context!())
         .map_err(|e| anyhow!("构建 Tauri 应用失败：{e}"))?;
 
-    // macOS：关闭全部窗口后应用仍在，点 Dock 图标（Reopen）要重建窗口（1.x `activate`）。
+    // macOS：点 Dock 图标 → `RunEvent::Reopen`，把主窗口拉回前台（1.x `app.on('activate')`）。
     // `RunEvent::Reopen` 只在 macOS/iOS 存在（tauri::app::RunEvent 的 cfg 分支），故整体 cfg 包住。
     app.run(|app_handle, event| {
         // 启动期致命错误：等事件循环真正跑起来（Ready）再弹框，关掉后 exit(1)。
@@ -526,11 +653,18 @@ pub fn run() -> anyhow::Result<()> {
         #[cfg(target_os = "macos")]
         {
             if let tauri::RunEvent::Reopen { .. } = event {
-                // TODO(verify): 需要配合 `ExitRequested` 阻止「关最后一个窗口就退出」，
-                // 否则 macOS 上窗口关完进程就没了、Reopen 永远等不到。1.x 的 `window-all-closed`
-                // 在 darwin 上不 quit，等价物是 `api.prevent_exit()`（下一张卡随窗口行为一起加）。
-                if let Err(err) = create_main_window(app_handle) {
-                    eprintln!("[hqsf] 重建窗口失败：{err:#}");
+                // 1.x `activate`：`if (BrowserWindow.getAllWindows().length === 0) createWindow()`
+                // 否则把已有窗口拉到前台。
+                //
+                // 差异：**这里不重建窗口、也不加 `ExitRequested` 的 `api.prevent_exit()`**。
+                // 1.x 在 macOS 上「关窗不退出、点 Dock 再开」，而 Tauri 默认「关最后一个窗口即退出」
+                // （与 1.x 非 macOS 行为一致）。要复刻 macOS 的「关窗不退出」就必须自己接管
+                // `ExitRequested` 与整个窗口生命周期；本轮取舍是保留 Tauri 默认 —— 关窗即退出，
+                // 行为可预测，`Reopen` 只覆盖「窗口被隐藏/最小化后点 Dock」这一半语义。
+                if let Some(window) = app_handle.get_webview_window(MAIN_WINDOW_LABEL) {
+                    let _ = window.unminimize();
+                    let _ = window.show();
+                    let _ = window.set_focus();
                 }
             }
         }
@@ -586,6 +720,16 @@ mod tests {
             let url = tauri::Url::parse(bad).expect("url");
             assert!(!is_app_url(&url), "{bad} 应被拒绝");
         }
+    }
+
+    #[test]
+    fn host_platform_name_uses_process_platform_values() {
+        // `HostInfo.platform` 与 `auto_check_enabled` 共用这套取值；只允许三平台名，
+        // 否则 `auto_check_enabled` 的 `platform == "linux"` 判断会静默失配。
+        let platform = host_platform_name();
+        assert!(matches!(platform, "windows" | "macos" | "linux"));
+        assert_eq!(cfg!(target_os = "macos"), platform == "macos");
+        assert_eq!(cfg!(target_os = "windows"), platform == "windows");
     }
 
     #[test]

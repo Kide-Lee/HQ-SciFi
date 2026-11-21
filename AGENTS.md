@@ -68,6 +68,7 @@ cargo run -q -p hqsf-bindings -- --check   # 校验绑定漂移（CI 门禁）
 - **`src/bridge` 无业务规则**：只做调用转发、参数整形、错误转 `Error`；任何判定/规整/合并逻辑必须落在 Rust。
 - **右键菜单**：统一走 `components/menu/` 的 `useContextMenu()` + App 根部唯一的 `<ContextMenuHost />`；菜单只放没有按钮入口的操作。Host 会统一追加「刷新 + 开发者工具」，调用方不要自己加。复制一律走 `window.hqsf.copyText`。
 - 渲染层状态用 Zustand；UI 文案简体中文。
+- **无边框窗口拖拽**：`-webkit-app-region` 只在 Electron 生效，WebKit 下无效；Tauri 由 `src/bridge/drag.ts` 兜底——可拖拽区根节点必须带 `data-hqsf-drag-region`（现为顶栏、左栏、登录/协议页拖拽条），拖拽区内的可点击元素用原生 `button/input/a` 或标 `data-hqsf-no-drag`（如左栏拖宽分隔条）。新增「拖拽区」时两处都要补：根节点属性 + 确认子元素是交互元素或带 no-drag 标记。
 - **内核编码约定**详见 `doc/design/Rust实现约定.md`（含文件所有权、端口使用、测试写法）；多 agent 并行时严格遵守其中的单写者清单。
 
 ## Notes

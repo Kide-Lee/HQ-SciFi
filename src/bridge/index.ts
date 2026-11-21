@@ -27,6 +27,7 @@ import { IPC_CHANNEL_BY_METHOD } from '../shared/contracts/ipc'
 import type { HqsfApi, WindowControls } from '../shared/contracts/hqsf-api'
 import type { UpdateState } from '../shared/domain'
 import { getTauriInternals, invoke, listenTauriEvent, toErrorMessage } from './invoke'
+import { installTauriDragRegion } from './drag'
 
 /**
  * 每条 invoke 通道的位置参数名（顺序即 1.x 调用顺序）。
@@ -255,7 +256,9 @@ export function installTauriBridge(): boolean {
     value: createHqsfApi(),
     writable: false,
     enumerable: true,
-    configurable: false
+    configurable: true
   })
+  // 无边框窗口拖拽：`-webkit-app-region` 在 WebKit 下无效，必须补一层 JS（见 drag.ts）。
+  installTauriDragRegion()
   return true
 }

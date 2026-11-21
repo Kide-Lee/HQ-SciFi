@@ -85,7 +85,7 @@ export function FirstRunAgreement({ onAccepted }: { onAccepted: () => void }): R
 
   return (
     <div className="firstrun-wrap">
-      <div className="window-drag-bar" />
+      <div className="window-drag-bar" data-hqsf-drag-region="" />
       {/* 无边框窗口控件：macOS 由系统红绿灯接管，非 mac 自绘最小化/全屏/关闭 */}
       {!isMac && (
         <div className="login-window-controls">
