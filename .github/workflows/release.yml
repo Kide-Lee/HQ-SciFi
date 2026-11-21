@@ -147,7 +147,7 @@ jobs:
 
       - name: 构建安装包
         working-directory: src-tauri
-        run: cargo tauri build ${{ matrix.args }}
+        run: cargo tauri build ${{ matrix.args }} --features devtools
 
       # 装出来的东西对不对：版本号、系统依赖、包内资源、bundle id。
       # 打 tag 时还会把 tag 号和 tauri.conf.json 的 version 对齐检查。
