@@ -28,7 +28,6 @@ import type { HqsfApi, WindowControls } from '../shared/contracts/hqsf-api'
 import type { UpdateState } from '../shared/domain'
 import { getTauriInternals, invoke, listenTauriEvent, toErrorMessage } from './invoke'
 import { installTauriDragRegion } from './drag'
-import { installTauriContextMenuGuard } from './contextmenu'
 
 /**
  * 每条 invoke 通道的位置参数名（顺序即 1.x 调用顺序）。
@@ -261,7 +260,5 @@ export function installTauriBridge(): boolean {
   })
   // 无边框窗口拖拽：`-webkit-app-region` 在 WebKit 下无效，必须补一层 JS（见 drag.ts）。
   installTauriDragRegion()
-  // 压掉 WebView 原生（英文）右键菜单：只有显式挂了 useContextMenu 的区域才弹菜单。
-  installTauriContextMenuGuard()
   return true
 }

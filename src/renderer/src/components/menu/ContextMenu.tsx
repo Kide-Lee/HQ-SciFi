@@ -68,17 +68,21 @@ export function ContextMenuHost(): React.JSX.Element | null {
     [items]
   )
 
-  // 兜底：输入框/文本域/contenteditable 里右键时无人接管（组件处理器会 preventDefault）
-  // → 出一份与编辑器一致的基础编辑菜单。window 冒泡阶段晚于 React 根容器，可据此判断。
+  // 兜底：没有任何组件接管时（组件处理器会 preventDefault）由这里出菜单。
+  // 两件事必须一起做：
+  // 1) 兜底菜单内容——可编辑元素出「与编辑器一致的基础编辑菜单」，其他空地方右键至少要有
+  //    「刷新」「开发者工具」（由下方 appMenuItems() 统一追加，所以 items 传空数组即可）；
+  // 2) 压掉 WebView 原生菜单——Electron 的渲染进程没有默认右键菜单，而 WebKitGTK/WebView2 有
+  //    （英文的 Back/Forward/Reload/Select All），不在这里 preventDefault 就会漏出英文菜单。
+  // window 冒泡阶段晚于 React 根容器，可据此判断「有没有人接管」。
   const openMenu = useContextMenuStore((s) => s.openMenu)
   useEffect(() => {
     const onContextMenu = (e: MouseEvent): void => {
       if (e.defaultPrevented) return
       const el = e.target instanceof HTMLElement ? e.target : null
-      if (!el) return
-      const items = buildEditableContextMenu(el)
-      if (!items) return
+      const items = (el ? buildEditableContextMenu(el) : null) ?? []
       e.preventDefault()
+      e.stopPropagation()
       openMenu({ x: e.clientX, y: e.clientY, items })
     }
     window.addEventListener('contextmenu', onContextMenu)
