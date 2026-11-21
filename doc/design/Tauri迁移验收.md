@@ -189,6 +189,19 @@ node_modules/.bin/tsc --noEmit -p tsconfig.node.json
 
 这两条都进了 `gen-tauri-commands.mjs --verify` 的静态校验：每条命令必须带 `rename_all`；平铺命令逐位比对契约参数名；整包命令断言 `*Args` 的 serde wire 字段集合 ⊇ 契约参数名集合。
 
+## 4.1.1 CI 首轮暴露的两个真集成问题（本机静态检查抓不到）
+
+本机跑不了 `cargo check`，`--verify` 也只看生成物与契约，所以下面两类问题只有 CI 能暴露：
+
+1. **`bundle.resources` 在编译期校验源文件存在**
+   `tauri.conf.json` 的三项资源映射指向 `src-tauri/resources/*`，而这三个文件是 `src-tauri/scripts/prepare-resources.mjs` 的生成物、被 `src-tauri/.gitignore` 忽略。CI 检出后目录是空的 → `tauri-build` 直接报 `resource path 'resources/agreement.md' doesn't exist`。
+   修法：壳层 job 在 `cargo check` 之前先跑「准备打包资源」步——`api.config.json` 缺失时用 `api.config.example.json` 兜底（带 `::warning::`），再执行 `prepare-resources.mjs`。
+2. **内核同名公开类型会静默选错模块**
+   `adapters::read::ArticleMeta`（评论/评审脱敏用）与 `domain::sync::ArticleMeta`（发布表单元数据）同名。生成器按「类型名 → core 模块」建索引，重名时保留先扫到的那个 → `hqsf:sync-push` 的 dispatch 把 `domain::sync::ArticleMeta` 写成 `adapters::read::ArticleMeta`，编译期 `E0308`。
+   修法：改名 `ArticleMetaBrief`（仅适配器内部使用）；生成器入口新增同名检查——发现两个 `pub struct/enum/type` 同名就直接 `exit 1` 并列出两个模块，避免同类问题再次以「CI 才报」的形式出现。
+
+> 这两个问题都是「生成物 / 索引」类错误：单看任何一个文件都正确，只有把生成物放进干净检出环境、或让名字发生碰撞时才显形。后续新增类型或资源时优先复查这两条。
+
 ## 4.3 无边框窗口拖拽：从 CSS 私有属性改为 JS 端口调用
 
 1.x 靠 Chromium 私有 CSS `-webkit-app-region: drag|no-drag`（`src/renderer/src/styles/index.css` 共 9 处）让无边框窗口可拖动。**这条声明在 WebKitGTK / WKWebView 里是无效属性**，而 `tauri.conf.json` 在 Windows/Linux 上是 `decorations:false`（自绘 36px 顶栏），照搬 CSS 会导致这两个平台**窗口完全拖不动**——一个容易漏掉的功能回归。
