@@ -1,0 +1,17 @@
+# Rust 构建产物
+/target/
+
+# tauri-build / tauri CLI 生成的 schema 与缓存
+/gen/schemas/
+/gen/android/
+/gen/apple/
+
+# 生成物（下一张卡由 scripts/gen-tauri-commands.mjs --write 产出，先不提交）
+/src/commands_generated.rs
+
+# 打包资源由 scripts/prepare-resources.mjs 从仓库根/文档目录拷入：
+#   - api.config.json 本地持有，不入库（根 .gitignore 已忽略该文件名，这里再显式一次）
+#   - agreement.md / changelog.md 是 doc 下文件的副本，避免两份真相不同步 → 不入库，构建前重新生成
+/resources/api.config.json
+/resources/agreement.md
+/resources/changelog.md

@@ -29,3 +29,18 @@ reasonix.toml
 api.config.json
 # 本地测试模式 API 配置（baseUrl 指向本地 RuleApi，见 src/main/testmode.ts）
 api.config.test.json
+
+# Rust / Tauri（迁移中，见 doc/design/Tauri迁移计划.md）
+/target/
+**/target/
+src-tauri/gen/
+# 并行 lane 的 git worktree 与 spike 产物
+/.worktrees/
+# spike 目录整体不入库（2GB：vendored comrak、语料产物、target）；
+# 结论沉淀在 doc/spike/，可复跑部分在 scripts/
+/spikes/
+# 沙箱内 ~/.cargo 只读，CARGO_HOME 指到仓库内
+/.cargo-home/
+
+# 壳层 agent 的临时解包目录
+/.shell-tmp/

@@ -1,0 +1,806 @@
+{
+  "commands": [
+    {
+      "channel": "hqsf:add-comment",
+      "lane": "L7a",
+      "module": "comment",
+      "params": [
+        "payload"
+      ],
+      "returns": "CommentSubmitResult",
+      "rustCommand": "add_comment"
+    },
+    {
+      "channel": "hqsf:add-log",
+      "lane": "L7b",
+      "module": "interact",
+      "params": [
+        "type",
+        "params"
+      ],
+      "returns": "LogOpResult",
+      "rustCommand": "add_log"
+    },
+    {
+      "channel": "hqsf:check-forbidden",
+      "lane": "L7b",
+      "module": "browse",
+      "params": [
+        "title",
+        "text"
+      ],
+      "returns": "{ code: number; msg: string }",
+      "rustCommand": "check_forbidden"
+    },
+    {
+      "channel": "hqsf:choose-docs-dir",
+      "lane": "L2",
+      "module": "docs",
+      "params": [],
+      "returns": "string | null",
+      "rustCommand": "choose_docs_dir"
+    },
+    {
+      "channel": "hqsf:clear-cache",
+      "lane": "L1",
+      "module": "settings",
+      "params": [],
+      "returns": "ClearCacheResult",
+      "rustCommand": "clear_cache"
+    },
+    {
+      "channel": "hqsf:convert-to-draft",
+      "lane": "L7c",
+      "module": "sync",
+      "params": [
+        "cid"
+      ],
+      "returns": "ConvertDraftResult",
+      "rustCommand": "convert_to_draft"
+    },
+    {
+      "channel": "hqsf:copy-text",
+      "lane": "L1",
+      "module": "system",
+      "params": [
+        "text"
+      ],
+      "returns": "null",
+      "rustCommand": "copy_text"
+    },
+    {
+      "channel": "hqsf:create-local-dir",
+      "lane": "L2",
+      "module": "docs",
+      "params": [
+        "rel"
+      ],
+      "returns": "string",
+      "rustCommand": "create_local_dir"
+    },
+    {
+      "channel": "hqsf:create-local-draft",
+      "lane": "L2",
+      "module": "docs",
+      "params": [
+        "title",
+        "content",
+        "dirRel"
+      ],
+      "returns": "string",
+      "rustCommand": "create_local_draft"
+    },
+    {
+      "channel": "hqsf:delete-local-file",
+      "lane": "L2",
+      "module": "docs",
+      "params": [
+        "path"
+      ],
+      "returns": "null",
+      "rustCommand": "delete_local_file"
+    },
+    {
+      "channel": "hqsf:edit-remote-article",
+      "lane": "L7c",
+      "module": "sync",
+      "params": [
+        "cid"
+      ],
+      "returns": "EditRemoteResult",
+      "rustCommand": "edit_remote_article"
+    },
+    {
+      "channel": "hqsf:file-exists",
+      "lane": "L2",
+      "module": "docs",
+      "params": [
+        "path"
+      ],
+      "returns": "boolean",
+      "rustCommand": "file_exists"
+    },
+    {
+      "channel": "hqsf:get-agreement",
+      "lane": "L7c",
+      "module": "agreement",
+      "params": [],
+      "returns": "AgreementData",
+      "rustCommand": "get_agreement"
+    },
+    {
+      "channel": "hqsf:get-app-info",
+      "lane": "L1",
+      "module": "system",
+      "params": [],
+      "returns": "AppInfo",
+      "rustCommand": "get_app_info"
+    },
+    {
+      "channel": "hqsf:get-changelog",
+      "lane": "L1",
+      "module": "settings",
+      "params": [],
+      "returns": "ChangelogData",
+      "rustCommand": "get_changelog"
+    },
+    {
+      "channel": "hqsf:get-docs-root",
+      "lane": "L2",
+      "module": "docs",
+      "params": [],
+      "returns": "string",
+      "rustCommand": "get_docs_root"
+    },
+    {
+      "channel": "hqsf:get-private-chat",
+      "lane": "L7b",
+      "module": "chat",
+      "params": [
+        "touid"
+      ],
+      "returns": "{ chatid: string }",
+      "rustCommand": "get_private_chat"
+    },
+    {
+      "channel": "hqsf:get-remote-article",
+      "lane": "L7a",
+      "module": "read",
+      "params": [
+        "cid"
+      ],
+      "returns": "ArticleDetail",
+      "rustCommand": "get_remote_article"
+    },
+    {
+      "channel": "hqsf:get-session",
+      "lane": "L4",
+      "module": "auth",
+      "params": [],
+      "returns": "UserSession | null",
+      "rustCommand": "get_session"
+    },
+    {
+      "channel": "hqsf:get-settings",
+      "lane": "L1",
+      "module": "settings",
+      "params": [],
+      "returns": "AppSettings",
+      "rustCommand": "get_settings"
+    },
+    {
+      "channel": "hqsf:get-unread-count",
+      "lane": "L7b",
+      "module": "notify",
+      "params": [],
+      "returns": "{ total: number }",
+      "rustCommand": "get_unread_count"
+    },
+    {
+      "channel": "hqsf:is-mark",
+      "lane": "L7b",
+      "module": "interact",
+      "params": [
+        "cid"
+      ],
+      "returns": "MarkStatus",
+      "rustCommand": "is_mark"
+    },
+    {
+      "channel": "hqsf:list-articles",
+      "lane": "L2",
+      "module": "docs",
+      "params": [],
+      "returns": "ArticleRow[]",
+      "rustCommand": "list_articles"
+    },
+    {
+      "channel": "hqsf:list-categories",
+      "lane": "L7b",
+      "module": "browse",
+      "params": [],
+      "returns": "Array<{ mid: number | string; name: string; slug: string; description?: string; imgurl?: string; count?: number }>",
+      "rustCommand": "list_categories"
+    },
+    {
+      "channel": "hqsf:list-chat-messages",
+      "lane": "L7b",
+      "module": "chat",
+      "params": [
+        "chatid"
+      ],
+      "returns": "{ items: ChatMessage[] }",
+      "rustCommand": "list_chat_messages"
+    },
+    {
+      "channel": "hqsf:list-chat-sessions",
+      "lane": "L7b",
+      "module": "chat",
+      "params": [],
+      "returns": "{ items: ChatSession[] }",
+      "rustCommand": "list_chat_sessions"
+    },
+    {
+      "channel": "hqsf:list-comments",
+      "lane": "L7a",
+      "module": "comment",
+      "params": [
+        "cid",
+        "opts"
+      ],
+      "returns": "CommentListResult",
+      "rustCommand": "list_comments"
+    },
+    {
+      "channel": "hqsf:list-gpt-models",
+      "lane": "L7b",
+      "module": "browse",
+      "params": [],
+      "returns": "GptModel[]",
+      "rustCommand": "list_gpt_models"
+    },
+    {
+      "channel": "hqsf:list-local-docs",
+      "lane": "L2",
+      "module": "docs",
+      "params": [],
+      "returns": "LocalNode[]",
+      "rustCommand": "list_local_docs"
+    },
+    {
+      "channel": "hqsf:list-metas",
+      "lane": "L7b",
+      "module": "browse",
+      "params": [
+        "type"
+      ],
+      "returns": "MetaInfo[]",
+      "rustCommand": "list_metas"
+    },
+    {
+      "channel": "hqsf:list-my-reviews",
+      "lane": "L7a",
+      "module": "review",
+      "params": [],
+      "returns": "{ cids: string[] }",
+      "rustCommand": "list_my_reviews"
+    },
+    {
+      "channel": "hqsf:list-notifications",
+      "lane": "L7b",
+      "module": "notify",
+      "params": [],
+      "returns": "{ items: AppNotification[]; totalUnread: number }",
+      "rustCommand": "list_notifications"
+    },
+    {
+      "channel": "hqsf:list-recent-comments",
+      "lane": "L7a",
+      "module": "comment",
+      "params": [
+        "opts"
+      ],
+      "returns": "{ items: CommentItem[]; total: number }",
+      "rustCommand": "list_recent_comments"
+    },
+    {
+      "channel": "hqsf:list-remote-articles",
+      "lane": "L7a",
+      "module": "read",
+      "params": [
+        "opts"
+      ],
+      "returns": "{ items: RemoteArticle[]; total: number }",
+      "rustCommand": "list_remote_articles"
+    },
+    {
+      "channel": "hqsf:list-review-tasks",
+      "lane": "L7a",
+      "module": "review",
+      "params": [],
+      "returns": "ReviewTaskItem[]",
+      "rustCommand": "list_review_tasks"
+    },
+    {
+      "channel": "hqsf:list-reviews",
+      "lane": "L7a",
+      "module": "review",
+      "params": [
+        "opts"
+      ],
+      "returns": "{ items: ReviewItem[]; total: number }",
+      "rustCommand": "list_reviews"
+    },
+    {
+      "channel": "hqsf:login-password",
+      "lane": "L4",
+      "module": "auth",
+      "params": [
+        "name",
+        "password"
+      ],
+      "returns": "LoginResult",
+      "rustCommand": "login_password"
+    },
+    {
+      "channel": "hqsf:logout",
+      "lane": "L4",
+      "module": "auth",
+      "params": [],
+      "returns": "null",
+      "rustCommand": "logout"
+    },
+    {
+      "channel": "hqsf:mark-notifications-read",
+      "lane": "L7b",
+      "module": "notify",
+      "params": [
+        "categories"
+      ],
+      "returns": "null",
+      "rustCommand": "mark_notifications_read"
+    },
+    {
+      "channel": "hqsf:open-docs-dir",
+      "lane": "L2",
+      "module": "docs",
+      "params": [],
+      "returns": "null",
+      "rustCommand": "open_docs_dir"
+    },
+    {
+      "channel": "hqsf:pick-upload-user-image",
+      "lane": "L7b",
+      "module": "user",
+      "params": [],
+      "returns": "{ url: string } | null",
+      "rustCommand": "pick_upload_user_image"
+    },
+    {
+      "channel": "hqsf:ping",
+      "lane": "L1",
+      "module": "system",
+      "params": [],
+      "returns": "string",
+      "rustCommand": "ping"
+    },
+    {
+      "channel": "hqsf:read-clipboard-html",
+      "lane": "L1",
+      "module": "system",
+      "params": [],
+      "returns": "string",
+      "rustCommand": "read_clipboard_html"
+    },
+    {
+      "channel": "hqsf:read-clipboard-text",
+      "lane": "L1",
+      "module": "system",
+      "params": [],
+      "returns": "string",
+      "rustCommand": "read_clipboard_text"
+    },
+    {
+      "channel": "hqsf:read-local-file",
+      "lane": "L2",
+      "module": "docs",
+      "params": [
+        "path"
+      ],
+      "returns": "string",
+      "rustCommand": "read_local_file"
+    },
+    {
+      "channel": "hqsf:remove-log",
+      "lane": "L7b",
+      "module": "interact",
+      "params": [
+        "key"
+      ],
+      "returns": "LogOpResult",
+      "rustCommand": "remove_log"
+    },
+    {
+      "channel": "hqsf:rename-local-node",
+      "lane": "L2",
+      "module": "docs",
+      "params": [
+        "oldRel",
+        "newRel"
+      ],
+      "returns": "{ from: string; to: string }",
+      "rustCommand": "rename_local_node"
+    },
+    {
+      "channel": "hqsf:reveal-in-folder",
+      "lane": "L2",
+      "module": "docs",
+      "params": [
+        "path"
+      ],
+      "returns": "null",
+      "rustCommand": "reveal_in_folder"
+    },
+    {
+      "channel": "hqsf:search-comments",
+      "lane": "L7a",
+      "module": "search",
+      "params": [
+        "keyword",
+        "limit"
+      ],
+      "returns": "{ items: CommentItem[]; total: number }",
+      "rustCommand": "search_comments"
+    },
+    {
+      "channel": "hqsf:search-reviews",
+      "lane": "L7a",
+      "module": "search",
+      "params": [
+        "keyword",
+        "limit"
+      ],
+      "returns": "{ items: ReviewItem[]; total: number }",
+      "rustCommand": "search_reviews"
+    },
+    {
+      "channel": "hqsf:search-users",
+      "lane": "L7a",
+      "module": "search",
+      "params": [
+        "keyword",
+        "limit"
+      ],
+      "returns": "{ items: UserSearchResult[]; total: number }",
+      "rustCommand": "search_users"
+    },
+    {
+      "channel": "hqsf:send-chat-message",
+      "lane": "L7b",
+      "module": "chat",
+      "params": [
+        "chatid",
+        "msg"
+      ],
+      "returns": "null",
+      "rustCommand": "send_chat_message"
+    },
+    {
+      "channel": "hqsf:set-review-attitude",
+      "lane": "L7a",
+      "module": "review",
+      "params": [
+        "reviewId",
+        "type"
+      ],
+      "returns": "ReviewSubmitResult",
+      "rustCommand": "set_review_attitude"
+    },
+    {
+      "channel": "hqsf:show-message-box",
+      "lane": "L1",
+      "module": "system",
+      "params": [
+        "options"
+      ],
+      "returns": "{ response: number }",
+      "rustCommand": "show_message_box"
+    },
+    {
+      "channel": "hqsf:submit-review",
+      "lane": "L7a",
+      "module": "review",
+      "params": [
+        "payload"
+      ],
+      "returns": "ReviewSubmitResult",
+      "rustCommand": "submit_review"
+    },
+    {
+      "channel": "hqsf:sync-pull",
+      "lane": "L7c",
+      "module": "sync",
+      "params": [],
+      "returns": "PullResult",
+      "rustCommand": "sync_pull"
+    },
+    {
+      "channel": "hqsf:sync-push",
+      "lane": "L7c",
+      "module": "sync",
+      "params": [
+        "filePath",
+        "isDraft",
+        "meta"
+      ],
+      "returns": "PushResult",
+      "rustCommand": "sync_push"
+    },
+    {
+      "channel": "hqsf:toggle-devtools",
+      "lane": "L1",
+      "module": "window",
+      "params": [],
+      "returns": "null",
+      "rustCommand": "toggle_devtools"
+    },
+    {
+      "channel": "hqsf:uninstall",
+      "lane": "L1",
+      "module": "settings",
+      "params": [],
+      "returns": "null",
+      "rustCommand": "uninstall"
+    },
+    {
+      "channel": "hqsf:update-check",
+      "lane": "L4",
+      "module": "updater",
+      "params": [],
+      "returns": "UpdateState",
+      "rustCommand": "update_check"
+    },
+    {
+      "channel": "hqsf:update-download",
+      "lane": "L4",
+      "module": "updater",
+      "params": [],
+      "returns": "null",
+      "rustCommand": "update_download"
+    },
+    {
+      "channel": "hqsf:update-install",
+      "lane": "L4",
+      "module": "updater",
+      "params": [],
+      "returns": "null",
+      "rustCommand": "update_install"
+    },
+    {
+      "channel": "hqsf:update-settings",
+      "lane": "L1",
+      "module": "settings",
+      "params": [
+        "patch"
+      ],
+      "returns": "AppSettings",
+      "rustCommand": "update_settings"
+    },
+    {
+      "channel": "hqsf:update-state",
+      "lane": "L4",
+      "module": "updater",
+      "params": [],
+      "returns": "UpdateState",
+      "rustCommand": "update_state"
+    },
+    {
+      "channel": "hqsf:user-articles",
+      "lane": "L7b",
+      "module": "user",
+      "params": [
+        "uid",
+        "page",
+        "limit"
+      ],
+      "returns": "{ items: RemoteArticle[]; total: number }",
+      "rustCommand": "user_articles"
+    },
+    {
+      "channel": "hqsf:user-clock",
+      "lane": "L7b",
+      "module": "user",
+      "params": [],
+      "returns": "ClockResult",
+      "rustCommand": "user_clock"
+    },
+    {
+      "channel": "hqsf:user-comments",
+      "lane": "L7b",
+      "module": "user",
+      "params": [
+        "uid",
+        "page",
+        "limit"
+      ],
+      "returns": "CommentListResult",
+      "rustCommand": "user_comments"
+    },
+    {
+      "channel": "hqsf:user-fan-list",
+      "lane": "L7b",
+      "module": "user",
+      "params": [
+        "uid",
+        "page",
+        "limit"
+      ],
+      "returns": "{ items: UserFollowItem[]; total: number }",
+      "rustCommand": "user_fan_list"
+    },
+    {
+      "channel": "hqsf:user-feed",
+      "lane": "L7b",
+      "module": "user",
+      "params": [],
+      "returns": "FollowFeedItem[]",
+      "rustCommand": "user_feed"
+    },
+    {
+      "channel": "hqsf:user-follow",
+      "lane": "L7b",
+      "module": "user",
+      "params": [
+        "uid",
+        "follow"
+      ],
+      "returns": "{ ok: boolean; error?: string }",
+      "rustCommand": "user_follow"
+    },
+    {
+      "channel": "hqsf:user-follow-list",
+      "lane": "L7b",
+      "module": "user",
+      "params": [
+        "uid",
+        "page",
+        "limit"
+      ],
+      "returns": "{ items: UserFollowItem[]; total: number }",
+      "rustCommand": "user_follow_list"
+    },
+    {
+      "channel": "hqsf:user-follow-state",
+      "lane": "L7b",
+      "module": "user",
+      "params": [
+        "uid"
+      ],
+      "returns": "boolean",
+      "rustCommand": "user_follow_state"
+    },
+    {
+      "channel": "hqsf:user-marks",
+      "lane": "L7b",
+      "module": "user",
+      "params": [
+        "page",
+        "limit"
+      ],
+      "returns": "{ items: UserMarkItem[]; total: number }",
+      "rustCommand": "user_marks"
+    },
+    {
+      "channel": "hqsf:user-profile",
+      "lane": "L7b",
+      "module": "user",
+      "params": [
+        "uid"
+      ],
+      "returns": "UserProfile",
+      "rustCommand": "user_profile"
+    },
+    {
+      "channel": "hqsf:user-reviews",
+      "lane": "L7b",
+      "module": "user",
+      "params": [
+        "uid",
+        "page",
+        "limit"
+      ],
+      "returns": "{ items: ReviewItem[]; total: number }",
+      "rustCommand": "user_reviews"
+    },
+    {
+      "channel": "hqsf:user-self-status",
+      "lane": "L7b",
+      "module": "user",
+      "params": [],
+      "returns": "SelfStatus | null",
+      "rustCommand": "user_self_status"
+    },
+    {
+      "channel": "hqsf:user-stats",
+      "lane": "L7b",
+      "module": "user",
+      "params": [
+        "uid"
+      ],
+      "returns": "UserStats | null",
+      "rustCommand": "user_stats"
+    },
+    {
+      "channel": "hqsf:user-update-profile",
+      "lane": "L7b",
+      "module": "user",
+      "params": [
+        "payload"
+      ],
+      "returns": "null",
+      "rustCommand": "user_update_profile"
+    },
+    {
+      "channel": "hqsf:verify-session",
+      "lane": "L4",
+      "module": "auth",
+      "params": [],
+      "returns": "{ valid: boolean; reachable: boolean }",
+      "rustCommand": "verify_session"
+    },
+    {
+      "channel": "hqsf:window-close",
+      "lane": "L1",
+      "module": "window",
+      "params": [],
+      "returns": "void",
+      "rustCommand": "window_close"
+    },
+    {
+      "channel": "hqsf:window-is-maximized",
+      "lane": "L1",
+      "module": "window",
+      "params": [],
+      "returns": "boolean",
+      "rustCommand": "window_is_maximized"
+    },
+    {
+      "channel": "hqsf:window-maximize-toggle",
+      "lane": "L1",
+      "module": "window",
+      "params": [],
+      "returns": "boolean",
+      "rustCommand": "window_maximize_toggle"
+    },
+    {
+      "channel": "hqsf:window-minimize",
+      "lane": "L1",
+      "module": "window",
+      "params": [],
+      "returns": "void",
+      "rustCommand": "window_minimize"
+    },
+    {
+      "channel": "hqsf:write-local-file",
+      "lane": "L2",
+      "module": "docs",
+      "params": [
+        "path",
+        "content"
+      ],
+      "returns": "null",
+      "rustCommand": "write_local_file"
+    },
+    {
+      "channel": "media:pick-upload-image",
+      "lane": "L5",
+      "module": "media",
+      "params": [],
+      "returns": "{ url: string } | null",
+      "rustCommand": "pick_upload_image"
+    }
+  ],
+  "count": 85,
+  "generatedBy": "cargo run -p hqsf-bindings",
+  "version": 1
+}

@@ -1,0 +1,22 @@
+{"name":"h2m-heading","input":"<h1>标题</h1><h2>二级</h2><h3>三级</h3>","html":"# 标题\n\n## 二级\n\n### 三级"}
+{"name":"h2m-paragraph-emphasis","input":"<p>段落<strong>粗</strong>与<em>斜</em>与<code>代码</code></p>","html":"段落**粗**与_斜_与`代码`"}
+{"name":"h2m-unordered-list","input":"<ul><li>一</li><li>二<ul><li>嵌套</li></ul></li></ul>","html":"-   一\n-   二\n    -   嵌套"}
+{"name":"h2m-ordered-list","input":"<ol><li>第一</li><li>第二</li></ol>","html":"1.  第一\n2.  第二"}
+{"name":"h2m-code-block-js","input":"<pre><code class=\"language-js\">const x = 1\nconsole.log(x)</code></pre>","html":"```js\nconst x = 1\nconsole.log(x)\n```"}
+{"name":"h2m-code-block-plain","input":"<pre><code>plain\ncode</code></pre>","html":"```\nplain\ncode\n```"}
+{"name":"h2m-inline-code","input":"<p>用 <code>npm run dev</code> 启动</p>","html":"用 `npm run dev` 启动"}
+{"name":"h2m-table","input":"<table><thead><tr><th>a</th><th>b</th></tr></thead><tbody><tr><td>1</td><td>2</td></tr></tbody></table>","html":"a\n\nb\n\n1\n\n2"}
+{"name":"h2m-span-class-kaiti","input":"<p><span class=\"kaiti\">楷体</span>正文</p>","html":"楷体正文"}
+{"name":"h2m-inline-style","input":"<p style=\"color:red;font-weight:bold\">红色加粗</p>","html":"红色加粗"}
+{"name":"h2m-hard-break","input":"<p>第一行<br>第二行</p>","html":"第一行  \n第二行"}
+{"name":"h2m-two-paragraphs","input":"<p>a<br>b</p><p>c</p>","html":"a  \nb\n\nc"}
+{"name":"h2m-empty","input":"","html":""}
+{"name":"h2m-cjk-punct","input":"<p>「引用」、破折号——省略号……（括号）</p>","html":"「引用」、破折号——省略号……（括号）"}
+{"name":"h2m-blockquote","input":"<blockquote><p>引用段落</p></blockquote>","html":"> 引用段落"}
+{"name":"h2m-link","input":"<p>访问 <a href=\"https://example.com/x\">链接文字</a></p>","html":"访问 [链接文字](https://example.com/x)"}
+{"name":"h2m-image","input":"<p><img src=\"https://cdn.example.com/x.png\" alt=\"图\"></p>","html":"![图](https://cdn.example.com/x.png)"}
+{"name":"h2m-hr","input":"<hr><p>分隔线后</p>","html":"* * *\n\n分隔线后"}
+{"name":"h2m-entities","input":"<p>&amp; &lt; &gt; &quot; &#39;</p>","html":"& < > \" '"}
+{"name":"h2m-quill-mixed","input":"<p>第一段<strong>重点</strong></p><ul><li>项一</li></ul><p><br></p><p>第二段</p>","html":"第一段**重点**\n\n-   项一\n\n  \n\n第二段"}
+{"name":"h2m-nested-inline","input":"<p><strong>粗<em>斜</em></strong>与 <span class=\"kaiti\">楷</span></p>","html":"**粗_斜_**与 楷"}
+{"name":"h2m-multiline-python","input":"<pre><code class=\"language-python\">def f():\n    return 1</code></pre>","html":"```python\ndef f():\n    return 1\n```"}

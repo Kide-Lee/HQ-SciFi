@@ -1,0 +1,22 @@
+{"name":"fm-basic","input":"---\ncategory: 原创作品\nactive: 征文\ntags: [科幻, 太空]\nisopen: false\n---\n正文第一行\n正文第二行","meta":{"category":"原创作品","tags":["科幻","太空"],"active":"征文","isopen":false},"body":"正文第一行\n正文第二行"}
+{"name":"fm-list","input":"---\ntags:\n  - 科幻\n  - \"太空\"\n  - '时间'\ncategory: 原创作品\n---\n正文","meta":{"category":"原创作品","tags":["科幻","太空","时间"]},"body":"正文"}
+{"name":"fm-empty-body","input":"---\ncategory: 活动\n---","meta":{"category":"活动"},"body":""}
+{"name":"fm-no-frontmatter","input":"# 标题\n\n正文，无 frontmatter。","meta":{},"body":"# 标题\n\n正文，无 frontmatter。"}
+{"name":"fm-unclosed","input":"---\ncategory: 未闭合\n\n正文还在继续","meta":{"category":"未闭合"},"body":""}
+{"name":"fm-comments-blank","input":"---\n# 注释行\n\ncategory: 原创作品\n# 又一个注释\nisopen: true\n---\n\n\n正文","meta":{"category":"原创作品","isopen":true},"body":"正文"}
+{"name":"fm-quotes","input":"---\ncategory: \"原创作品\"\nactive: '活动'\ntags: [\"a\", 'b', \"c\"]\nisopen: \"false\"\n---\n正文","meta":{"category":"原创作品","tags":["a","b","c"],"active":"活动","isopen":false},"body":"正文"}
+{"name":"fm-array-quoted-commas","input":"---\ntags: [a, \"b,c\", 'd']\n---\n正文","meta":{"tags":["a","b","c","d"]},"body":"正文"}
+{"name":"fm-bool-variants","input":"---\nisopen: TRUE\n---\n正文","meta":{},"body":"正文"}
+{"name":"fm-isopen-garbage","input":"---\nisopen: maybe\ncategory: \"\"\ntags: []\n---\n正文","meta":{},"body":"正文"}
+{"name":"fm-key-charset","input":"---\ncat-egory: 不合法键\n_ok: 合法键\ntags: [x]\n---\n正文","meta":{"tags":["x"]},"body":"正文"}
+{"name":"fm-leading-bom","input":"﻿---\ncategory: BOM 开头\n---\n正文","meta":{"category":"BOM 开头"},"body":"正文"}
+{"name":"fm-crlf","input":"---\r\ncategory: 回车换行\r\ntags: [a, b]\r\n---\r\n正文\r\n第二行","meta":{"category":"回车换行","tags":["a","b"]},"body":"正文\r\n第二行"}
+{"name":"fm-leading-blank","input":"\n---\ncategory: 空行开头\n---\n正文","meta":{},"body":"\n---\ncategory: 空行开头\n---\n正文"}
+{"name":"fm-indented-dashes","input":"---\n  category: 前置空格\n    tags: [a]\n  - b\n---\n正文","meta":{"category":"前置空格","tags":["a"]},"body":"正文"}
+{"name":"fm-no-trailing-newline","input":"---\ncategory: 无尾换行\n---\n正文","meta":{"category":"无尾换行"},"body":"正文"}
+{"name":"fm-dash-in-value","input":"---\ncategory: 原创-作品\ntags: [a-b, c]\n---\n正文","meta":{"category":"原创-作品","tags":["a-b","c"]},"body":"正文"}
+{"name":"fm-short-body","input":"---\nisopen: false\n---\n","meta":{"isopen":false},"body":""}
+{"name":"fm-nested-colon","input":"---\ncategory: 前缀: 后缀\ntags: [a:b]\n---\n正文","meta":{"category":"前缀: 后缀","tags":["a:b"]},"body":"正文"}
+{"name":"fm-hash-value","input":"---\nactive: #不是注释\ncategory: ok\n---\n正文","meta":{"category":"ok","active":"#不是注释"},"body":"正文"}
+{"name":"case/19-hr","input":"---\n\n***\n\n___\n\n- - -\n\n***强调*** 与 --- 在一行\n","meta":{},"body":""}
+{"name":"case/41-frontmatter-yaml","input":"---\ntitle: 前端 matter\ntags: [a, b]\n---\n\n# 正文标题\n\n内容\n","meta":{"tags":["a","b"]},"body":"# 正文标题\n\n内容\n"}

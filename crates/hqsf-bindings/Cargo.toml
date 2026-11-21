@@ -1,0 +1,20 @@
+[package]
+name = "hqsf-bindings"
+description = "无头绑定生成器：从 hqsf-core 的 specta 类型与命令注册表生成 TS 类型与命令清单。"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "hqsf-bindings"
+path = "src/main.rs"
+
+[dependencies]
+hqsf-core = { path = "../hqsf-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+specta = { workspace = true }
+specta-serde = "0.0.15"
+specta-typescript = { workspace = true }
+specta-util = "0.0.15"
