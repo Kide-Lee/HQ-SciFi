@@ -249,6 +249,33 @@ const BILI_IFRAME = (id: string): string =>
   `<iframe class="hqsf-media hqsf-video" src="${mediaPlayerUrl('video bilibili', id)}" ` +
   `scrolling="no" border="0" frameborder="no" width="100%" height="420" allowfullscreen="true"></iframe>`
 
+/**
+ * 播放器地址 → 媒体标签。有的文章（网页端编辑器 / 作者直接贴链接）把媒体存成
+ * `<a href="…outchain/player…">` 而不是方括号标签，阅读页若不还原就只剩一个链接，
+ * 点开会被 `target=_blank` 逻辑丢给系统浏览器——所以这里按播放器地址反推回 iframe。
+ * 只认三个**嵌入端点**（非普通歌曲页），不会误伤普通链接。
+ */
+function playerFromUrl(url: string): { tag: string; id: string } | null {
+  const raw = url.replace(/&amp;/g, '&')
+  let m = /music\.163\.com\/outchain\/player\?[^"'\s]*?[?&]id=(\d{3,20})/.exec(raw)
+  if (m) return { tag: 'music 163', id: m[1] }
+  m = /i\.y\.qq\.com\/n2\/m\/outchain\/player\/index\.html\?[^"'\s]*?[?&](?:songid|id)=(\d{3,20})/.exec(raw)
+  if (m) return { tag: 'music qq', id: m[1] }
+  m = /player\.bilibili\.com\/player\.html\?[^"'\s]*?[?&]bvid=(BV[0-9A-Za-z]{6,20})/.exec(raw)
+  if (m) return { tag: 'video bilibili', id: m[1] }
+  return null
+}
+
+/** 指向播放器嵌入端点的 `<a>`（sanitizeHtml 之后 href 里的 & 已转义成 &amp;）。 */
+const PLAYER_ANCHOR_RE = /<a\b[^>]*?href="([^"]+)"[^>]*>[\s\S]*?<\/a>/gi
+
+function iframeForMedia(tag: string, id: string): string | null {
+  if (tag === 'music 163') return MUSIC_163_IFRAME(id)
+  if (tag === 'music qq') return MUSIC_QQ_IFRAME(id)
+  if (tag === 'video bilibili') return BILI_IFRAME(id)
+  return null
+}
+
 export function expandMediaTags(html: string): string {
   if (!html) return ''
   return html
@@ -263,6 +290,12 @@ export function expandMediaTags(html: string): string {
     .replace(BILI_RE, (m, raw: string) => {
       const id = parseMediaId('video bilibili', raw)
       return id ? BILI_IFRAME(id) : m
+    })
+    // 兜底：媒体被存成「播放页链接」的旧文章 → 还原成内嵌播放器，避免点开跳到浏览器
+    .replace(PLAYER_ANCHOR_RE, (m, href: string) => {
+      const hit = playerFromUrl(href)
+      if (!hit) return m
+      return iframeForMedia(hit.tag, hit.id) ?? m
     })
 }
 
