@@ -179,7 +179,7 @@ TODO(verify)：迁移计划 §1.5 写测试目录为 `com.huangqisf.client-test`
 ## 开发 / 构建
 
 ```bash
-# 1) 准备前端产物（1.x 仍是 electron-vite 构建，v2 阶段会换成 vite）
+# 1) 准备前端产物（纯 Vite：vite.web.config.ts → out/web）
 npm run build:web             # → out/web/index.html（tauri.conf.json 的 frontendDist）
 
 # 2) 准备打包资源（api.config.json 不入库，必须本地有）

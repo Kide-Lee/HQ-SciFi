@@ -19,7 +19,7 @@
 - **评审**：接入官方五维评审体系（设定 / 文笔 / 人物 / 情节 / 思想性）；「我的评审 / 所有评审」双视图，可随时编辑自己的评审；所有评审按时间 / 评分 / 开心 / 有用 / 认真排序 + 倒序；评审栏与正文可拖动分栏（默认 1:2）、字号与正文一致、编辑框随内容自动增高、实时平均分预示、评者头像
 - **活动**：活动按钮红点提示未完成评审任务；进行中 / 评审中活动带状态标记，且其文章不进入评分榜、不显示评分与排名
 - **界面与交互**：无边框自绘顶栏（页面标题居中 / 窗口控件 / 返回列表，顶栏与左栏空白处可拖动窗口）；左栏可折叠、宽度可调（目录 / 文件树展开收起带动画）；阅读页右栏「目录 / 评论 / 评审」一体 tab，评论与评审双向联动（同一评审的评论聚合、跳转对应评审、回复评审），评审评论内嵌于评审卡片、态度反应 emoji 化；互动按钮悬浮文章右下角（投币 / 点赞 / 收藏 / 分享 + 置顶）；文章卡片高度统一、封面加载失败占位兜底、摘要区居中 / 无摘要提示
-- **安全**：登录凭据经系统级加密（safeStorage）仅存主进程、渲染层沙箱隔离、远端内容白名单净化防 XSS；**首次启动须阅读并同意《黄芪饮片用户协议》**（滚动到底才能勾选）；**登录仅需本应用协议，不再要求荒启平台用户协议**；**每次启动自动校验会话有效性**，token 失效自动丢弃并退回未登录（网络异常不误登出）；任意界面 Ctrl+F12 打开开发者工具
+- **安全**：登录凭据经系统钥匙串加密（Windows 凭据管理器 / macOS Keychain / Linux Secret Service）仅存 Tauri 主进程、渲染层隔离、远端内容白名单净化防 XSS；**首次启动须阅读并同意《黄芪饮片用户协议》**（滚动到底才能勾选）；**登录仅需本应用协议，不再要求荒启平台用户协议**；**每次启动自动校验会话有效性**，token 失效自动丢弃并退回未登录（网络异常不误登出）；任意界面 Ctrl+F12 打开开发者工具
 
 ## 界面
 
@@ -33,14 +33,16 @@
 
 从 [GitHub Releases](https://github.com/Kide-Lee/HQ-SciFi/releases)（最新版本以 Releases 页为准）下载安装包：
 
-| 平台 | 文件 |
+| 平台 | 包 |
 | --- | --- |
-| Windows | [hq-scifi.Setup.1.2.13.exe](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v1.2.13/hq-scifi.Setup.1.2.13.exe) |
-| Linux | [hq-scifi-1.2.13.AppImage](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v1.2.13/hq-scifi-1.2.13.AppImage)（无需安装，直接运行） |
-| Linux | [hq-scifi_1.2.13_amd64.deb](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v1.2.13/hq-scifi_1.2.13_amd64.deb)（Debian/Ubuntu 系） |
-| macOS | [hq-scifi-1.2.13-arm64.dmg](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v1.2.13/hq-scifi-1.2.13-arm64.dmg)（Apple Silicon，M 系列） |
-| macOS | [hq-scifi-1.2.13-x64.dmg](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v1.2.13/hq-scifi-1.2.13-x64.dmg)（Intel） |
+| Windows 10/11（x64） | NSIS 安装包 `.exe`（依赖系统 WebView2，Win11 自带） |
+| Linux（x64） | `.deb`（Debian 12+/Ubuntu 22.04+，需 `libwebkit2gtk-4.1`）或 `.AppImage`（需 `libfuse2`） |
+| macOS（11+） | `.dmg`（Apple Silicon / Intel 各一个，未签名时右键「打开」） |
 
+文件名形如 `hq-scifi_<版本>_<平台>.<扩展名>`，实际下载以 [Releases](https://github.com/Kide-Lee/HQ-SciFi/releases) 页为准。**2.0 起渲染引擎改用系统 WebView（WebKitGTK / WebView2 / WKWebView），安装包体积从 ~90 MB 降到 7–14 MB；Linux 不再自带渲染引擎，需系统装有 `libwebkit2gtk-4.1`。**
+
+> **v2.0.14**：**迁移到 Tauri 2 + 全 Rust 后端**——渲染引擎改用系统 WebView，安装包体积大幅下降（deb 14 MB / NSIS 7.5 MB / dmg 11–12 MB / AppImage 87 MB）；后端从 Electron 主进程的 TypeScript 整体重写为 Rust（85 条 IPC 命令一一对应，markdown 渲染与 1.x 逐字节对等），本地库改用 rusqlite；Electron、electron-vite、electron-builder、better-sqlite3 及相关代码与配置**已从仓库彻底移除**。用户可见变化：**升级后首次需重新登录**（旧 token 由 Electron safeStorage 加密，Tauri 无法解密）；首次启动自动迁移本地数据（只复制不删除，旧配置目录保留可回滚）；删除文件仍进系统回收站；文件排序改为字典序（不再按拼音）。
+>
 > **v1.2.13**：**荒启改版适配与文章/评审修复**——活动文章按页拉全并按 cid 去重（作品统计与活动树不再缺文章）；markdown 文章改用服务端渲染 HTML；文章详情缓存改为 10 分钟硬过期，作者补写后及时刷新；消息中心合并网页端独立的「待评审」任务并支持点击直达，收件箱单类异常不再拖垮整个消息列表。更新日志见 [doc/CHANGELOG.md](doc/CHANGELOG.md)。
 >
 > **v1.1.12**：**右栏重组与阅读体验**——顶栏右栏按钮拆为「设置」「文章」：设置栏固定 历史 / 消息 / 设置（设置内含 系统 / 界面 / 用户），文章栏按视图显示 目录 / 评论 / 评审 / 搜索，两栏各自记住上次页签；有未读通知时设置按钮显示铃铛 + 红点；移除左栏底部设置按钮与独立设置弹窗。新增阅读历史（右栏「历史」，上限 200 篇）；评审 / 评论 / 评审内评论的未提交草稿自动缓存并在切 tab、刷新、重启后恢复（保留 30 天，可一键丢弃）；左栏树形内容展开 / 收起加入 200ms 动画；左右栏拖动指示条统一。更新日志见 [doc/CHANGELOG.md](doc/CHANGELOG.md)。
@@ -51,22 +53,22 @@
 
 ### 从源码构建
 
-环境要求：Node.js ≥ 20（建议 22 LTS）+ npm。
+环境要求：Rust stable ≥ 1.90 + Node.js ≥ 22。Linux 还需 `libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf`；macOS 需 Xcode Command Line Tools；Windows 需 MSVC 工具链。另外需要一份荒启接口配置 `api.config.json`（模板见 `api.config.example.json`，不入库）。
 
 ```bash
-npm install
-npm run dev          # 开发模式（热更新）
-npm run dev:test     # 本地测试模式（独立 userData/API 配置/存档根，见下方说明）
-npm run build:win    # 打包 Windows 安装包（dist/；自动注入 Windows 原生模块 prebuild）
-npm run build:linux  # 打包 Linux（deb + AppImage，dist/）
-npm run build:mac    # 打包 macOS（dmg + zip，x64 + arm64，dist/）
+npm ci
+npm run build:web                                    # 渲染层 → out/web
+node src-tauri/scripts/gen-tauri-commands.mjs --write   # 生成 85 条命令 dispatch（gitignored）
+node src-tauri/scripts/prepare-resources.mjs            # 打包资源（协议/更新日志/api.config.json）
+cargo install tauri-cli --version "^2" --locked
+cd src-tauri && cargo tauri build                       # 产物在 src-tauri/target/release/bundle/
 ```
 
-> **本地测试模式**（对接自建 RuleApi / 本地接口联调）：`npm run dev:test`（或 `electron out/main/index.js --test` / 环境变量 `HQSF_TEST=1`；跨平台由 `cross-env` 注入，Windows cmd/PowerShell 亦可用）。测试模式与正式使用完全隔离——独立 userData（`~/.config/hqsf-test`，数据库/session/设置不混入正式库）、API 配置优先读本地持有的 `api.config.test.json`（baseUrl 指向本地服务，不入库）、默认存档根为 `~/文档/荒启科幻/草稿-test`。正式模式（`npm run dev`）不受任何影响，两者可同时运行。
+开发时用 `cargo tauri dev`。提交前建议跑一遍不编译壳的自检（详见 `AGENTS.md` 的「编译前自检」）：`cargo test -q -p hqsf-core --lib`、`cargo clippy --all-targets -- -D warnings`、`cargo run -q -p hqsf-bindings -- --check`、`node src-tauri/scripts/gen-tauri-commands.mjs --verify`、`npm run typecheck`。
 
-> Windows 包在 Linux 交叉打包时，`build:win` 会自动下载 better-sqlite3 的 Windows prebuild 替换原生二进制（打包后恢复），无需 Windows 环境；升级 Electron 后首次打包会重新下载匹配 ABI 的 prebuild（需联网访问 GitHub Releases）。
+> **本地测试模式**（对接自建 RuleApi / 本地接口联调）：给可执行文件加 `--test`（或环境变量 `HQSF_TEST=1`）。测试模式与正式使用完全隔离——独立数据目录（`~/.local/share/hqsf-test`，数据库/session/设置不混入正式库）、API 配置优先读本地持有的 `api.config.test.json`（baseUrl 指向本地服务，不入库）、默认存档根为 `~/文档/荒启科幻/草稿-test`。两者可同时运行。
 >
-> macOS 的 dmg 打包依赖系统 hdiutil，**只能在 macOS 上执行** `build:mac`（Mac 真机或 CI 的 macos runner），Linux 无法交叉产出 mac 包。macOS 上 better-sqlite3 由官方 darwin prebuild 自动匹配，无需额外脚本。未配置 Apple 签名证书时产出未签名包，首次打开需右键 → 打开。
+> 出包由 CI 的 `.github/workflows/release.yml` 完成（tag `v*` 正式发布 / 分支 `build-only` 只构建验证）。三平台产物、自检结果与体积回写在 `release-status` 分支。
 
 ## 使用
 
@@ -84,18 +86,16 @@ npm run build:mac    # 打包 macOS（dmg + zip，x64 + arm64，dist/）
 
 ## 文档
 
-- [产品与技术设计](doc/design.md)
+- [产品简介](doc/design/简介.md) · [产品定位与范围](doc/design/产品定位与范围.md)
 - [荒启 API 调查报告](doc/api-research.md)
 - [荒启网站现状调研](doc/site-overview.md)
-- 迁移： [Tauri 迁移计划](doc/design/Tauri迁移计划.md) · [Tauri 命令契约](doc/design/Tauri命令契约.md) · [Rust 实现约定](doc/design/Rust实现约定.md) · [Tauri 迁移验收](doc/design/Tauri迁移验收.md)
+- Tauri：[迁移计划](doc/design/Tauri迁移计划.md) · [Tauri 命令契约](doc/design/Tauri命令契约.md) · [Rust 实现约定](doc/design/Rust实现约定.md) · [迁移验收](doc/design/Tauri迁移验收.md) · [真机验证清单](doc/design/真机验证清单.md)
 
 ## 技术栈
 
-**v2.0（迁移中）**：Tauri 2.12 · 后端 100% Rust（`crates/hqsf-core`）· rusqlite · comrak + QuickJS 内嵌 KaTeX/turndown · React 19 · TypeScript · Vite 7 · Milkdown 7（ProseMirror 可视化编辑）· CodeMirror 6 · Zustand · lucide-react（图标）
+Tauri 2.12 · 后端 100% Rust（`crates/hqsf-core`，rusqlite / reqwest / comrak + QuickJS 内嵌 KaTeX·turndown / keyring）· React 19 · TypeScript · Vite 7 · Milkdown 7（ProseMirror 可视化编辑）· CodeMirror 6 · Zustand · lucide-react（图标）
 
-**v1.2.13（当前发布版）**：Electron 34 · React 19 · TypeScript · Vite 7（electron-vite 5）· Milkdown 7 · CodeMirror 6 · Zustand · better-sqlite3 · electron-builder 26
-
-> 迁移文档：[Tauri 迁移计划](doc/design/Tauri迁移计划.md)、[命令契约](doc/design/Tauri命令契约.md)、[验收记录](doc/design/Tauri迁移验收.md)。
+> 1.x（Electron 34 + electron-vite + better-sqlite3）已归档到 `doc/archive/1.x/`，仅作历史参照。
 
 ## 免责声明
 

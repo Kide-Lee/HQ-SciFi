@@ -112,7 +112,12 @@ fn run_corpus(cases: &[HtmlCase], render: fn(&str) -> String) {
 #[test]
 fn md_to_html_matches_markdown_it_corpus() {
     let cases: Vec<HtmlCase> = load_jsonl("corpus.jsonl");
-    assert!(cases.len() >= 130, "语料应有 143 条，实际 {}", cases.len());
+    // 语料随仓库 md 文档增删而变（`node scripts/gen-markdown-corpus.mjs` 重生成）；这里只防「生成失败/被截断」。
+    assert!(
+        cases.len() >= 120,
+        "语料过少（{} 条），疑似生成失败",
+        cases.len()
+    );
     run_corpus(&cases, md_to_html);
 }
 
@@ -209,4 +214,14 @@ fn block_math_renders_div_with_display_katex() {
         html.contains("<annotation encoding=\"application/x-tex\">\nE = mc^2\n</annotation>"),
         "{html}"
     );
+}
+
+/// 未配对的反引号串不能让后面的行内代码/行内公式失灵
+/// （comrak 在这里与 markdown-it 行为不同，见 `inline_code` 的模块文档）。
+#[test]
+fn stray_backticks_do_not_swallow_later_inline_code() {
+    let html = md_to_html("A（```js）、行内 `code`、行内公式 `$x^2$`。");
+    assert!(html.contains("<code>code</code>"), "{html}");
+    assert!(html.contains("<code>$x^2$</code>"), "{html}");
+    assert!(!html.contains("katex"), "行内公式必须留在代码里：{html}");
 }

@@ -29,6 +29,7 @@
 
 mod blockmath;
 pub mod frontmatter;
+mod inline_code;
 mod inline_math;
 mod js;
 mod linkify;
@@ -80,7 +81,10 @@ pub fn md_to_html(markdown: &str) -> String {
     let src = markdown.replace('\u{FEFF}', "\u{FEFE}");
     let options = options();
     let block_prep = blockmath::preprocess(&src);
-    let inline_prep = inline_math::preprocess(&block_prep.source, &options);
+    // comrak 遇到未配对的反引号串后不再配对后续行内代码，与 markdown-it 不同；
+    // 先把未配对的反引号串换成哨兵（postprocess 还原），见 inline_code 的模块文档。
+    let code_prep = inline_code::sanitize_stray_backticks(&block_prep.source);
+    let inline_prep = inline_math::preprocess(&code_prep, &options);
     let arena = Arena::new();
     let root = parse_document(&arena, &inline_prep.source, &options);
     rewrite_inline_math(&arena, root, &inline_prep.maths);
@@ -345,7 +349,9 @@ fn postprocess(html: &str) -> String {
         .replace(QUOTE_SENTINEL, "&#x27;")
         // markdown-it 的删除线是 `<s>`，comrak 是 `<del>`。
         .replace("<del>", "<s>")
-        .replace("</del>", "</s>");
+        .replace("</del>", "</s>")
+        // 未配对的反引号串在预处理阶段换成了哨兵，这里还原成字面量反引号。
+        .replace(inline_code::BACKTICK_SENTINEL, "`");
     // markdown-it 15 的表格对齐输出 `style="text-align:left"`，comrak 用的是 `align="left"`。
     for align in ["left", "center", "right"] {
         out = out.replace(

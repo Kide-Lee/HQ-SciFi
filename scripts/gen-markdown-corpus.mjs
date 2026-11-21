@@ -40,11 +40,11 @@ export async function resolve(specifier, context, next) {
 `
 register('data:text/javascript,' + encodeURIComponent(resolveHook))
 
-const { mdToHtml } = await import(pathToFileURL(join(ROOT, 'src/main/infra/media/md2html.ts')).href)
+const { mdToHtml } = await import(pathToFileURL(join(ROOT, 'scripts/markdown-oracle/md2html.ts')).href)
 const { parseFrontmatter } = await import(pathToFileURL(join(ROOT, 'src/shared/frontmatter.ts')).href)
 // turndown 实例：与 1.x `src/main/services/sync-service.ts:135` 的构造参数逐字一致
 // （那边 `const turndown = new TurndownService({...})`，`htmlToMd = html => turndown.turndown(html)`；
-//  sync-service 依赖 electron，没法直接 import，所以这里复用同一个包 + 同样的 option）。
+//  1.x 的 sync-service 已删除；turndown 的 option 按 1.x 取值（见 scripts/markdown-oracle/README 说明）。
 const { default: TurndownService } = await import(pathToFileURL(join(ROOT, 'node_modules/turndown/lib/turndown.cjs.js')).href)
 
 // ---------------------------------------------------------------------------

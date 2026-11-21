@@ -19,7 +19,6 @@
   "include": [
     "src/renderer/src/**/*",
     "src/bridge/**/*",
-    "src/preload/index.d.ts",
     "src/shared/**/*"
   ]
 }

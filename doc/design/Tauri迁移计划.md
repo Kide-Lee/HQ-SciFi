@@ -61,8 +61,8 @@ HQ-SciFi/
 │       ├── adapters/         #   响应规整（11 个 API 域，自 src/main/adapters 平移）
 │       ├── services/         #   编排（auth/docs/sync/settings/updater）
 │       └── infra/            #   db / fs / net / session / settings / media / updater / markdown
-├── src/main/                 # Electron 主进程：P5 前原样保留，P5 后随 1.x 分支移除
-└── src/preload/              # 同上
+├── (已移除) src/main/       # 1.x Electron 主进程：v2.0.14 后按用户指示删除，仅 doc/archive/1.x/ 留档
+└── (已移除) src/preload/    # 同上
 ```
 
 ### 1.2 分层与职责
@@ -515,7 +515,7 @@ DoD:
 | 阶段 | 计划 | 实际 | 结论 |
 | --- | --- | --- | --- |
 | P0 风险验证 | 5 路 spike（SP-1 IME、SP-2 媒体、SP-3 Windows 构建、SP-4 数据、SP-5 markdown） | SP-4 ✅、SP-5 ✅（86/86 逐字节，comrak+QuickJS 方案）、SP-1/2/3 ❌ 本机无法验证（无 WebKitGTK / 无法交叉打包），已转入 CI+真机清单 | **SP-5 硬门禁通过**；风险 1/2/3 仍待 CI |
-| P1 契约冻结 | 85 通道 + 金标准 | ✅ `commands.json`（85 通道 / 2 事件 / 10 异常）+ `Tauri命令契约.md`（348 行、521 处 file:line）+ markdown 语料 143 条 | 完成 |
+| P1 契约冻结 | 85 通道 + 金标准 | ✅ `commands.json`（85 通道 / 2 事件 / 10 异常）+ `Tauri命令契约.md`（348 行、521 处 file:line）+ markdown 语料 127 条 | 完成 |
 | P2 骨架 + 垂切 | core/壳切分、端口、绑定器、桥接门面 | ✅ `crates/hqsf-core` + `hqsf-bindings` + `src-tauri` + `src/bridge`；门面 85 方法渲染层零改动 | 完成 |
 | P3 并行域迁移 | 9 条 lane | ✅ 全部落地（L1/L2/L3/L4/L5/L6/L7a/L7b/L7c + L8 迁移）：Rust 26,386 行、521 测试 | 完成（超预期：计划 ≤10,000 行，实际含测试 26k） |
 | P4 集成对等 | 全量对等 + 数据迁移 + 事件 | ✅ 代码级 + **壳层编译通过**：85/85 dispatch 自动生成（MANUAL 0）+ 契约仿真 `--verify`、`hqsf-img` 接 `MediaCache`、启动前数据迁移、设置重放、更新状态共享、启动后台任务（会话校验 / 10s 自动更新检查）、无边框窗口拖拽兼容层；CI `shell` job `cargo check --all-targets` 于 run 44879836235 通过（`990af64`） | 编译级完成，GUI 行为待真机 |

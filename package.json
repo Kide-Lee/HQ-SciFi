@@ -1,52 +1,19 @@
 {
   "name": "hqsf-client",
-  "version": "1.2.13",
+  "version": "2.0.14",
   "description": "黄芪饮片 —— 荒启科幻（huangqisf.com）桌面客户端，写作-阅读-评审 一站式方案",
   "homepage": "https://www.huangqisf.com/",
   "desktopName": "huangqi-scifi",
-  "main": "out/main/index.js",
   "author": "之于言者",
   "license": "MIT",
   "private": true,
   "scripts": {
-    "dev": "electron-vite dev",
-    "dev:test": "cross-env HQSF_TEST=1 electron-vite dev",
-    "start": "electron-vite preview",
-    "start:test": "cross-env HQSF_TEST=1 electron-vite preview",
-    "build": "electron-vite build",
     "build:web": "vite build --config vite.web.config.ts",
-    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
-    "build:linux": "electron-vite build && electron-builder --linux; rc=$?; node scripts/archive-release.mjs || rc=1; exit $rc",
-    "build:win": "electron-vite build && node scripts/win-prebuild.mjs apply && electron-builder --win; rc=$?; node scripts/win-prebuild.mjs restore || rc=1; node scripts/archive-release.mjs || rc=1; exit $rc",
-    "build:mac": "electron-vite build && electron-builder --mac; rc=$?; node scripts/archive-release.mjs || rc=1; exit $rc",
-    "test:comment-request": "node --experimental-strip-types scripts/test-comment-request-contract.mjs",
-    "test:activity-rules": "node --experimental-strip-types scripts/test-activity-rules.mjs",
-    "test:ipc-contracts": "node --experimental-strip-types scripts/test-ipc-contracts.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.web.json",
     "test:lib-rules": "node --experimental-strip-types scripts/test-lib-rules.mjs",
     "test:draft-cache": "node --experimental-strip-types scripts/test-draft-cache.mjs",
-    "test:read-history": "node --experimental-strip-types scripts/test-read-history.mjs"
-  },
-  "devDependencies": {
-    "@types/better-sqlite3": "^9.6.0",
-    "@types/node": "^26.1.2",
-    "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
-    "@types/turndown": "^5.0.6",
-    "@vitejs/plugin-react": "^5.2.0",
-    "cross-env": "^10.1.0",
-    "electron": "^34.5.8",
-    "electron-builder": "^26.15.3",
-    "electron-vite": "^5.0.0",
-    "typescript": "^7.0.2",
-    "vite": "^7.3.6"
-  },
-  "allowScripts": {
-    "esbuild@0.25.12": true,
-    "esbuild@0.28.1": true,
-    "electron-winstaller@5.4.0": true,
-    "electron@34.5.8": true,
-    "better-sqlite3@12.11.1": true,
-    "turndown@7.2.4": true
+    "test:read-history": "node --experimental-strip-types scripts/test-read-history.mjs",
+    "gen:markdown-corpus": "node scripts/gen-markdown-corpus.mjs"
   },
   "dependencies": {
     "@codemirror/lang-markdown": "^6.5.2",
@@ -56,13 +23,27 @@
     "@milkdown/prose": "^7.22.0",
     "@milkdown/react": "^7.22.0",
     "@milkdown/theme-nord": "^7.22.0",
-    "better-sqlite3": "^12.11.1",
     "codemirror": "^6.0.2",
+    "katex": "^0.18.4",
     "lucide-react": "^1.30.0",
     "markdown-it": "^15.0.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "turndown": "^7.2.4",
     "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@types/turndown": "^5.0.6",
+    "@vitejs/plugin-react": "^5.2.0",
+    "typescript": "^7.0.2",
+    "vite": "^7.3.6"
+  },
+  "allowScripts": {
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.1": true,
+    "turndown@7.2.4": true
   }
 }
