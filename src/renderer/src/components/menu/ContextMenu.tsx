@@ -1,9 +1,21 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useContextMenuStore, type ContextMenuItem } from '../../stores/contextMenu'
+import { Link2 } from 'lucide-react'
 import { buildEditableContextMenu } from './editableContextMenu'
 import { appMenuItems } from './appMenuItems'
 
 export type { ContextMenuItem }
+
+/** 右键落在链接上时给一项「复制链接」；其他空地方仍由 appMenuItems() 的刷新/开发者工具兜底。 */
+function linkContextItems(el: HTMLElement | null): ContextMenuItem[] | null {
+  const anchor = el?.closest<HTMLAnchorElement>('a[href]')
+  const href = anchor?.getAttribute('href')?.trim()
+  if (!href || href.startsWith('#') || href.toLowerCase().startsWith('javascript:')) return null
+  return [
+    { label: '复制链接', icon: <Link2 size={13} />, onSelect: () => void window.hqsf.copyText(href) }
+  ]
+}
+
 
 /** 菜单与视口边缘的安全距离（px） */
 const EDGE_MARGIN = 8
@@ -80,7 +92,7 @@ export function ContextMenuHost(): React.JSX.Element | null {
     const onContextMenu = (e: MouseEvent): void => {
       if (e.defaultPrevented) return
       const el = e.target instanceof HTMLElement ? e.target : null
-      const items = (el ? buildEditableContextMenu(el) : null) ?? []
+      const items = (el ? buildEditableContextMenu(el) : null) ?? linkContextItems(el) ?? []
       e.preventDefault()
       e.stopPropagation()
       openMenu({ x: e.clientX, y: e.clientY, items })
