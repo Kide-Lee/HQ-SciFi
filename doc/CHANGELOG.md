@@ -1,6 +1,6 @@
 # 更新日志
 
-## v2.0.14（未发布）
+## v2.0.14（2026-11-21，Tauri 2 重写、1.x 移除）
 
 ### 架构
 - 桌面壳由 Electron 34 换成 **Tauri 2.12**；后端由 Node/TypeScript 主进程改为 **100% Rust**（`crates/hqsf-core`，26k 行、526 个测试）。
@@ -13,7 +13,7 @@
 - 本地数据会自动从旧版目录迁移（只复制不删除，旧版本仍可直接运行；迁移失败会在启动时提示，不会静默丢数据）。
 - 删除文件/草稿改为移入**系统回收站**（可恢复），不再直接删除。
 - 本地文件树与写作首页的排序由拼音序改为「目录优先 + 忽略大小写字典序」（Rust 侧无 ICU，拼音序待后续补齐）。
-- 安装包显著变小：**Linux deb 14 MB**（1.x 94.8 MB）、**Windows NSIS 7.8 MB**（1.x 90.8 MB）、**macOS dmg 11 MB**（arm64，1.x 115.4 MB）；Linux AppImage 87 MB（1.x 124.2 MB，仍自包含因此降幅较小）。
+- 安装包显著变小：**Linux deb 13.1 MB**（1.x 94.8 MB）、**Windows NSIS 7.5 MB**（1.x 90.8 MB）、**macOS dmg 11.2 MB / 11.6 MB**（arm64 / x64，1.x 115.4 / 120.2 MB）；Linux AppImage 86.8 MB（1.x 124.2 MB，仍自包含因此降幅较小）。
 - Linux 版**不再自带渲染引擎**：依赖系统 `libwebkit2gtk-4.1`（deb 已声明依赖，AppImage 需自备）；AppImage 还需要 `libfuse2`（Ubuntu 22.04+ 默认不装）。这是体积收益的代价，下载页需写明。
 
 ### 工程
