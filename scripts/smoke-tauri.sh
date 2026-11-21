@@ -12,7 +12,7 @@
 # 用法：xvfb-run -a -s "-screen 0 1280x800x24" dbus-run-session -- bash scripts/smoke-tauri.sh
 set -uo pipefail
 
-APP="${1:-src-tauri/target/release/hq-scifi}"
+APP="${1:-src-tauri/target/release/huangqi-scifi}"
 TITLE="${TAURI_SMOKE_TITLE:-黄芪饮片}"
 
 # 测试模式：数据目录用隔离的 hqsf-test，避免碰任何真实数据；HOME 由调用方指向临时目录。

@@ -78,6 +78,9 @@ const conf = readJson(join(TAURI_DIR, 'tauri.conf.json'))
 const version = conf.version
 const identifier = conf.identifier
 const productName = conf.productName ?? 'hq-scifi'
+// 1.x 的可执行文件名是 huangqi-scifi；Tauri 用 productName 作默认二进制名，
+// 所以显式用 mainBinaryName 保持连续（快捷方式/防火墙规则/任务管理器里的名字）。
+const binaryName = conf.mainBinaryName ?? productName
 
 const expectVersionArg = process.argv.indexOf('--expect-version')
 if (expectVersionArg !== -1) {
@@ -87,7 +90,7 @@ if (expectVersionArg !== -1) {
   }
 }
 
-note(`tauri.conf.json: version=${version} identifier=${identifier} productName=${productName}`)
+note(`tauri.conf.json: version=${version} identifier=${identifier} productName=${productName} binary=${binaryName}`)
 
 const RESOURCES = ['api.config.json', 'agreement.md', 'changelog.md']
 
@@ -137,9 +140,9 @@ function checkLinux() {
       const binary = contents
         .split('\n')
         .map((line) => line.trim().split(/\s+/).pop())
-        .find((path) => path && path.endsWith(`/bin/${productName}`))
+        .find((path) => path && path.endsWith(`/bin/${binaryName}`))
       if (!binary) {
-        note(`deb 内没找到 /bin/${productName}（可能主程序名不同，需人工确认）`)
+        note(`deb 内没找到 /bin/${binaryName}（可能主程序名不同，需人工确认）`)
       }
       note('deb 内含打包资源：' + RESOURCES.join(' / '))
     } catch {

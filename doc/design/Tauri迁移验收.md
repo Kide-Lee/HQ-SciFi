@@ -169,7 +169,7 @@ node_modules/.bin/tsc --noEmit -p tsconfig.node.json
 | 4 | ~~三平台出包与体积指标~~ ✅ 已通过 | — | 交叉编译不可行 | `release.yml` 已跑通四类产物并记录体积（§4.5） |
 | 5 | 真机数据迁移（含 146 帧 WAL 的真实库） | 中 | 需在真机 appData 上跑 | 装包后首次启动，核对 read_cache 18 行与文章数 |
 | 6 | keyring 在 Linux（Secret Service）/ Windows（DPAPI）的行为 | 中 | 同上 | 登录→重启→会话恢复 |
-| 7 | `executableName` 变化（1.x `huangqi-scifi` → Tauri `hq-scifi`） | 中 | 需真机 | 确认快捷方式/升级路径；必要时在 `tauri.conf.json` 显式指定 |
+| 7 | ~~`executableName` 变化~~ ✅ 已处理 | — | — | `tauri.conf.json` 显式设 `mainBinaryName: "huangqi-scifi"`，与 1.x 可执行文件名一致（快捷方式/防火墙规则/任务管理器里的名字不乱）；包名与产物名仍是 `hq-scifi` |
 | 8 | 自定义 CSS/JS 注入的实际效果 | 中 | 需 GUI | 设置里写一段 CSS，确认 `insert_css` 的 `<style>` 生效且 reload 后重放 |
 | 9 | Ctrl+F12 devtools（`__TAURI_INTERNALS__.invoke` 非公开 API） | 低 | 需 GUI | release 包用 `devtools` feature 版验证 |
 | 10 | 中文排序拼音序 | 低 | 需 ICU | 与产品确认是否接受字典序 |
@@ -260,7 +260,7 @@ node_modules/.bin/tsc --noEmit -p tsconfig.node.json
 
 产物自检（`scripts/verify-bundles.mjs`，每个平台构建后立刻跑，run 44889638130 起生效）：
 
-- Linux：deb 的 `Version` 前缀与 `tauri.conf.json` 一致、`Depends` 必须含 `webkit2gtk-4.1` 且不得出现 `4.0`、deb 内含三个打包资源与 `/bin/<productName>`、AppImage 有可执行位且不小于 20 MB（太小说明没打进运行时）。
+- Linux：deb 的 `Version` 前缀与 `tauri.conf.json` 一致、`Depends` 必须含 `webkit2gtk-4.1` 且不得出现 `4.0`、deb 内含三个打包资源与 `/bin/<mainBinaryName ?? productName>`（现为 `/bin/huangqi-scifi`）、AppImage 有可执行位且不小于 20 MB（太小说明没打进运行时）。
 - Windows：NSIS 安装包的 `ProductVersion` 必须是当前版本（读 `VersionInfo`）。
 - macOS：挂载 dmg → 读 `.app/Contents/Info.plist` 的 `CFBundleIdentifier`（必须 `com.huangqisf.client`）与 `CFBundleShortVersionString`，并检查 `Contents/Resources` 下三个资源 → 卸载。
 - 打 tag 时额外断言 `RELEASE_TAG` 与 `version` 一致，专门防「改了 Cargo.toml 忘了改 tauri.conf.json」这种版本漂移；本机跑（无产物时应报「没有找到 .deb 产物」）已验证脚本行为。

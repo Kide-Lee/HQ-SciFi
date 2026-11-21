@@ -68,6 +68,18 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+
+      # 迁移期双轨守门：渲染层与桥接层必须保持「无 Electron」，
+      # 否则以后删 `src/main` 时会突然断裂（这正是迁移能随时收尾的前提）。
+      - name: 渲染层不得引用 Electron
+        shell: bash
+        run: |
+          if grep -rn -E "from ['\"]electron['\"]|require\(['\"]electron['\"]\)" src/renderer src/bridge; then
+            echo "::error::渲染层/桥接层不得依赖 electron（迁移期双轨守门）"
+            exit 1
+          fi
+          echo "渲染层与桥接层无 Electron 依赖"
+
       - run: npm run typecheck
 
   shell:
