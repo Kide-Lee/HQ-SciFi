@@ -246,30 +246,43 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          set -o pipefail
+          # 注意：GH Actions 的 bash 默认 `-e`，而 `find … | head` 会因 SIGPIPE 返回 141
+          # （上一版就是死在这里，日志只剩前 100 行清单）。这里要么不用 head，要么 `|| true`。
+          set -uo pipefail
           LOG="$RUNNER_TEMP/release.log"
           {
             echo "tag: $RELEASE_TAG"
-            echo "dist 下的产物："
-            find dist -type f | sort | sed 's/^/  /' | head -100
-            du -sh dist 2>&1 | sed 's/^/  /'
+            echo "dist 全部文件数: $(find dist -type f | wc -l)"
+            echo "候选安装包："
+            find dist -type f 2>/dev/null | sort | head -50 || true
+            du -sh dist 2>&1 | sed 's/^/  /' || true
           } > "$LOG"
-          mapfile -t files < <(find dist -type f | sort)
+
+          # 只上传真正的安装包：AppImage 的 .AppDir/ 树、dmg 的 create-dmg 辅助脚本
+          # 也都在 dist 里，全部上传会变成上千个资产（GitHub 上限 1000）。
+          files=()
+          while IFS= read -r f; do files+=("$f"); done < <(
+            find dist -type f \( \
+              -name '*.deb' -o -name '*.AppImage' -o -name '*.rpm' \
+              -o -name '*.dmg' -o -name '*-setup.exe' -o -name '*.msi' \
+            \) | sort
+          )
           if [ "${#files[@]}" -eq 0 ]; then
-            echo "dist 下没有产物文件，拒绝创建 Release" | tee -a "$LOG"
+            echo "dist 下没有安装包，拒绝创建 Release" | tee -a "$LOG"
             exit 1
           fi
-          echo "上传 ${#files[@]} 个文件" >> "$LOG"
+          printf '上传 %d 个安装包：\n' "${#files[@]}" >> "$LOG"
+          printf '  %s\n' "${files[@]}" >> "$LOG"
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             echo "Release 已存在，改为覆盖上传产物" >> "$LOG"
-            gh release upload "$RELEASE_TAG" "${files[@]}" --clobber >> "$LOG" 2>&1
+            gh release upload "$RELEASE_TAG" "${files[@]}" --clobber >> "$LOG" 2>&1 || exit 1
           else
             gh release create "$RELEASE_TAG" \
               --draft --title "黄芪饮片 $RELEASE_TAG" \
               --notes "见 doc/CHANGELOG.md" \
-              "${files[@]}" >> "$LOG" 2>&1
+              "${files[@]}" >> "$LOG" 2>&1 || exit 1
           fi
-          tail -5 "$LOG"
+          tail -8 "$LOG"
 
       - name: 回写 Release 结论（失败时含原因）
         if: always()
