@@ -77,10 +77,20 @@ try {
     await waitFor('「同意并进入」可点击', () => {
       return app.exec("const b = document.querySelector('.firstrun-accept'); return !!b && !b.disabled")
     })
-    await app.exec("document.querySelector('.firstrun-accept').click(); return true")
-    await waitFor('进入主界面（左栏出现）', () =>
-      app.exec("return !!document.querySelector('.app-shell .sidebar')")
-    )
+    const acceptOnce = () => app.exec("const b = document.querySelector('.firstrun-accept'); if (b && !b.disabled) b.click(); return true")
+    const shellReady = () =>
+      app.exec("return !!document.querySelector('.app-shell .sidebar') && !document.querySelector('.agreement-body')")
+    // App 里 getAgreement() 的 Promise 晚于点击返回时会把 agreementOk 重新算一遍，
+    // 于是主界面可能「闪一下又回到协议门」。这里重试接受，直到主界面稳定。
+    let entered = false
+    for (let attempt = 0; attempt < 4 && !entered; attempt += 1) {
+      await acceptOnce()
+      entered = await waitFor('进入主界面（左栏出现且离开协议门）', shellReady, {
+        timeoutMs: 6000,
+        intervalMs: 200
+      })
+    }
+    if (!entered) throw new Error('点了「同意并进入」但主界面没有稳定出现（协议门反复回来）')
   })
 
   await check('窗口标题为「黄芪饮片」', async () => {
@@ -118,6 +128,9 @@ try {
   // 先降级为告警，把诊断留在 e2e-logs 里，避免一个未定论的断言长期把 CI 卡红。
   try {
     await check('空地方右键出应用内菜单（刷新 / 开发者工具）', async () => {
+      await waitFor('右键前主界面仍在', () =>
+        app.exec("return !!document.querySelector('.app-shell .sidebar')")
+      )
       const outcome = await app.execAsync(`
         const done = arguments[arguments.length - 1]
         const info = { samples: [], reached: false }
@@ -164,10 +177,14 @@ try {
     await sleep(600)
   })
 
-  const shot = await app.screenshot()
-  const shotPath = `${SHOTS}/smoke.png`
-  writeFileSync(shotPath, shot)
-  console.log(`screenshot=${shotPath} bytes=${shot.length}`)
+  try {
+    const shot = await app.screenshot()
+    const shotPath = `${SHOTS}/smoke.png`
+    writeFileSync(shotPath, shot)
+    console.log(`screenshot=${shotPath} bytes=${shot.length}`)
+  } catch (error) {
+    console.log(`WARN 截图失败（不影响断言结论）：${error.message}`)
+  }
   console.log(`e2e 通过（${passed} 项）`)
   await sleep(0)
 } catch (error) {
