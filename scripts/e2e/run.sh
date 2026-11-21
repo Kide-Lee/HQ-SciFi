@@ -7,12 +7,24 @@
 #   APP_BIN=$(realpath src-tauri/target/debug/hq-scifi) xvfb-run -a dbus-run-session -- bash scripts/e2e/run.sh
 set -uo pipefail
 
-APP="${APP_BIN:-$(realpath src-tauri/target/debug/hq-scifi 2>/dev/null || realpath src-tauri/target/debug/huangqi-scifi 2>/dev/null || echo '')}"
+# cargo 的产物名是 **包名** `hq-scifi`；`tauri.conf.json` 的 `mainBinaryName`（huangqi-scifi）
+# 只影响打包时的重命名，不影响 target/ 目录。两个名字都试一遍。
+APP="${APP_BIN:-}"
+if [ -z "$APP" ]; then
+  for cand in src-tauri/target/debug/hq-scifi src-tauri/target/debug/huangqi-scifi; do
+    if [ -x "$cand" ]; then APP="$(realpath "$cand")"; break; fi
+  done
+fi
 PORT="${WD_PORT:-4444}"
 DRIVER_BIN="${TAURI_DRIVER_BIN:-tauri-driver}"
 NATIVE_DRIVER="${NATIVE_DRIVER_BIN:-$(command -v WebKitWebDriver)}"
 
-[ -n "$APP" ] && [ -x "$APP" ] || { echo "::error::找不到可执行文件：APP_BIN=${APP:-<空>}（先 cargo build）"; exit 1; }
+if [ -z "$APP" ] || [ ! -x "$APP" ]; then
+  echo "::error::找不到可执行文件（APP_BIN=${APP_BIN:-<空>}，先 cargo build --features devtools）"
+  echo "--- src-tauri/target/debug 内容 ---"
+  ls -la src-tauri/target/debug/ 2>/dev/null | head -20 || echo "(目录不存在)"
+  exit 1
+fi
 [ -n "$NATIVE_DRIVER" ] && [ -x "$NATIVE_DRIVER" ] || { echo "::error::找不到 WebKitWebDriver（apt install webkit2gtk-driver）"; exit 1; }
 command -v "$DRIVER_BIN" > /dev/null || { echo "::error::找不到 tauri-driver（cargo install tauri-driver）"; exit 1; }
 
