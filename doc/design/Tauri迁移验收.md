@@ -337,6 +337,26 @@ Platform secure storage failure: DBus error: The name org.freedesktop.secrets wa
 
 ---
 
+## 4.5.2 正式发版：draft Release 的创建（三轮修复）
+
+`v2.0.14` 是第一次走「tag → 构建 → 建 draft Release」的完整链路，`release` job 连挂三轮，每轮的错误都只能靠 `release-logs` 分支回读（Actions 日志接口要 admin）：
+
+| 轮次 | commit | 失败点 | 根因 | 修法 |
+|---|---|---|---|---|
+| 1 | `3652c40` | `softprops/action-gh-release@v2` | 第三方 action 把 manifest 里的全部指纹当资产上传（`dist/` 里有 422 个文件：AppImage 的 `.AppDir/` 整树、dmg 的 `create-dmg` 脚本），并且它的报错文本拿不到 | 改用 `gh` CLI，自己控制文件清单，并把失败原因回写 `release-logs` |
+| 2 | `4251e82` | 日志只有前 100 行清单 | GH Actions 的 `shell: bash` 默认带 `-e`，`find … | head -50` 触发 SIGPIPE（141）直接打死脚本，`gh` 从未执行 | 清单命令加 `|| true`；同时按扩展名只挑真的安装包（5 个：deb / AppImage / setup.exe / 两个 dmg） |
+| 3 | `38cbd23` | `failed to run git: fatal: not a git repository` | `release` job 没有 `checkout`，`gh` 默认从 `.git` 推仓库上下文 | 所有 `gh` 命令显式 `--repo "$GITHUB_REPOSITORY"` |
+
+最终 run 44911431158（`2a6abe0`）：`build=success`、`release=success`；同一 commit 的四门禁 run 44911418367 也是 `core/tsc/shell/smoke` 全绿。draft Release 里的 5 个资产名形如 `hq-scifi_2.0.14_amd64.deb`、`hq-scifi_2.0.14_amd64.AppImage`、`hq-scifi_2.0.14_x64-setup.exe`、`hq-scifi_2.0.14_aarch64.dmg`、`hq-scifi_2.0.14_x64.dmg`。
+
+两条运维事实：
+- **draft 只有登录的仓库成员看得到**，匿名 `GET /releases` 查不到，所以「匿名 API 里没有 v2.0.14」不等于失败。
+- 该次构建**没有配置 `HQSF_API_CONFIG_B64` secret**，包内是示例配置；正式对外发布前需在仓库 Settings → Secrets 里加上（`base64 -w0 api.config.json`），再重打一版。
+
+整条流程与全部已知坑已沉淀为项目 skill `.dsh/skills/release-packaging/`（含 `scripts/read-status.sh` 一键读五个回写分支）。
+
+---
+
 ## 5. 回滚与共存
 
 - **回滚**：迁移只**复制**不删除 Electron 数据（`migrate_legacy_data` 只读源、写 staging、rename 落位到新目录），旧 `~/.config/hqsf-client/` 保持原样，1.2.13 仍可直接运行。
