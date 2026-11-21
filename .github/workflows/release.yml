@@ -289,7 +289,8 @@ jobs:
           printf '上传 %d 个安装包：\n' "${#files[@]}" >> "$LOG"
           printf '  %s\n' "${files[@]}" >> "$LOG"
           # 更新说明直接从 doc/CHANGELOG.md 抽本版本那一节，别写「见 CHANGELOG」这种占位。
-          python3 - "$RELEASE_TAG" > "$RUNNER_TEMP/release-notes.md" <<'PYEOF'
+          mkdir -p "$RUNNER_TEMP/meta"
+          if ! python3 - "$RELEASE_TAG" > "$RUNNER_TEMP/release-notes.md" 2>>"$LOG" <<'PYEOF'
           import re, sys
           version = sys.argv[1].lstrip("v")
           text = open("doc/CHANGELOG.md", encoding="utf-8").read()
@@ -302,6 +303,11 @@ jobs:
               body = re.sub(r"\n---\s*$", "", body)
               print(body)
           PYEOF
+          then
+            # 抽不出来也不能让发版挂掉：退回 CHANGELOG 链接。
+            echo "更新说明抽取失败，退回 CHANGELOG 链接" >> "$LOG"
+            printf '> 更新说明见仓库 doc/CHANGELOG.md。\n' > "$RUNNER_TEMP/release-notes.md"
+          fi
           cp "$RUNNER_TEMP/release-notes.md" "$RUNNER_TEMP/meta/release-notes.md"
 
           # draft 可能是上一轮失败留下的（老版本第三方 action 会先传一堆文件再报错，
