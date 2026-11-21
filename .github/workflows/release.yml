@@ -246,6 +246,12 @@ jobs:
     if: github.ref_name != 'build-only' && inputs.dry_run != true
     runs-on: ubuntu-latest
     steps:
+      # 需要 doc/CHANGELOG.md 生成 Release 正文；没有 checkout 时 python 读不到文件，
+      # 正文只能退回链接（上一轮就是这样）。
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
       - uses: actions/download-artifact@v4
         with:
           path: dist
@@ -331,7 +337,9 @@ jobs:
               --notes-file "$RUNNER_TEMP/release-notes.md" \
               "${files[@]}" >> "$LOG" 2>&1 || exit 1
           fi
-          echo "Release 资产数: $(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets | length' 2>/dev/null)" >> "$LOG"
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --json tagName,isDraft,url,assets \
+            --jq '"Release 状态: tag=" + .tagName + " draft=" + (.isDraft|tostring) + " 资产数=" + (.assets|length|tostring) + " url=" + .url' >> "$LOG" 2>&1 || true
           tail -12 "$LOG"
 
       - name: 回写 Release 结论（失败时含原因）
