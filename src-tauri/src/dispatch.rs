@@ -1,4 +1,6 @@
-//! 命令分发层（**占位**）：85 个 `#[tauri::command]` 由下一张卡生成。
+//! 命令分发层公共部分：错误适配（[`HqsfError`]）、整包入参（[`WholePayload`]）、
+//! 内部命令（`__hqsf_toggle_devtools`）。85 个通道命令本体由
+//! `scripts/gen-tauri-commands.mjs --write` 生成到 `commands_generated.rs`。
 //!
 //! 迁移来源：
 //!   - `src/main/ipc/index.ts` / `src/main/ipc.ts`（85 个 `ipcMain.handle('hqsf:*')` 白名单）
@@ -57,10 +59,10 @@
 //!   那等于把 85 条白名单塌缩成一条动态入口，违反迁移计划 §6.4 的安全不变式。
 //!   每条命令必须独立注册、独立入参类型。
 
-// 生成物（下一张卡）：`commands_generated.rs` 里是 85 个 `#[tauri::command]`。
-// 生成器：`node src-tauri/scripts/gen-tauri-commands.mjs --write`。
-// 生成后在这里取消注释、并在 `lib.rs` 的 `generate_handler!` 里追加它们：
-// mod commands_generated;
+// 生成物：`commands_generated.rs`（gitignored）里是 85 个 `#[tauri::command]`，
+// 由 `node src-tauri/scripts/gen-tauri-commands.mjs --write` 生成；
+// `lib.rs` 里 `mod commands_generated;` + `commands_generated::register(builder)` 接进来。
+// 手写本文件的原因：生成代码需要两个手写件 —— 错误适配与整包入参。
 
 use hqsf_core::error::CoreError;
 use serde::{Serialize, Serializer};
@@ -107,10 +109,53 @@ pub type HqsfResult<T> = Result<T, HqsfError>;
 ///
 /// 不是 `#[tauri::command]`：用作 preload 等价层的默认分支与生成器的占位实现，
 /// 避免「通道拼错」被静默吞掉。
+// 现在 85 条命令全部生成、没有通道走这里；保留给 `src/bridge` 的兜底分支与下一轮回归测试。
+#[allow(dead_code)]
 pub fn invoke_placeholder(channel: &str) -> HqsfResult<serde_json::Value> {
     Err(HqsfError(CoreError::app(format!(
         "命令尚未接入壳层：{channel}（等待 dispatch 生成卡按 commands.json 生成 85 个命令）"
     ))))
+}
+
+/// 「整包入参」：把**整个** invoke 载荷反序列化成内核的 `*Args` 结构体。
+///
+/// 为什么需要它：有 32 条通道的载荷是「一个对象」（`{opts: …}`、`{cid, opts}`、
+/// `{payload: …}`、`{reviewId, type}` …），而内核把整个对象收成一个 `*Args` 结构体。
+/// 若按普通形参写 `args: WholePayload<X>`，Tauri 会去 JS 对象里找名为 `args` 的键
+/// （见 `tauri-macros` 的 `CommandArg::from_command`），而桥接层发的是**平铺对象** ——
+/// 键根本不存在，运行时报 `invalid args`。所以这里实现 [`tauri::ipc::CommandArg`]：
+/// 忽略「按名字取键」，直接取整个 payload 交给 `serde`。
+///
+/// 3 个通道的载荷里有 `type` 键（`hqsf:list-metas` / `hqsf:add-log` /
+/// `hqsf:set-review-attitude`）。Rust 形参名没法叫 `type`（`r#type` 经 heck 会被
+/// 转成 `rType`），走整包反序列化则由内核结构体自己的 `#[serde(rename = "type")]`
+/// 还原 —— 这正是内核为 1.x 载荷写的 serde 属性，逐字对得上。
+///
+/// 与 Electron 的差异：1.x 是 `ipcMain.handle('hqsf:add-log', (_e, payload) => …)`，
+/// 第二个参数就是整个对象；这里语义等价，只是把「按 key 取值」换成「整体
+/// `serde_json::from_value`」。camelCase 字段名由内核结构体自身的
+/// `#[serde(rename_all = "camelCase")]` 负责（`--verify` 会逐条断言）。
+pub struct WholePayload<T>(pub T);
+
+impl<'de, R, T> tauri::ipc::CommandArg<'de, R> for WholePayload<T>
+where
+    R: tauri::Runtime,
+    T: serde::de::DeserializeOwned,
+{
+    fn from_command(
+        command: tauri::ipc::CommandItem<'de, R>,
+    ) -> Result<Self, tauri::ipc::InvokeError> {
+        match command.message.payload() {
+            // 桥接层（`src/bridge/invoke.ts`）只发 JSON 对象，走这一支。
+            tauri::ipc::InvokeBody::Json(value) => serde_json::from_value(value.clone())
+                .map(WholePayload)
+                .map_err(|error| tauri::ipc::InvokeError::from(format!("调用参数不合法：{error}"))),
+            // Raw（二进制）载荷：1.x 没有这种通道，明确报错而不是静默解成空结构体。
+            tauri::ipc::InvokeBody::Raw(_) => Err(tauri::ipc::InvokeError::from(
+                "调用参数不合法：该通道期望 JSON 对象载荷",
+            )),
+        }
+    }
 }
 
 /// 内部命令：切换 devtools（由 `lib.rs` 注入的 Ctrl+F12 监听调用）。

@@ -11,7 +11,8 @@
 //! 与 Electron 的差异：
 //!   1. **路径根换了**：Electron userData = `~/.config/hqsf-client`（Linux）/`%APPDATA%/hqsf-client`；
 //!      Tauri `app_data_dir()` = `<XDG_DATA_HOME>/com.huangqisf.client` / `%APPDATA%\com.huangqisf.client`
-//!      （见迁移计划 §1.5）。旧数据需要迁移脚本（后续卡），当前不做自动迁移。
+//!      （见迁移计划 §1.5）。旧目录与新目录不是同一个，所以启动时先跑一次
+//!      `hqsf_core::infra::migrate::migrate_legacy_data`（见 [`legacy_data_dir`] 与 `lib.rs::build_core`）。
 //!   2. **测试模式目录**：1.x = `<appData>/hqsf-test`；这里同样取 `app_data_dir()` 的**父目录**再拼
 //!      `hqsf-test`，即 `<XDG_DATA_HOME>/hqsf-test`。TODO(verify): 迁移计划 §1.5 写的是
 //!      `com.huangqisf.client-test`；按 lead 的要求以 1.x 的 `hqsf-test` 为准（两个目录名都只影响
@@ -116,6 +117,30 @@ fn resolve_documents_dir(app: &AppHandle) -> CoreResult<PathBuf> {
     // TODO(verify): 1.x 用 `app.getPath('documents')`，Electron 在 Linux 上同样依赖 xdg-user-dirs，
     // 取不到时返回 $HOME/Documents；此处与之对齐。
     Ok(home.join("Documents"))
+}
+
+/// 旧版 Electron 的数据目录（数据迁移的**来源**，只读）。
+///
+/// 1.x：`app.getPath('userData')`。Electron 的 `appData` 在三平台分别是
+/// `~/.config`（Linux）、`%APPDATA%`（Windows）、`~/Library/Application Support`（macOS），
+/// 正好等于 tauri 的 `app.path().config_dir()`（dirs 库同源），再拼应用名：
+///   - 正常模式：`<appData>/hqsf-client`（`package.json` 的 `name`，不是 productName）；
+///   - 测试模式：`<appData>/hqsf-test`（1.x `src/main/index.ts:9-11` 用 `app.setPath` 改写的 userData）。
+///
+/// 与 Electron 的差异：Tauri 的新数据目录是 `app_data_dir()`（`<XDG_DATA_HOME>/com.huangqisf.client`），
+/// 与旧的 `~/.config/hqsf-client` **不是同一个目录**，所以启动时要跑
+/// `hqsf_core::infra::migrate::migrate_legacy_data`（见 `lib.rs::build_core`）。
+/// 旧目录只读不写、永不删除，用户可随时回滚到 Electron 版。
+pub fn legacy_data_dir(app: &AppHandle, test_mode: bool) -> CoreResult<PathBuf> {
+    let app_data = app
+        .path()
+        .config_dir()
+        .map_err(|e| CoreError::app(format!("无法获取旧版数据目录（config_dir）：{e}")))?;
+    Ok(if test_mode {
+        app_data.join("hqsf-test")
+    } else {
+        app_data.join("hqsf-client")
+    })
 }
 
 /// 组装内核需要的 [`AppPaths`]。
