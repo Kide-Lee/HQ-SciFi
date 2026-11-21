@@ -41,6 +41,8 @@
 
 文件名形如 `hq-scifi_<版本>_<平台>.<扩展名>`，实际下载以 [Releases](https://github.com/Kide-Lee/HQ-SciFi/releases) 页为准。**2.0 起渲染引擎改用系统 WebView（WebKitGTK / WebView2 / WKWebView），安装包体积从 ~90 MB 降到 7–14 MB；Linux 不再自带渲染引擎，需系统装有 `libwebkit2gtk-4.1`。**
 
+> **v2.0.15**：修复 v2.0.14 的三处 WebView 迁移遗留——阅读正文的音乐/视频播放器显示为空白（子框架导航被壳层安全策略误拦，且会把播放页弹到系统浏览器）、推荐页轮播封面与用户头像不显示（远端地址未走图片缓存协议）、空白处右键弹出英文原生菜单（现统一为应用内菜单）。
+
 > **v2.0.14**：**迁移到 Tauri 2 + 全 Rust 后端**——渲染引擎改用系统 WebView，安装包体积大幅下降（deb 14 MB / NSIS 7.5 MB / dmg 11–12 MB / AppImage 87 MB）；后端从 Electron 主进程的 TypeScript 整体重写为 Rust（85 条 IPC 命令一一对应，markdown 渲染与 1.x 逐字节对等），本地库改用 rusqlite；Electron、electron-vite、electron-builder、better-sqlite3 及相关代码与配置**已从仓库彻底移除**。用户可见变化：**升级后首次需重新登录**（旧 token 由 Electron safeStorage 加密，Tauri 无法解密）；首次启动自动迁移本地数据（只复制不删除，旧配置目录保留可回滚）；删除文件仍进系统回收站；文件排序改为字典序（不再按拼音）。
 >
 > **v1.2.13**：**荒启改版适配与文章/评审修复**——活动文章按页拉全并按 cid 去重（作品统计与活动树不再缺文章）；markdown 文章改用服务端渲染 HTML；文章详情缓存改为 10 分钟硬过期，作者补写后及时刷新；消息中心合并网页端独立的「待评审」任务并支持点击直达，收件箱单类异常不再拖垮整个消息列表。更新日志见 [doc/CHANGELOG.md](doc/CHANGELOG.md)。
