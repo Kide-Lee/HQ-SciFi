@@ -55,6 +55,9 @@ export async function startApp(application) {
   return {
     id,
     exec: (script) => request('POST', `/session/${id}/execute/sync`, { script, args: [] }),
+    // 异步脚本：用来「同一条命令里派发事件 + 等 React 渲染」，避免两次 WebDriver 命令
+    // 之间窗口失焦（会触发 blur → 菜单 onDismiss）把菜单关掉。
+    execAsync: (script) => request('POST', `/session/${id}/execute/async`, { script, args: [] }),
     title: () => request('GET', `/session/${id}/title`),
     screenshot: async () => Buffer.from(await request('GET', `/session/${id}/screenshot`), 'base64'),
     quit: async () => {

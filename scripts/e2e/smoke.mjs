@@ -114,22 +114,21 @@ try {
   )
 
   await check('空地方右键出应用内菜单（刷新 / 开发者工具）', async () => {
-    await app.exec(`
+    // 关键：派发事件和读结果必须在同一条 WebDriver 异步脚本里完成。
+    // 分两条命令时，命令之间的窗口失焦会触发菜单的 onDismiss（blur）→ 读到的永远是空。
+    const menu = await app.execAsync(`
+      const done = arguments[arguments.length - 1]
       const target = document.elementFromPoint(600, 400) ?? document.body
       target.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 600, clientY: 400 }))
-      return true
-    `)
-    const menu = await waitFor('右键菜单渲染', () =>
-      app.exec(`
+      setTimeout(() => {
         const host = document.querySelector('.context-menu')
-        return host ? host.innerText : ''
-      `)
-    )
-    if (!menu.includes('刷新')) throw new Error(`菜单里没有「刷新」：${JSON.stringify(menu)}`)
+        done(host ? host.innerText : '')
+      }, 300)
+    `)
+    if (!menu || !menu.includes('刷新')) throw new Error(`菜单里没有「刷新」：${JSON.stringify(menu)}`)
     if (!menu.includes('开发者工具')) throw new Error(`菜单里没有「开发者工具」：${JSON.stringify(menu)}`)
     await app.exec("document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); return true")
   })
-
   await check('渲染层日志落盘（__hqsf_log 通道）', () =>
     waitFor('renderer.log 出现内容', () =>
       app.exec("window.__TAURI_INTERNALS__.invoke('__hqsf_log', { level: 'info', message: 'e2e-probe' }).then(() => true)")
