@@ -35,10 +35,18 @@ pub const SESSION_SECRET_KEY: &str = "hqsf.session";
 ///
 /// 顺序与 1.x `src/main/infra/net/apiconfig.ts` 的语义对齐：打包资源优先，
 /// 其次是数据目录里用户自带的覆盖配置（开发/自建服务端场景）。
+/// API 配置候选路径，**越靠前优先级越高**。
+///
+/// 顺序沿用 1.x「越靠近用户的配置越优先」的语义（1.x 是 `HQSF_API_CONFIG` >
+/// `cwd/api.config.test.json` > `cwd/api.config.json` > appPath > resourcesPath）：
+///
+/// 1. `data_dir/api.config.json` —— 用户/运维可写，用于把安装包指向另一套后端，
+///    不需要重新打包（也覆盖不了包内配置时唯一的口子）；
+/// 2. `resource_dir/api.config.json` —— 打包时嵌入的默认配置；
 pub fn api_config_candidates(ctx: &CoreCtx) -> Vec<PathBuf> {
     vec![
-        ctx.paths.resource_dir.join("api.config.json"),
         ctx.paths.data_dir.join("api.config.json"),
+        ctx.paths.resource_dir.join("api.config.json"),
     ]
 }
 
@@ -151,6 +159,25 @@ mod tests {
     use crate::infra::net::config::endpoint as lookup;
     use crate::ports::SecretStore;
     use crate::testkit::{Harness, api_config_json};
+
+    /// 配置候选顺序是产品行为：用户数据目录里的配置优先于包内默认配置，
+    /// 这样同一个安装包可以被运维改指向另一套后端（不需要重新打包）。
+    #[test]
+    fn api_config_candidates_prefer_the_user_data_dir() {
+        let ctx = crate::testkit::ctx();
+        let candidates = api_config_candidates(&ctx);
+        assert_eq!(candidates.len(), 2);
+        assert!(
+            candidates[0].starts_with(&ctx.paths.data_dir),
+            "{:?}",
+            candidates
+        );
+        assert!(
+            candidates[1].starts_with(&ctx.paths.resource_dir),
+            "{:?}",
+            candidates
+        );
+    }
 
     #[test]
     fn api_config_reads_resource_dir() {
