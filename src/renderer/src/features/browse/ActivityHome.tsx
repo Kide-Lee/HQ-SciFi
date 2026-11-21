@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useUiStore } from '../../stores/ui'
 import { ACTIVITY_PHASE_LABEL, activityPhase, sortActivities } from '../../lib/activity'
 import { cachedImageUrl, formatSize, formatTs } from '../../lib/sanitize'
+import { listAllActivityArticles } from '../../lib/listAll'
 import { CoverImage } from '../../components/CoverImage'
 import { ErrorBanner } from '../../components/ErrorBanner'
 import { SkeletonActivityCard } from '../../components/Skeletons'
@@ -63,11 +64,13 @@ export function ActivityHome(): React.JSX.Element {
     const targets = activities.slice(0, MAX_STATS)
     void Promise.allSettled(
       targets.map(async (m) => {
-        const [artRes, revRes] = await Promise.all([
-          window.hqsf.listRemoteArticles({ mid: m.mid, limit: 100, order: 'created' }),
-          window.hqsf.listReviews({ activeid: m.mid, limit: 100 })
+        // 服务端每页最多 50：旧实现 limit:100 只拿到前 50 篇，活动卡片「作品」数
+        // 与聚合统计因此长期偏少；这里按页拉全文章后再统计。
+        // 评审不逐页拉（单活动可能上千条评审，会拖垮首屏），用首屏 total 作总数。
+        const [items, revRes] = await Promise.all([
+          listAllActivityArticles(m.mid),
+          window.hqsf.listReviews({ activeid: m.mid, limit: 50 })
         ])
-        const items = artRes.ok ? artRes.data.items : []
         const revItems = revRes.ok ? revRes.data.items : []
         return {
           midKey: String(m.mid),

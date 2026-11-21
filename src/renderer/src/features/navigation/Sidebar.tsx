@@ -23,6 +23,7 @@ import { useDocsStore } from '../../stores/docs'
 import { useEditorStore } from '../../stores/editor'
 import { useReaderStore } from '../../stores/reader'
 import { sortActivities, activityPhase, ACTIVITY_PHASE_LABEL } from '../../lib/activity'
+import { listAllActivityArticles } from '../../lib/listAll'
 import { isReviewDisabledCategoryName } from '../../lib/category'
 import type { ArticleRow, LocalNode, MetaInfo, RemoteArticle } from '../../../../shared/types'
 import { PromptModal } from '../../components/PromptModal'
@@ -336,20 +337,15 @@ export function Sidebar(): React.JSX.Element {
     // 懒加载该活动文章（与 toggleActivity 同一逻辑）
     if (!activityArticles[midKey] && !activityLoading.has(midKey)) {
       setActivityLoading((prev) => new Set(prev).add(midKey))
-      void window.hqsf
-        .listRemoteArticles({ mid: revealTarget.mid, limit: 100, order: 'created' })
-        .then((res) => {
+      void listAllActivityArticles(revealTarget.mid)
+        .then((items) => {
           setActivityLoading((prev) => {
             const next = new Set(prev)
             next.delete(midKey)
             return next
           })
-          if (res.ok) {
-            const sorted = [...res.data.items].sort((a, b) =>
-              a.title.localeCompare(b.title, 'zh-Hans-CN')
-            )
-            setActivityArticles((prev) => ({ ...prev, [midKey]: sorted }))
-          }
+          const sorted = [...items].sort((a, b) => a.title.localeCompare(b.title, 'zh-Hans-CN'))
+          setActivityArticles((prev) => ({ ...prev, [midKey]: sorted }))
         })
         .catch(() => {
           setActivityLoading((prev) => {
@@ -469,20 +465,15 @@ export function Sidebar(): React.JSX.Element {
     handleOpenMeta(m.name, m.mid, activityPhase(m), m)
     if (!activityArticles[midKey] && !activityLoading.has(midKey)) {
       setActivityLoading((prev) => new Set(prev).add(midKey))
-      void window.hqsf
-        .listRemoteArticles({ mid: m.mid, limit: 100, order: 'created' })
-        .then((res) => {
+      void listAllActivityArticles(m.mid)
+        .then((items) => {
           setActivityLoading((prev) => {
             const next = new Set(prev)
             next.delete(midKey)
             return next
           })
-          if (res.ok) {
-            const sorted = [...res.data.items].sort((a, b) =>
-              a.title.localeCompare(b.title, 'zh-Hans-CN')
-            )
-            setActivityArticles((prev) => ({ ...prev, [midKey]: sorted }))
-          }
+          const sorted = [...items].sort((a, b) => a.title.localeCompare(b.title, 'zh-Hans-CN'))
+          setActivityArticles((prev) => ({ ...prev, [midKey]: sorted }))
         })
         .catch(() => {
           setActivityLoading((prev) => {

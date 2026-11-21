@@ -361,7 +361,8 @@ export async function listReviewTasks(token: string | null, uid: number | string
       status: num(t.status),
       activeid: t.activeid != null ? str(t.activeid) : undefined,
       activeName: str(activeJson.name),
-      articleTitle: str(contentJson.title)
+      articleTitle: str(contentJson.title),
+      created: normTs(t.created) || undefined
     }
   })
 }
@@ -415,7 +416,7 @@ export class ArticleUnavailableError extends Error {
  * 拉取文章全文原始对象（POST 编辑形态优先——作者可读自己的草稿完整正文；
  * GET 阅读形态回退——公开文章）。contentsInfo 响应不遵循 {code,msg,data} 约定：
  * 成功返回裸文章对象（以 title 字段判断），失败返回 {msg:'…'}。
- * 供阅读详情（fetchRemoteArticle）与同步引擎（sync.ts 的 fetchFullText）共用。
+ * 供编辑/同步引擎（sync.ts 的 fetchFullText）共用；阅读详情走 fetchRemoteRendered。
  * token 可空（匿名读公开文章）：POST 是作者私有草稿专用形态，匿名者不可能是作者，
  * 直接跳过（少一次无谓请求，也避免「POST 返回未登录 + GET 网络失败」把公开文章误标为需登录）。
  */
@@ -459,8 +460,58 @@ export async function fetchRemoteObject(token: string | null, cid: string): Prom
 }
 
 /**
- * 拉取文章详情（完整 HTML 正文）。POST 编辑形态优先，因此作者自己的
- * 草稿也可在阅读视图打开（「按文章处理」）；结果本地缓存（1 天未使用即丢弃）。
+ * 阅读形态取全文：优先 GET isMd=1——服务端会把 markdown 文章渲染成 HTML
+ * （网页端详情/阅读器同样用这个形态）；旧实现固定 isMd=0，markdown 文章
+ * 会把 `## 标题`、`![](…)` 原样当 HTML 渲染，看起来像「文章不全」。
+ * 作者草稿 GET 可能被拒，再回退 POST 编辑形态；最后才回退 isMd=0。
+ */
+export async function fetchRemoteRendered(
+  token: string | null,
+  cid: string
+): Promise<Record<string, unknown>> {
+  const attempts: Array<() => Promise<Record<string, unknown>>> = [
+    () =>
+      apiRequest<Record<string, unknown>>(endpoint('contentsInfo').path, {
+        method: 'GET',
+        query: { key: cid, isMd: 1, ...(token ? { token } : {}) },
+        raw: true
+      }),
+    ...(token
+      ? [
+          () =>
+            apiRequest<Record<string, unknown>>(endpoint('contentsInfo').path, {
+              method: 'POST',
+              body: { key: cid, token },
+              raw: true
+            })
+        ]
+      : []),
+    () =>
+      apiRequest<Record<string, unknown>>(endpoint('contentsInfo').path, {
+        method: 'GET',
+        query: { key: cid, isMd: 0, ...(token ? { token } : {}) },
+        raw: true
+      })
+  ]
+  let lastError = '未知错误'
+  let sawServerResponse = false
+  for (const attempt of attempts) {
+    try {
+      const obj = await attempt()
+      if (obj && typeof obj.title === 'string') return obj
+      sawServerResponse = true
+      lastError = typeof obj?.msg === 'string' ? obj.msg : JSON.stringify(obj).slice(0, 200)
+    } catch (err) {
+      lastError = (err as Error).message
+    }
+  }
+  if (sawServerResponse) throw new ArticleUnavailableError(lastError)
+  throw new Error(`contentsInfo 拉取失败（isMd=1/POST/isMd=0 均试）: ${lastError}`)
+}
+
+/**
+ * 拉取文章详情（完整 HTML 正文）。阅读形态 isMd=1 优先（markdown 由服务端
+ * 渲染），作者草稿再回退 POST 编辑形态；结果本地缓存 10 分钟硬过期。
  * v0.0.6：token 可空——未登录也允许尝试匿名读公开文章（服务端放行即可读，
  * 被拒由 ipc 层包装成「阅读全文需要登录」提示）。
  * uid 用于区分「本人文章」：isopen=0（未公开/被隐藏）仅对非本人文章报错，
@@ -475,10 +526,16 @@ export async function fetchRemoteArticle(
   // 无 uid 维度的旧键会让切换账号后读到上一账号的私有文章
   const uidKey = uid != null && String(uid) !== '' ? String(uid) : 'anon'
   const cacheKey = `article:${uidKey}:${cid}`
-  const cached = getReadCache<ArticleDetail>(cacheKey)
-  if (cached) return cached
+  // 24 小时滑动 TTL 原先会让常读文章永远不刷新：作者更新/补写后客户端一直显示旧版，
+  // 看起来就是「文章不全」。这里给详情加 10 分钟硬过期；旧缓存没有 cachedAt 视为过期。
+  const ARTICLE_CACHE_MAX_AGE_MS = 10 * 60 * 1000
+  const cached = getReadCache<ArticleDetail & { cachedAt?: number }>(cacheKey)
+  if (cached && cached.cachedAt != null && Date.now() - cached.cachedAt < ARTICLE_CACHE_MAX_AGE_MS) {
+    const { cachedAt: _cachedAt, ...fresh } = cached
+    return fresh as ArticleDetail
+  }
 
-  const obj = await fetchRemoteObject(token, cid)
+  const obj = await fetchRemoteRendered(token, cid)
   const userJson = obj.userJson as Record<string, unknown> | undefined
   const authorId =
     str(obj.authorId) ||
@@ -515,7 +572,7 @@ export async function fetchRemoteArticle(
   }
   // 进行中/评审中活动文章：详情也脱敏（评分/作者展示名），再写缓存
   sanitizeArticleDetail(detail, await getOngoingReviewMids(token))
-  setReadCache(cacheKey, detail)
+  setReadCache(cacheKey, { ...detail, cachedAt: Date.now() })
   return detail
 }
 

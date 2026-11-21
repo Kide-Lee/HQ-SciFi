@@ -2065,9 +2065,14 @@ body {
   margin: 10px 0 2px;
   padding: 8px 0 2px;
   list-style: none;
-  max-height: 40vh;
-  overflow-y: auto;
+  /* 目录跟随右栏整体滚动：不再用 40vh 内层滚动条提前裁剪，
+     内容只在真正溢出右栏时才出现滚动条。 */
+  min-width: 0;
+  max-width: 100%;
   border-top: 1px dashed var(--border);
+}
+.reader-toc-item {
+  min-width: 0;
 }
 .reader-toc-item a {
   display: block;
@@ -2077,6 +2082,9 @@ body {
   font-size: 13px;
   line-height: 1.6;
   text-decoration: none;
+  /* 长标题在右栏内换行，不撑破面板 */
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .reader-toc-item a:hover {
   background: var(--accent-soft);
@@ -2689,7 +2697,9 @@ body {
   min-height: 0;
   /* v0.0.3：保证内容不撑破右栏（flex 子项默认 min-width:auto） */
   min-width: 0;
+  /* 内容溢出右栏时在面板内滚动；横向一律裁掉，避免撑出面板 */
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 14px 16px;
   display: flex;
   flex-direction: column;
