@@ -47,6 +47,28 @@ bash .dsh/skills/release-packaging/scripts/read-status.sh
 
 AppImage 另有 `scripts/smoke-tauri.sh`（Xvfb + `dbus-run-session`）：等窗口、查进程、查 `hqsf.db`、ImageMagick 截图数颜色（`unique_colors` 应 ~900，<20 视作白屏）。
 
+## 对外发布：先把真实 `api.config.json` 配成 secret
+
+仓库是公开的，`api.config.json` 不入库；CI 里三档兜底（secret → 工作区文件 → 示例），**没有 secret 时打出来的包连的是示例地址**。
+
+1. 生成本地 base64（值里不要带换行）：
+
+   ```bash
+   base64 -w0 api.config.json          # 4,696 字节左右
+   ```
+
+2. GitHub → 仓库 **Settings → Secrets and variables → Actions → New repository secret**
+   - Name: `HQSF_API_CONFIG_B64`
+   - Secret: 上面那串 base64
+
+   （这一步必须由仓库管理员在网页上做：Actions secrets 创建接口需要 admin token，本机没有 `gh`，也没有 libsodium 来封箱。）
+
+3. 确认已生效：重打一版后读 `release-status` 的 **「打包时使用的 API 配置」** 段——应显示
+   `来源: secret HQSF_API_CONFIG_B64` 与 `baseUrl: https://api.huangqisf.com/`。
+   如果还是 `示例 api.config.example.json（⚠️ 未配置 secret）`，说明 secret 没配上或名字拼错。
+
+4. 顺带说明：运行期 `data_dir/api.config.json` 优先于包内配置，所以临时验证不必重打包。
+
 ## 已知坑（都踩过）
 
 1. **`bundle.resources` 是编译期校验的**：`src-tauri/resources/{api.config.json,agreement.md,changelog.md}` 是 `src-tauri/scripts/prepare-resources.mjs` 的生成物且 gitignore，CI 必须先跑它，否则 `cargo build` 直接报 `resource path … doesn't exist`。
