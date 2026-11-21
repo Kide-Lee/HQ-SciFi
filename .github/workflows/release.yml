@@ -163,6 +163,14 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
+      # 产物大小只存在于 artifacts 里（Actions 日志要 admin），所以顺手并进状态分支，
+      # 否则「安装包变小了多少」这个迁移主收益无法从 CI 侧核实。
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          path: meta
+          pattern: meta-*
+
       - name: 回写 release-status 分支
         run: |
           mkdir -p "$RUNNER_TEMP/status" && cd "$RUNNER_TEMP/status"
@@ -176,6 +184,16 @@ jobs:
             echo "- ref: $GITHUB_REF"
             echo "- build: ${{ needs.build.result }}"
             echo "- run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo
+            echo "## 产物大小"
+            echo
+            for f in meta/*/sizes.txt; do
+              [ -f "$f" ] || continue
+              echo "### $(basename "$(dirname "$f")")"
+              echo '```'
+              cat "$f"
+              echo '```'
+            done
           } > README.md
           git add README.md
           git commit -qm "release: build=${{ needs.build.result }} for ${GITHUB_SHA:0:7} (${GITHUB_REF_NAME})"
