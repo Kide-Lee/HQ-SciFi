@@ -173,4 +173,32 @@ jobs:
         if: steps.shell_check.outcome == 'failure'
         run: exit 1
 
+  # 汇总三个 job 的结论并推到 `ci-status` 分支：本机只有 api.github.com（且匿名限额 60/h），
+  # Actions 日志接口要 admin，所以用 `git ls-remote origin ci-status` + commit message 读结论。
+  # 壳层 cargo 输出详情仍在 `ci-logs` 分支（shell job 自己回写）。
+  status:
+    name: 汇总状态（回写 ci-status 分支）
+    needs: [core, tsc, shell]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: 回写结论
+        run: |
+          mkdir -p "$RUNNER_TEMP/status" && cd "$RUNNER_TEMP/status"
+          git init -q && git checkout -q -b ci-status
+          git config user.name "ci"
+          git config user.email "ci@users.noreply.github.com"
+          {
+            echo "# CI 结论"
+            echo
+            echo "- commit: $GITHUB_SHA"
+            echo "- core: ${{ needs.core.result }}"
+            echo "- tsc: ${{ needs.tsc.result }}"
+            echo "- shell: ${{ needs.shell.result }}"
+            echo "- run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          } > README.md
+          git add README.md
+          git commit -qm "ci: core=${{ needs.core.result }} tsc=${{ needs.tsc.result }} shell=${{ needs.shell.result }} for ${GITHUB_SHA:0:7}"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci-status
+
   # 三平台出包在 release.yml（tag 触发），CI 不跑，省时间。
