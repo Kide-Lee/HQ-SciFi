@@ -237,19 +237,72 @@ jobs:
           pattern: bundle-*
           merge-multiple: true
 
-      - uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ env.RELEASE_TAG }}
-          name: "黄芪饮片 ${{ env.RELEASE_TAG }}"
-          body: "见 doc/CHANGELOG.md"
-          draft: true
-          prerelease: false
-          files: dist/**/*
+      # 用 gh CLI 而不是第三方 action：失败原因要能回写到分支。
+      # （本机 api.github.com 匿名只有 60 次/小时，Actions 日志接口要 admin。）
+      - name: 创建 draft Release
+        id: create_release
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -o pipefail
+          LOG="$RUNNER_TEMP/release.log"
+          {
+            echo "tag: $RELEASE_TAG"
+            echo "dist 下的产物："
+            find dist -type f | sort | sed 's/^/  /' | head -100
+            du -sh dist 2>&1 | sed 's/^/  /'
+          } > "$LOG"
+          mapfile -t files < <(find dist -type f | sort)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "dist 下没有产物文件，拒绝创建 Release" | tee -a "$LOG"
+            exit 1
+          fi
+          echo "上传 ${#files[@]} 个文件" >> "$LOG"
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Release 已存在，改为覆盖上传产物" >> "$LOG"
+            gh release upload "$RELEASE_TAG" "${files[@]}" --clobber >> "$LOG" 2>&1
+          else
+            gh release create "$RELEASE_TAG" \
+              --draft --title "黄芪饮片 $RELEASE_TAG" \
+              --notes "见 doc/CHANGELOG.md" \
+              "${files[@]}" >> "$LOG" 2>&1
+          fi
+          tail -5 "$LOG"
+
+      - name: 回写 Release 结论（失败时含原因）
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/status" && cd "$RUNNER_TEMP/status"
+          git init -q && git checkout -q -b release-logs
+          git config user.name "ci"
+          git config user.email "ci@users.noreply.github.com"
+          {
+            echo "# Release 创建"
+            echo
+            echo "- commit: $GITHUB_SHA"
+            echo "- tag: $RELEASE_TAG"
+            echo "- outcome: ${{ steps.create_release.outcome }}"
+            echo "- run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/release.log" 2>/dev/null || echo "(无日志)"
+            echo '```'
+          } > README.md
+          git add README.md
+          git commit -qm "release: create=${{ steps.create_release.outcome }} for ${GITHUB_SHA:0:7}"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" release-logs
+
+      - name: 创建失败则整轮失败
+        if: steps.create_release.outcome == 'failure'
+        run: exit 1
 
   # 结论回写：本机只有 api.github.com（匿名 60/h）且 Actions 运行/日志接口要 admin，
   # 所以用 `git ls-remote origin release-status` + commit message 判断三平台打包结果。
   status:
-    needs: build
+    needs: [build, release]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -273,6 +326,7 @@ jobs:
             echo "- commit: $GITHUB_SHA"
             echo "- ref: $GITHUB_REF"
             echo "- build: ${{ needs.build.result }}"
+            echo "- release: ${{ needs.release.result }}"
             echo "- run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
             echo
             echo "## 产物大小"
