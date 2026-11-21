@@ -351,7 +351,7 @@ Platform secure storage failure: DBus error: The name org.freedesktop.secrets wa
 
 两条运维事实：
 - **draft 只有登录的仓库成员看得到**，匿名 `GET /releases` 查不到，所以「匿名 API 里没有 v2.0.14」不等于失败。
-- 该次构建**没有配置 `HQSF_API_CONFIG_B64` secret**，包内是示例配置；正式对外发布前需在仓库 Settings → Secrets 里加上（`base64 -w0 api.config.json`），再重打一版。
+- `2a6abe0` 那版**还没有配置 `HQSF_API_CONFIG_B64` secret**，包内是示例配置；配好 secret 后又在 `0000287` 上重打了一版（run 44913027007，`build=success`/`release=success`）：四平台 `release-status` 的「打包时使用的 API 配置」都显示 `来源: secret HQSF_API_CONFIG_B64`、`baseUrl: https://api.huangqisf.com/`、`endpoints: 41`，五个资产覆盖上传进同一个 draft Release。
 
 整条流程与全部已知坑已沉淀为项目 skill `.dsh/skills/release-packaging/`（含 `scripts/read-status.sh` 一键读五个回写分支）。
 
