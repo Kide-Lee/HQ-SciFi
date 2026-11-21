@@ -328,7 +328,7 @@ jobs:
 
       - name: 构建调试版应用（tauri-driver 要求）
         working-directory: src-tauri
-        run: cargo build --features devtools
+        run: cargo build --features devtools,custom-protocol
 
       - name: 端到端断言
         id: e2e_check

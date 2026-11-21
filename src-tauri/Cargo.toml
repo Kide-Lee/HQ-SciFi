@@ -82,4 +82,7 @@ keyring = { version = "3.6", default-features = false, features = ["apple-native
 default = []
 devtools = ["tauri/devtools"]
 
-# debug 构建下让 `cargo build` 能直接跑（需要先有 out/renderer 产物；本卡不构建）。
+# 嵌入 `frontendDist`（out/web）而不是连 devUrl。
+# Tauri 的 dev 判定是 `dev = !custom-protocol`：不加这个 feature 的 debug 构建会去加载
+# `build.devUrl`（127.0.0.1:5173），CI/无 dev server 时就是白屏 —— e2e 必须带上它。
+custom-protocol = ["tauri/custom-protocol"]
