@@ -319,7 +319,7 @@ Platform secure storage failure: DBus error: The name org.freedesktop.secrets wa
 
 这一步能证明的：GTK/WebView 初始化、窗口创建、**渲染层真实绘制**、`CoreCtx` 装配、`Db::open`、启动编排（单实例/迁移/设置重放/后台任务）在干净环境里都走通了。
 
-`release.yml` 的 Linux 分支还会额外跑一次 **AppImage 冒烟**（`if: matrix.platform == 'ubuntu-22.04'`，apt 里装 `libfuse2`），因为用户下载最多的是 AppImage，而 `ci.yml` 的冒烟跑的是 `--no-bundle` 裸二进制——type2 runtime、FUSE 挂载、打包后的资源路径只有真跑 AppImage 才验证得到。
+`release.yml` 的 Linux 分支还会额外跑一次 **AppImage 冒烟**（`if: matrix.platform == 'ubuntu-22.04'`，apt 里装 `libfuse2`；run 44892563462 / commit `977389b` 实测通过：窗口 1200×800、`unique_colors=916`、`hqsf.db` 落盘，说明 type2 runtime + FUSE 挂载 + 打包后资源路径都正确），因为用户下载最多的是 AppImage，而 `ci.yml` 的冒烟跑的是 `--no-bundle` 裸二进制——type2 runtime、FUSE 挂载、打包后的资源路径只有真跑 AppImage 才验证得到。
 这一步仍证明不了的：中文输入法（IME 与 contenteditable 的真实交互）、H.264/AAC 解码、真实 Secret Service、拖拽手感——这些必须在装了包的 GUI 真机上做（§4 第 1/2/6/11 项）。
 
 ---
