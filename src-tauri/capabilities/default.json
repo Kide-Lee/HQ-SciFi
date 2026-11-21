@@ -1,0 +1,10 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "壳层最小权限集：只放行窗口拖动与事件/应用基础能力。文件读写、网络、剪贴板、外部打开等全部走 src-tauri 自己的命令（Rust 侧直接执行，不经 webview 权限），因此这里刻意不申请 fs/shell/http 的任何通配权限（对应 1.x 的「渲染层没有通用 API 代理」不变式，见 doc/design/Tauri迁移计划.md §6.4）。",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging"
+  ]
+}

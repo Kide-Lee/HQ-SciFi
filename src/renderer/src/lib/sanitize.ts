@@ -1,4 +1,13 @@
 /**
+ * 迁移来源（Tauri 2）：1.x 渲染层业务文件。迁移只动「图片缓存协议 URL」一处：
+ * `cachedImageUrl()` 改为委托 `src/bridge/protocol.ts` 的 `imageCacheUrl()`，其余逻辑零改动。
+ * 与 Electron 的行为差异：Electron 仍返回 `hqsf-img://fetch?url=…`；Tauri 下
+ * Windows/Android 返回 `http://hqsf-img.localhost/fetch?url=…`，macOS/Linux 返回
+ * `hqsf-img://localhost/fetch?url=…`（协议由壳层注册，路径与 query 不变）。
+ */
+import { imageCacheUrl } from '../../../bridge/protocol'
+
+/**
  * 远端 HTML 净化（design.md 安全章节：外部内容按降级渲染处理，防 XSS）。
  * 荒启正文是 Quill HTML（含 <p>/<h1-h6>/<blockquote>/<ul>/<li>/<img>/<a> 等），
  * 白名单标签 + 白名单属性 + 剥除事件属性与 javascript: 协议。
@@ -77,10 +86,9 @@ function sanitizeSrcset(raw: string): string | null {
   return parts.length > 0 ? parts.join(', ') : null
 }
 
-/** 渲染层调用：把远端图片 URL 转成 hqsf-img:// 协议 URL（走主进程磁盘缓存；非 http(s) 原样返回） */
+/** 渲染层调用：把远端图片 URL 转成当前平台的图片缓存协议 URL（走壳层磁盘缓存；非 http(s) 原样返回） */
 export function cachedImageUrl(url: string): string {
-  if (!/^https?:\/\//i.test(url)) return url
-  return `hqsf-img://fetch?url=${encodeURIComponent(url)}`
+  return imageCacheUrl(url)
 }
 
 /**

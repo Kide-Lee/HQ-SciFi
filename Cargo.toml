@@ -1,0 +1,27 @@
+[workspace]
+resolver = "3"
+members = ["crates/hqsf-core", "crates/hqsf-bindings"]
+# src-tauri 是薄壳，需要 WebKitGTK/pkg-config，故不进本机默认构建；
+# CI 用 `cargo check --manifest-path src-tauri/Cargo.toml` 单独验。
+exclude = ["src-tauri", "spikes", ".worktrees", "node_modules", "target"]
+
+[workspace.package]
+version = "2.0.0"
+edition = "2024"
+rust-version = "1.90"
+license = "UNLICENSED"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+rusqlite = { version = "0.43", features = ["bundled"] }
+# specta：类型收集 + TS 导出。serde_json feature 提供 serde_json::Map 的 Type 实现。
+specta = { version = "2.0.0-rc.28", features = ["derive", "serde_json"] }
+specta-typescript = "0.0.15"
+# markdown 数学公式：嵌 QuickJS 跑与前端同一份 katex.min.js（逐字节对等，见 assets/）。
+rquickjs = { version = "0.9", features = ["full-async"] }
+comrak = { version = "1.1.0", default-features = false }
+fancy-regex = "0.20"
+idna = "1"
+sha2 = "0.10"

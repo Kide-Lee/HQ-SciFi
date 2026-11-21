@@ -1,0 +1,85 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "hq-scifi",
+  "version": "2.0.0",
+  "identifier": "com.huangqisf.client",
+  "build": {
+    "frontendDist": "../out/renderer"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "create": false,
+        "title": "黄芪饮片",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 900,
+        "minHeight": 600,
+        "resizable": true,
+        "maximizable": true,
+        "minimizable": true,
+        "closable": true,
+        "visible": false,
+        "focus": false,
+        "center": true,
+        "decorations": false,
+        "backgroundColor": "#f7f8fa",
+        "zoomHotkeysEnabled": false
+      }
+    ],
+    "security": {
+      "csp": null,
+      "capabilities": ["default"]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["deb", "appimage", "nsis", "dmg"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": {
+      "resources/api.config.json": "api.config.json",
+      "resources/agreement.md": "agreement.md",
+      "resources/changelog.md": "changelog.md"
+    },
+    "category": "Productivity",
+    "shortDescription": "荒启科幻桌面客户端",
+    "longDescription": "荒启科幻：写作-阅读-评审 一站式桌面客户端",
+    "publisher": "荒启科幻",
+    "copyright": "© 荒启科幻",
+    "linux": {
+      "deb": {
+        "section": "utils"
+      },
+      "appimage": {
+        "bundleMediaFramework": false
+      }
+    },
+    "windows": {
+      "nsis": {
+        "languages": ["SimpChinese"],
+        "displayLanguageSelector": false,
+        "installMode": "currentUser"
+      }
+    },
+    "macOS": {
+      "minimumSystemVersion": "11.0",
+      "dmg": {
+        "appPosition": {
+          "x": 180,
+          "y": 170
+        },
+        "applicationFolderPosition": {
+          "x": 480,
+          "y": 170
+        }
+      }
+    }
+  }
+}

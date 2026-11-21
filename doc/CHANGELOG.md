@@ -1,5 +1,23 @@
 # 更新日志
 
+## v2.0.0（迁移中，未发布）
+
+### 架构
+- 桌面壳由 Electron 34 换成 **Tauri 2.12**；后端由 Node/TypeScript 主进程改为 **100% Rust**（`crates/hqsf-core`，26k 行、521 个测试）。
+- 保留渲染层全部业务代码不改，通过 `src/bridge/` 的 `window.hqsf` 同形门面接入（85 个方法 + 2 个事件）。
+- IPC 契约冻结为 85 条具名命令（无通用转发代理），通道名、参数、错误文案与原实现逐条对齐（见 `doc/design/Tauri命令契约.md`）。
+- markdown 渲染改为 Rust `comrak` + QuickJS 内嵌同一份 KaTeX/turndown，发布链路写出的 HTML 与 v1.2.13 **逐字节一致**（143 篇真实/边界语料 + 22 条 frontmatter + 22 条 html→md）。
+
+### 用户可见变化
+- **升级到 2.0.0 后首次启动需要重新登录一次**：登录凭据从 Electron `safeStorage` 迁到系统钥匙串，旧 token 无法解密（本地文章、草稿、阅读历史、设置会迁移）。
+- 本地数据会自动从旧版目录迁移（只复制不删除，旧版本仍可直接运行；迁移失败会在启动时提示，不会静默丢数据）。
+- 删除文件/草稿改为移入**系统回收站**（可恢复），不再直接删除。
+- 本地文件树与写作首页的排序由拼音序改为「目录优先 + 忽略大小写字典序」（Rust 侧无 ICU，拼音序待后续补齐）。
+- 安装包体积显著减小（Linux AppImage / deb、Windows NSIS、macOS dmg 均随 Tauri 出包变化）；Linux 需系统提供 `libwebkit2gtk-4.1`（deb 已声明依赖，AppImage 需自备）。
+
+### 工程
+- 新增本仓首个 CI：`.github/workflows/ci.yml`（Rust fmt/clippy/test/绑定漂移 + 渲染层 `tsc` + 壳层 `cargo check`）与 `release.yml`（tag `v*` 三平台出包）。
+
 ## v1.2.13（2026-11-21，荒启网页端改版适配与两处反馈修复）
 
 ### 文章完整性

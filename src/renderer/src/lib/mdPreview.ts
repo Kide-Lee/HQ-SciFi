@@ -1,5 +1,11 @@
+/**
+ * 迁移来源（Tauri 2）：1.x 渲染层业务文件。迁移只动「图片缓存协议 URL」一处：图片改写改用
+ * `src/bridge/protocol.ts` 的共享纯函数 `imageCacheUrl()`（与 `sanitize.ts` 同源）。
+ * 与 Electron 的行为差异：Electron 仍为 `hqsf-img://fetch?url=…`；Tauri 下 Windows/Android 为
+ * `http://hqsf-img.localhost/fetch?url=…`，macOS/Linux 为 `hqsf-img://localhost/fetch?url=…`。
+ */
 import MarkdownIt from 'markdown-it'
-import { cachedImageUrl } from './sanitize'
+import { imageCacheUrl } from '../../../bridge/protocol'
 import { KAITI_OPEN, KAITI_CLOSE } from '../../../shared/kaiti'
 import { mathPlugin } from '../../../shared/markdownItMath'
 
@@ -35,6 +41,6 @@ export function renderMdPreview(markdown: string): string {
   const html = md.render(markdown)
   return html.replace(
     /(<img[^>]*\ssrc=")(https?:\/\/[^"]+)(")/g,
-    (_, pre: string, url: string, post: string) => `${pre}${cachedImageUrl(url)}${post}`
+    (_, pre: string, url: string, post: string) => `${pre}${imageCacheUrl(url)}${post}`
   )
 }

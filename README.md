@@ -87,10 +87,15 @@ npm run build:mac    # 打包 macOS（dmg + zip，x64 + arm64，dist/）
 - [产品与技术设计](doc/design.md)
 - [荒启 API 调查报告](doc/api-research.md)
 - [荒启网站现状调研](doc/site-overview.md)
+- 迁移： [Tauri 迁移计划](doc/design/Tauri迁移计划.md) · [Tauri 命令契约](doc/design/Tauri命令契约.md) · [Rust 实现约定](doc/design/Rust实现约定.md) · [Tauri 迁移验收](doc/design/Tauri迁移验收.md)
 
 ## 技术栈
 
-Electron 34 · React 19 · TypeScript · Vite 7（electron-vite 5）· Milkdown 7（ProseMirror 可视化编辑）· CodeMirror 6 · Zustand · better-sqlite3 · lucide-react（图标）· electron-builder 26
+**v2.0（迁移中）**：Tauri 2.12 · 后端 100% Rust（`crates/hqsf-core`）· rusqlite · comrak + QuickJS 内嵌 KaTeX/turndown · React 19 · TypeScript · Vite 7 · Milkdown 7（ProseMirror 可视化编辑）· CodeMirror 6 · Zustand · lucide-react（图标）
+
+**v1.2.13（当前发布版）**：Electron 34 · React 19 · TypeScript · Vite 7（electron-vite 5）· Milkdown 7 · CodeMirror 6 · Zustand · better-sqlite3 · electron-builder 26
+
+> 迁移文档：[Tauri 迁移计划](doc/design/Tauri迁移计划.md)、[命令契约](doc/design/Tauri命令契约.md)、[验收记录](doc/design/Tauri迁移验收.md)。
 
 ## 免责声明
 

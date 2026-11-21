@@ -1,0 +1,26 @@
+[package]
+name = "hqsf-core"
+description = "荒启客户端内核：领域规则、API 适配、服务编排、能力层。零 tauri 依赖。"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+rusqlite = { workspace = true }
+specta = { workspace = true }
+rquickjs = { workspace = true }
+comrak = { workspace = true }
+fancy-regex = { workspace = true }
+idna = { workspace = true }
+sha2 = { workspace = true }
+
+[package.metadata]
+# 资产：assets/katex.min.js（KaTeX 0.18.4，MIT）——与 node_modules/katex 同版本，
+# 升级前端依赖时必须同步替换，否则数学公式 HTML 会与 1.x 漂移。
+
+[dev-dependencies]
+tempfile = "3"

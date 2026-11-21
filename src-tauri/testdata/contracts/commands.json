@@ -1,0 +1,2371 @@
+{
+  "version": 1,
+  "frozenAt": "2026-11-21T12:48:00+08:00",
+  "frozenFromCommit": "07bc9af",
+  "envelope": "ApiResult<T> = { ok: true; data: T; total?: number } | { ok: false; error: string }（src/shared/domain/index.ts:22；裸值接口 envelope=bare）",
+  "counts": {
+    "channels": 85,
+    "events": 2,
+    "uniqueChannelNames": 86,
+    "ipcChannelByMethodKeys": 87,
+    "handlerRegistrations": 85,
+    "preloadInvoke": 85,
+    "preloadOn": 2,
+    "rendererCallSites": 188
+  },
+  "channels": [
+    {
+      "channel": "hqsf:ping",
+      "method": "ping",
+      "params": [],
+      "returns": "string",
+      "envelope": "bare",
+      "errors": [
+        "无失败分支：直接返回 'pong'，不校验来源、无 try/catch（src/main/ipc/system.handlers.ts:5）"
+      ],
+      "handler": "src/main/ipc/system.handlers.ts:5",
+      "rustCommand": "ping",
+      "rustModule": "system",
+      "lane": "L1",
+      "kind": "invoke",
+      "rendererCalls": []
+    },
+    {
+      "channel": "hqsf:copy-text",
+      "method": "copyText",
+      "params": [
+        {
+          "name": "text",
+          "type": "string"
+        }
+      ],
+      "returns": "null",
+      "errors": [
+        "无失败分支：clipboard.writeText 后恒 ok(null)（src/main/ipc/system.handlers.ts:6-9）"
+      ],
+      "handler": "src/main/ipc/system.handlers.ts:6",
+      "rustCommand": "copy_text",
+      "rustModule": "system",
+      "lane": "L1",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/components/feedback/ErrorBanner.tsx:49",
+        "src/renderer/src/features/chat/PrivateChatModal.tsx:112",
+        "src/renderer/src/features/chat/PrivateChatModal.tsx:123",
+        "src/renderer/src/features/editor/editorContextMenu.tsx:74",
+        "src/renderer/src/features/editor/editorContextMenu.tsx:83",
+        "src/renderer/src/features/editor/editorContextMenu.tsx:110",
+        "src/renderer/src/features/editor/editorContextMenu.tsx:177",
+        "src/renderer/src/features/editor/editorContextMenu.tsx:186",
+        "src/renderer/src/features/editor/editorContextMenu.tsx:209",
+        "src/renderer/src/features/navigation/Sidebar.tsx:218",
+        "src/renderer/src/features/notifications/NotificationPanel.tsx:203",
+        "src/renderer/src/features/notifications/NotificationPanel.tsx:212",
+        "src/renderer/src/features/reader/ReaderComments.tsx:362",
+        "src/renderer/src/features/reader/ReaderComments.tsx:368",
+        "src/renderer/src/features/reader/ReaderInteractions.tsx:176",
+        "src/renderer/src/features/reader/ReaderView.tsx:242",
+        "src/renderer/src/features/reader/ReaderView.tsx:246",
+        "src/renderer/src/features/reader/ReviewItemCard.tsx:96",
+        "src/renderer/src/features/reader/ReviewItemCard.tsx:102"
+      ]
+    },
+    {
+      "channel": "hqsf:read-clipboard-text",
+      "method": "readClipboardText",
+      "params": [],
+      "returns": "string",
+      "errors": [
+        "无失败分支：恒 ok(clipboard.readText())（src/main/ipc/system.handlers.ts:10）"
+      ],
+      "handler": "src/main/ipc/system.handlers.ts:10",
+      "rustCommand": "read_clipboard_text",
+      "rustModule": "system",
+      "lane": "L1",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/components/menu/editableContextMenu.tsx:35",
+        "src/renderer/src/features/editor/editorContextMenu.tsx:41",
+        "src/renderer/src/features/editor/editorContextMenu.tsx:154"
+      ]
+    },
+    {
+      "channel": "hqsf:read-clipboard-html",
+      "method": "readClipboardHtml",
+      "params": [],
+      "returns": "string",
+      "errors": [
+        "无失败分支：恒 ok(clipboard.readHTML())（src/main/ipc/system.handlers.ts:11）"
+      ],
+      "handler": "src/main/ipc/system.handlers.ts:11",
+      "rustCommand": "read_clipboard_html",
+      "rustModule": "system",
+      "lane": "L1",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/editor/editorContextMenu.tsx:155"
+      ]
+    },
+    {
+      "channel": "hqsf:get-app-info",
+      "method": "getAppInfo",
+      "params": [],
+      "returns": "AppInfo",
+      "envelope": "bare",
+      "errors": [
+        "无失败分支：直接返回对象（src/main/ipc/system.handlers.ts:12-18）"
+      ],
+      "handler": "src/main/ipc/system.handlers.ts:12",
+      "rustCommand": "get_app_info",
+      "rustModule": "system",
+      "lane": "L1",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/auth/FirstRunAgreement.tsx:28",
+        "src/renderer/src/features/auth/LoginView.tsx:32",
+        "src/renderer/src/features/navigation/Sidebar.tsx:235",
+        "src/renderer/src/features/navigation/TopBar.tsx:109",
+        "src/renderer/src/features/settings/SystemPanel.tsx:28"
+      ]
+    },
+    {
+      "channel": "hqsf:show-message-box",
+      "method": "showMessageBox",
+      "params": [
+        {
+          "name": "options",
+          "type": "{type?: 'none' | 'info' | 'error' | 'question' | 'warning'; title?: string; message: string; detail?: string; buttons?: string[]; cancelId?: number; defaultId?: number}",
+          "fields": [
+            {
+              "name": "type",
+              "type": "'none' | 'info' | 'error' | 'question' | 'warning'",
+              "optional": true
+            },
+            {
+              "name": "title",
+              "type": "string",
+              "optional": true
+            },
+            {
+              "name": "message",
+              "type": "string"
+            },
+            {
+              "name": "detail",
+              "type": "string",
+              "optional": true
+            },
+            {
+              "name": "buttons",
+              "type": "string[]",
+              "optional": true
+            },
+            {
+              "name": "cancelId",
+              "type": "number",
+              "optional": true
+            },
+            {
+              "name": "defaultId",
+              "type": "number",
+              "optional": true
+            }
+          ]
+        }
+      ],
+      "returns": "{ response: number }",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/system.handlers.ts:33-34；src/main/ipc/shared.ts:21-23）",
+        "dialog.showMessageBox 抛错 → catch fail(err)（src/main/ipc/system.handlers.ts:53-54）"
+      ],
+      "handler": "src/main/ipc/system.handlers.ts:19",
+      "rustCommand": "show_message_box",
+      "rustModule": "system",
+      "lane": "L1",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/editor/EditorBar.tsx:96",
+        "src/renderer/src/features/editor/MilkdownToolbar.tsx:52",
+        "src/renderer/src/features/navigation/Sidebar.tsx:179",
+        "src/renderer/src/features/navigation/Sidebar.tsx:188",
+        "src/renderer/src/features/navigation/Sidebar.tsx:191",
+        "src/renderer/src/features/navigation/Sidebar.tsx:587",
+        "src/renderer/src/features/navigation/Sidebar.tsx:593",
+        "src/renderer/src/features/navigation/Sidebar.tsx:609",
+        "src/renderer/src/features/navigation/Sidebar.tsx:739",
+        "src/renderer/src/features/panel/HistoryPanel.tsx:29",
+        "src/renderer/src/features/settings/SystemPanel.tsx:61",
+        "src/renderer/src/features/settings/SystemPanel.tsx:72",
+        "src/renderer/src/features/settings/SystemPanel.tsx:86",
+        "src/renderer/src/features/settings/SystemPanel.tsx:93",
+        "src/renderer/src/features/settings/SystemPanel.tsx:98",
+        "src/renderer/src/features/settings/SystemPanel.tsx:109",
+        "src/renderer/src/features/user/FollowRow.tsx:67",
+        "src/renderer/src/main.tsx:8",
+        "src/renderer/src/main.tsx:11"
+      ]
+    },
+    {
+      "channel": "hqsf:window-minimize",
+      "method": "windowControls.minimize",
+      "params": [],
+      "returns": "void",
+      "envelope": "bare",
+      "errors": [
+        "无失败分支：windowOf(event)?.minimize()，无窗口时静默（src/main/ipc/window.handlers.ts:5-7）"
+      ],
+      "handler": "src/main/ipc/window.handlers.ts:5",
+      "rustCommand": "window_minimize",
+      "rustModule": "window",
+      "lane": "L1",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/auth/FirstRunAgreement.tsx:92",
+        "src/renderer/src/features/auth/LoginView.tsx:85",
+        "src/renderer/src/features/navigation/TopBar.tsx:255"
+      ]
+    },
+    {
+      "channel": "hqsf:window-maximize-toggle",
+      "method": "windowControls.toggleMaximize",
+      "params": [],
+      "returns": "boolean",
+      "envelope": "bare",
+      "errors": [
+        "无失败分支：无窗口时返回 false（src/main/ipc/window.handlers.ts:8-14）"
+      ],
+      "handler": "src/main/ipc/window.handlers.ts:8",
+      "rustCommand": "window_maximize_toggle",
+      "rustModule": "window",
+      "lane": "L1",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/auth/FirstRunAgreement.tsx:97",
+        "src/renderer/src/features/auth/LoginView.tsx:90",
+        "src/renderer/src/features/navigation/TopBar.tsx:260"
+      ]
+    },
+    {
+      "channel": "hqsf:window-close",
+      "method": "windowControls.close",
+      "params": [],
+      "returns": "void",
+      "envelope": "bare",
+      "errors": [
+        "无失败分支：windowOf(event)?.close()，无窗口时静默（src/main/ipc/window.handlers.ts:15-17）"
+      ],
+      "handler": "src/main/ipc/window.handlers.ts:15",
+      "rustCommand": "window_close",
+      "rustModule": "window",
+      "lane": "L1",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/auth/FirstRunAgreement.tsx:102",
+        "src/renderer/src/features/auth/LoginView.tsx:95",
+        "src/renderer/src/features/navigation/TopBar.tsx:267"
+      ]
+    },
+    {
+      "channel": "hqsf:window-is-maximized",
+      "method": "windowControls.isMaximized",
+      "params": [],
+      "returns": "boolean",
+      "envelope": "bare",
+      "errors": [
+        "无失败分支：无窗口时返回 false（src/main/ipc/window.handlers.ts:18-20）"
+      ],
+      "handler": "src/main/ipc/window.handlers.ts:18",
+      "rustCommand": "window_is_maximized",
+      "rustModule": "window",
+      "lane": "L1",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/auth/FirstRunAgreement.tsx:31",
+        "src/renderer/src/features/auth/LoginView.tsx:35",
+        "src/renderer/src/features/navigation/TopBar.tsx:79"
+      ]
+    },
+    {
+      "channel": "hqsf:toggle-devtools",
+      "method": "toggleDevTools",
+      "params": [],
+      "returns": "null",
+      "errors": [
+        "窗口不存在 → fail(new Error('窗口不存在'))（src/main/ipc/window.handlers.ts:24）"
+      ],
+      "handler": "src/main/ipc/window.handlers.ts:22",
+      "rustCommand": "toggle_devtools",
+      "rustModule": "window",
+      "lane": "L1",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/components/menu/appMenuItems.tsx:26"
+      ]
+    },
+    {
+      "channel": "hqsf:get-agreement",
+      "method": "getAgreement",
+      "params": [],
+      "returns": "AgreementData",
+      "errors": [
+        "协议文件缺失 → 「未找到用户协议文件（已尝试: ${agreementPaths().join(', ')}）」（src/main/adapters/agreement.adapter.ts:38）",
+        "无版本号 → 「用户协议中未找到版本号（${file}，需在首部标注「版本：vX.Y」）」（src/main/adapters/agreement.adapter.ts:43）",
+        "catch → fail(err)（src/main/ipc/agreement.handlers.ts:9-11）"
+      ],
+      "handler": "src/main/ipc/agreement.handlers.ts:6",
+      "rustCommand": "get_agreement",
+      "rustModule": "agreement",
+      "lane": "L7c",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/App.tsx:49",
+        "src/renderer/src/features/auth/FirstRunAgreement.tsx:45",
+        "src/renderer/src/features/auth/LoginView.tsx:55",
+        "src/renderer/src/features/settings/SettingsPanel.tsx:43"
+      ]
+    },
+    {
+      "channel": "hqsf:login-password",
+      "method": "loginPassword",
+      "params": [
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "password",
+          "type": "string"
+        }
+      ],
+      "returns": "LoginResult",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/auth.handlers.ts:8-9）",
+        "服务层抛错 → catch fail(err)（src/main/ipc/auth.handlers.ts:15-16）"
+      ],
+      "handler": "src/main/ipc/auth.handlers.ts:7",
+      "rustCommand": "login_password",
+      "rustModule": "auth",
+      "lane": "L4",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/stores/auth.ts:58"
+      ]
+    },
+    {
+      "channel": "hqsf:get-session",
+      "method": "getSession",
+      "params": [],
+      "returns": "UserSession | null",
+      "errors": [
+        "无失败分支：() => ok(getSession())，不校验来源、无 try/catch（src/main/ipc/auth.handlers.ts:19）"
+      ],
+      "handler": "src/main/ipc/auth.handlers.ts:19",
+      "rustCommand": "get_session",
+      "rustModule": "auth",
+      "lane": "L4",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/settings/UserPanel.tsx:82",
+        "src/renderer/src/stores/auth.ts:28"
+      ]
+    },
+    {
+      "channel": "hqsf:verify-session",
+      "method": "verifySession",
+      "params": [],
+      "returns": "{ valid: boolean; reachable: boolean }",
+      "errors": [
+        "网络/校验异常 → catch fail(err)（src/main/ipc/auth.handlers.ts:23-24）"
+      ],
+      "handler": "src/main/ipc/auth.handlers.ts:20",
+      "rustCommand": "verify_session",
+      "rustModule": "auth",
+      "lane": "L4",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/stores/auth.ts:36"
+      ]
+    },
+    {
+      "channel": "hqsf:logout",
+      "method": "logout",
+      "params": [],
+      "returns": "null",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/auth.handlers.ts:28-29）",
+        "服务层抛错 → catch fail(err)（src/main/ipc/auth.handlers.ts:33-34）"
+      ],
+      "handler": "src/main/ipc/auth.handlers.ts:27",
+      "rustCommand": "logout",
+      "rustModule": "auth",
+      "lane": "L4",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/stores/auth.ts:52",
+        "src/renderer/src/stores/auth.ts:77"
+      ]
+    },
+    {
+      "channel": "hqsf:sync-pull",
+      "method": "syncPull",
+      "params": [],
+      "returns": "PullResult",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/sync.handlers.ts:9-10）",
+        "未登录 → '未登录，无法同步'（src/main/ipc/sync.handlers.ts:13）",
+        "catch → fail(err)（src/main/ipc/sync.handlers.ts:16-17）"
+      ],
+      "handler": "src/main/ipc/sync.handlers.ts:8",
+      "rustCommand": "sync_pull",
+      "rustModule": "sync",
+      "lane": "L7c",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/stores/docs.ts:54"
+      ]
+    },
+    {
+      "channel": "hqsf:sync-push",
+      "method": "syncPush",
+      "params": [
+        {
+          "name": "filePath",
+          "type": "string"
+        },
+        {
+          "name": "isDraft",
+          "type": "boolean"
+        },
+        {
+          "name": "meta",
+          "type": "ArticleMeta",
+          "optional": true,
+          "fields": [
+            {
+              "name": "category",
+              "type": "string",
+              "optional": true
+            },
+            {
+              "name": "tags",
+              "type": "string[]",
+              "optional": true
+            },
+            {
+              "name": "active",
+              "type": "string",
+              "optional": true
+            },
+            {
+              "name": "isopen",
+              "type": "boolean",
+              "optional": true
+            }
+          ]
+        }
+      ],
+      "returns": "PushResult",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/sync.handlers.ts:21-22）",
+        "未登录 → '未登录，无法同步'（src/main/ipc/sync.handlers.ts:24）",
+        "catch → fail(err)（src/main/ipc/sync.handlers.ts:27-28）"
+      ],
+      "handler": "src/main/ipc/sync.handlers.ts:20",
+      "rustCommand": "sync_push",
+      "rustModule": "sync",
+      "lane": "L7c",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/stores/docs.ts:66"
+      ]
+    },
+    {
+      "channel": "hqsf:convert-to-draft",
+      "method": "convertToDraft",
+      "params": [
+        {
+          "name": "cid",
+          "type": "string"
+        }
+      ],
+      "returns": "ConvertDraftResult",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/sync.handlers.ts:32-33）",
+        "未登录 → '未登录，无法转存草稿'（src/main/ipc/sync.handlers.ts:35）",
+        "空 cid → '缺少文章 ID'（src/main/ipc/sync.handlers.ts:37）",
+        "catch → fail(err)（src/main/ipc/sync.handlers.ts:41-42）"
+      ],
+      "handler": "src/main/ipc/sync.handlers.ts:31",
+      "rustCommand": "convert_to_draft",
+      "rustModule": "sync",
+      "lane": "L7c",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/stores/reader.ts:282"
+      ]
+    },
+    {
+      "channel": "hqsf:edit-remote-article",
+      "method": "editRemoteArticle",
+      "params": [
+        {
+          "name": "cid",
+          "type": "string"
+        }
+      ],
+      "returns": "EditRemoteResult",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/sync.handlers.ts:46-47）",
+        "未登录 → '未登录，无法编辑'（src/main/ipc/sync.handlers.ts:49）",
+        "空 cid → '缺少文章 ID'（src/main/ipc/sync.handlers.ts:51）",
+        "catch → fail(err)（src/main/ipc/sync.handlers.ts:55-56）"
+      ],
+      "handler": "src/main/ipc/sync.handlers.ts:45",
+      "rustCommand": "edit_remote_article",
+      "rustModule": "sync",
+      "lane": "L7c",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/stores/reader.ts:261"
+      ]
+    },
+    {
+      "channel": "hqsf:get-docs-root",
+      "method": "getDocsRoot",
+      "params": [],
+      "returns": "string",
+      "errors": [
+        "无失败分支：() => ok(getDocsRoot())，不校验来源、无 try/catch（src/main/ipc/docs.handlers.ts:7）"
+      ],
+      "handler": "src/main/ipc/docs.handlers.ts:7",
+      "rustCommand": "get_docs_root",
+      "rustModule": "docs",
+      "lane": "L2",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/settings/SystemPanel.tsx:32"
+      ]
+    },
+    {
+      "channel": "hqsf:open-docs-dir",
+      "method": "openDocsDir",
+      "params": [],
+      "returns": "null",
+      "errors": [
+        "shell.openPath 返回非空错误串 → fail(new Error(err))（src/main/ipc/docs.handlers.ts:12）",
+        "catch → fail(err)（src/main/ipc/docs.handlers.ts:13-14）"
+      ],
+      "handler": "src/main/ipc/docs.handlers.ts:8",
+      "rustCommand": "open_docs_dir",
+      "rustModule": "docs",
+      "lane": "L2",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/navigation/Sidebar.tsx:738"
+      ]
+    },
+    {
+      "channel": "hqsf:list-local-docs",
+      "method": "listLocalDocs",
+      "params": [],
+      "returns": "LocalNode[]",
+      "errors": [
+        "读目录失败 → catch fail(err)（src/main/ipc/docs.handlers.ts:20-21）"
+      ],
+      "handler": "src/main/ipc/docs.handlers.ts:17",
+      "rustCommand": "list_local_docs",
+      "rustModule": "docs",
+      "lane": "L2",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/stores/docs.ts:37"
+      ]
+    },
+    {
+      "channel": "hqsf:read-local-file",
+      "method": "readLocalFile",
+      "params": [
+        {
+          "name": "path",
+          "type": "string"
+        }
+      ],
+      "returns": "string",
+      "errors": [
+        "路径越界 → 「路径越界：仅允许访问本地存档目录」（src/main/infra/fs/index.ts:41）/「路径越界：符号链接指向存档目录之外」（src/main/infra/fs/index.ts:47）",
+        "文件不存在/读盘失败 → catch fail(err)（src/main/ipc/docs.handlers.ts:27-28）"
+      ],
+      "handler": "src/main/ipc/docs.handlers.ts:24",
+      "rustCommand": "read_local_file",
+      "rustModule": "docs",
+      "lane": "L2",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/stores/editor.ts:113",
+        "src/renderer/src/stores/editor.ts:139"
+      ]
+    },
+    {
+      "channel": "hqsf:file-exists",
+      "method": "fileExists",
+      "params": [
+        {
+          "name": "path",
+          "type": "string"
+        }
+      ],
+      "returns": "boolean",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/docs.handlers.ts:32-33）",
+        "assertInside 越界抛错 → 「路径越界：仅允许访问本地存档目录」/「路径越界：符号链接指向存档目录之外」（src/main/infra/fs/index.ts:41/47）",
+        "catch → fail(err)（src/main/ipc/docs.handlers.ts:36-37）"
+      ],
+      "handler": "src/main/ipc/docs.handlers.ts:31",
+      "rustCommand": "file_exists",
+      "rustModule": "docs",
+      "lane": "L2",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/navigation/Sidebar.tsx:431"
+      ]
+    },
+    {
+      "channel": "hqsf:write-local-file",
+      "method": "writeLocalFile",
+      "params": [
+        {
+          "name": "path",
+          "type": "string"
+        },
+        {
+          "name": "content",
+          "type": "string"
+        }
+      ],
+      "returns": "null",
+      "errors": [
+        "assertInside 越界 → 「路径越界：仅允许访问本地存档目录」/「路径越界：符号链接指向存档目录之外」（src/main/infra/fs/index.ts:41/47）",
+        "写盘失败 → catch fail(err)（src/main/ipc/docs.handlers.ts:44-45）"
+      ],
+      "handler": "src/main/ipc/docs.handlers.ts:40",
+      "rustCommand": "write_local_file",
+      "rustModule": "docs",
+      "lane": "L2",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/stores/editor.ts:155"
+      ]
+    },
+    {
+      "channel": "hqsf:create-local-draft",
+      "method": "createLocalDraft",
+      "params": [
+        {
+          "name": "title",
+          "type": "string"
+        },
+        {
+          "name": "content",
+          "type": "string"
+        },
+        {
+          "name": "dirRel",
+          "type": "string",
+          "optional": true
+        }
+      ],
+      "returns": "string",
+      "errors": [
+        "assertInside 越界 → 「路径越界：仅允许访问本地存档目录」/「路径越界：符号链接指向存档目录之外」（src/main/infra/fs/index.ts:41/47）",
+        "写盘失败 → catch fail(err)（src/main/ipc/docs.handlers.ts:51-52）"
+      ],
+      "handler": "src/main/ipc/docs.handlers.ts:48",
+      "rustCommand": "create_local_draft",
+      "rustModule": "docs",
+      "lane": "L2",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/stores/editor.ts:162"
+      ]
+    },
+    {
+      "channel": "hqsf:create-local-dir",
+      "method": "createLocalDir",
+      "params": [
+        {
+          "name": "rel",
+          "type": "string"
+        }
+      ],
+      "returns": "string",
+      "errors": [
+        "同名文件已存在 → 「同名文件已存在」（src/main/infra/fs/index.ts:141）",
+        "越界 → 「路径越界：仅允许访问本地存档目录」/「路径越界：符号链接指向存档目录之外」（src/main/infra/fs/index.ts:41/47）",
+        "catch → fail(err)（src/main/ipc/docs.handlers.ts:87-88）"
+      ],
+      "handler": "src/main/ipc/docs.handlers.ts:84",
+      "rustCommand": "create_local_dir",
+      "rustModule": "docs",
+      "lane": "L2",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/editor/EditorPane.tsx:199"
+      ]
+    },
+    {
+      "channel": "hqsf:delete-local-file",
+      "method": "deleteLocalDoc",
+      "params": [
+        {
+          "name": "path",
+          "type": "string"
+        }
+      ],
+      "returns": "null",
+      "errors": [
+        "目标为目录 → 「不能删除目录，仅支持删除文章文件」（src/main/infra/fs/index.ts:153）",
+        "文件不存在 → 「文件不存在」（src/main/infra/fs/index.ts:160）",
+        "catch → fail(err)（src/main/ipc/docs.handlers.ts:59-60）"
+      ],
+      "handler": "src/main/ipc/docs.handlers.ts:55",
+      "rustCommand": "delete_local_file",
+      "rustModule": "docs",
+      "lane": "L2",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/stores/docs.ts:83"
+      ]
+    },
+    {
+      "channel": "hqsf:rename-local-node",
+      "method": "renameLocalNode",
+      "params": [
+        {
+          "name": "oldRel",
+          "type": "string"
+        },
+        {
+          "name": "newRel",
+          "type": "string"
+        }
+      ],
+      "returns": "{ from: string; to: string }",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/docs.handlers.ts:64-65）",
+        "源路径不存在 → 「源路径不存在」（src/main/infra/fs/index.ts:216）",
+        "目标路径已存在 → 「目标路径已存在」（src/main/infra/fs/index.ts:217）",
+        "catch → fail(err)（src/main/ipc/docs.handlers.ts:69-70）"
+      ],
+      "handler": "src/main/ipc/docs.handlers.ts:63",
+      "rustCommand": "rename_local_node",
+      "rustModule": "docs",
+      "lane": "L2",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/editor/EditorPane.tsx:170",
+        "src/renderer/src/features/navigation/Sidebar.tsx:607"
+      ]
+    },
+    {
+      "channel": "hqsf:reveal-in-folder",
+      "method": "revealInFolder",
+      "params": [
+        {
+          "name": "path",
+          "type": "string"
+        }
+      ],
+      "returns": "null",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/docs.handlers.ts:74-75）",
+        "assertInside 越界 → 「路径越界：仅允许访问本地存档目录」/「路径越界：符号链接指向存档目录之外」（src/main/infra/fs/index.ts:41/47）",
+        "catch → fail(err)（src/main/ipc/docs.handlers.ts:80-81）"
+      ],
+      "handler": "src/main/ipc/docs.handlers.ts:73",
+      "rustCommand": "reveal_in_folder",
+      "rustModule": "docs",
+      "lane": "L2",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/navigation/Sidebar.tsx:177"
+      ]
+    },
+    {
+      "channel": "hqsf:choose-docs-dir",
+      "method": "chooseDocsDir",
+      "params": [],
+      "returns": "string | null",
+      "errors": [
+        "对话框异常 → catch fail(err)（src/main/ipc/docs.handlers.ts:95-96）"
+      ],
+      "handler": "src/main/ipc/docs.handlers.ts:91",
+      "rustCommand": "choose_docs_dir",
+      "rustModule": "docs",
+      "lane": "L2",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/settings/SystemPanel.tsx:57"
+      ]
+    },
+    {
+      "channel": "hqsf:list-articles",
+      "method": "listArticles",
+      "params": [],
+      "returns": "ArticleRow[]",
+      "errors": [
+        "索引读取失败 → catch fail(err)（src/main/ipc/docs.handlers.ts:104-105）"
+      ],
+      "handler": "src/main/ipc/docs.handlers.ts:99",
+      "rustCommand": "list_articles",
+      "rustModule": "docs",
+      "lane": "L2",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/stores/docs.ts:43",
+        "src/renderer/src/stores/editor.ts:120"
+      ]
+    },
+    {
+      "channel": "hqsf:list-remote-articles",
+      "method": "listRemoteArticles",
+      "params": [
+        {
+          "name": "opts",
+          "type": "ArticleListOptions",
+          "optional": true,
+          "fields": [
+            {
+              "name": "searchParams",
+              "type": "Record<string, unknown>",
+              "optional": true
+            },
+            {
+              "name": "mid",
+              "type": "number | string",
+              "optional": true
+            },
+            {
+              "name": "choice",
+              "type": "boolean",
+              "optional": true
+            },
+            {
+              "name": "limit",
+              "type": "number",
+              "optional": true
+            },
+            {
+              "name": "page",
+              "type": "number",
+              "optional": true
+            },
+            {
+              "name": "order",
+              "type": "string",
+              "optional": true
+            },
+            {
+              "name": "searchKey",
+              "type": "string",
+              "optional": true
+            }
+          ]
+        }
+      ],
+      "returns": "{ items: RemoteArticle[]; total: number }",
+      "errors": [
+        "网络/接口异常 → catch fail(err)（src/main/ipc/read.handlers.ts:12-13）；不校验来源"
+      ],
+      "handler": "src/main/ipc/read.handlers.ts:8",
+      "rustCommand": "list_remote_articles",
+      "rustModule": "read",
+      "lane": "L7a",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/browse/LibraryHome.tsx:54",
+        "src/renderer/src/features/browse/LibraryHome.tsx:88",
+        "src/renderer/src/features/browse/LibraryHome.tsx:121",
+        "src/renderer/src/features/browse/LibraryHome.tsx:138",
+        "src/renderer/src/features/browse/RecommendHome.tsx:249",
+        "src/renderer/src/features/browse/RecommendHome.tsx:251",
+        "src/renderer/src/lib/listAll.ts:17",
+        "src/renderer/src/stores/reader.ts:408"
+      ]
+    },
+    {
+      "channel": "hqsf:get-remote-article",
+      "method": "getRemoteArticle",
+      "params": [
+        {
+          "name": "cid",
+          "type": "string"
+        }
+      ],
+      "returns": "ArticleDetail",
+      "errors": [
+        "未登录且服务端确认不可读 → fail(new Error('阅读全文需要登录（${inner}）'))（src/main/ipc/read.handlers.ts:27-30）",
+        "其余异常 → catch fail(err)（src/main/ipc/read.handlers.ts:31）"
+      ],
+      "handler": "src/main/ipc/read.handlers.ts:16",
+      "rustCommand": "get_remote_article",
+      "rustModule": "read",
+      "lane": "L7a",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/stores/reader.ts:234"
+      ]
+    },
+    {
+      "channel": "hqsf:list-reviews",
+      "method": "listReviews",
+      "params": [
+        {
+          "name": "opts",
+          "type": "{cid?: string; activeid?: number | string; limit?: number; page?: number; order?: string}",
+          "optional": true,
+          "fields": [
+            {
+              "name": "cid",
+              "type": "string",
+              "optional": true
+            },
+            {
+              "name": "activeid",
+              "type": "number | string",
+              "optional": true
+            },
+            {
+              "name": "limit",
+              "type": "number",
+              "optional": true
+            },
+            {
+              "name": "page",
+              "type": "number",
+              "optional": true
+            },
+            {
+              "name": "order",
+              "type": "string",
+              "optional": true
+            }
+          ]
+        }
+      ],
+      "returns": "{ items: ReviewItem[]; total: number }",
+      "errors": [
+        "网络/接口异常 → catch fail(err)（src/main/ipc/review.handlers.ts:12-13）"
+      ],
+      "handler": "src/main/ipc/review.handlers.ts:8",
+      "rustCommand": "list_reviews",
+      "rustModule": "review",
+      "lane": "L7a",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/browse/ActivityHome.tsx:72",
+        "src/renderer/src/features/browse/RecommendHome.tsx:253",
+        "src/renderer/src/stores/reader.ts:298"
+      ]
+    },
+    {
+      "channel": "hqsf:submit-review",
+      "method": "submitReview",
+      "params": [
+        {
+          "name": "payload",
+          "type": "ReviewPayload",
+          "fields": [
+            {
+              "name": "dianzi",
+              "type": "string"
+            },
+            {
+              "name": "wenbi",
+              "type": "string"
+            },
+            {
+              "name": "renwu",
+              "type": "string"
+            },
+            {
+              "name": "jiezou",
+              "type": "string"
+            },
+            {
+              "name": "liyi",
+              "type": "string"
+            },
+            {
+              "name": "zonghe",
+              "type": "string",
+              "optional": true
+            },
+            {
+              "name": "dianziScore",
+              "type": "number"
+            },
+            {
+              "name": "wenbiScore",
+              "type": "number"
+            },
+            {
+              "name": "renwuScore",
+              "type": "number"
+            },
+            {
+              "name": "jiezouScore",
+              "type": "number"
+            },
+            {
+              "name": "liyiScore",
+              "type": "number"
+            },
+            {
+              "name": "cid",
+              "type": "string"
+            },
+            {
+              "name": "activeid",
+              "type": "number | string",
+              "optional": true
+            },
+            {
+              "name": "id",
+              "type": "number | string",
+              "optional": true
+            }
+          ]
+        }
+      ],
+      "returns": "ReviewSubmitResult",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/review.handlers.ts:17-18）",
+        "未登录 → '未登录，无法评审'（src/main/ipc/review.handlers.ts:20）",
+        "载荷非对象 → '无效的评审数据'（src/main/ipc/review.handlers.ts:22）",
+        "cid 为空 → '缺少目标文章 ID'（src/main/ipc/review.handlers.ts:23）",
+        "id 类型非法 → '无效的评审 ID'（src/main/ipc/review.handlers.ts:25）",
+        "某维评语 <10 字 → 「「${d}」评语需至少 10 字」（src/main/ipc/review.handlers.ts:30）",
+        "某维评分不在 0-10 → 「「${d}」评分需在 0-10 之间」（src/main/ipc/review.handlers.ts:33）",
+        "catch → fail(err)（src/main/ipc/review.handlers.ts:38-39）"
+      ],
+      "handler": "src/main/ipc/review.handlers.ts:16",
+      "rustCommand": "submit_review",
+      "rustModule": "review",
+      "lane": "L7a",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/stores/reader.ts:325"
+      ]
+    },
+    {
+      "channel": "hqsf:set-review-attitude",
+      "method": "setReviewAttitude",
+      "params": [
+        {
+          "name": "reviewId",
+          "type": "number | string"
+        },
+        {
+          "name": "type",
+          "type": "number"
+        }
+      ],
+      "returns": "ReviewSubmitResult",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/review.handlers.ts:43-44）",
+        "未登录 → '未登录'（src/main/ipc/review.handlers.ts:46）",
+        "catch → fail(err)（src/main/ipc/review.handlers.ts:49-50）"
+      ],
+      "handler": "src/main/ipc/review.handlers.ts:42",
+      "rustCommand": "set_review_attitude",
+      "rustModule": "review",
+      "lane": "L7a",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/stores/reader.ts:345"
+      ]
+    },
+    {
+      "channel": "hqsf:list-review-tasks",
+      "method": "listReviewTasks",
+      "params": [],
+      "returns": "ReviewTaskItem[]",
+      "errors": [
+        "无 uid → ok([])（src/main/ipc/review.handlers.ts:58，非失败）",
+        "catch → fail(err)（src/main/ipc/review.handlers.ts:61-62）"
+      ],
+      "handler": "src/main/ipc/review.handlers.ts:53",
+      "rustCommand": "list_review_tasks",
+      "rustModule": "review",
+      "lane": "L7a",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/stores/reader.ts:483"
+      ]
+    },
+    {
+      "channel": "hqsf:list-my-reviews",
+      "method": "listMyReviews",
+      "params": [],
+      "returns": "{ cids: string[] }",
+      "errors": [
+        "无 uid → ok({ cids: [] })（src/main/ipc/review.handlers.ts:70，非失败）",
+        "catch → fail(err)（src/main/ipc/review.handlers.ts:73-74）"
+      ],
+      "handler": "src/main/ipc/review.handlers.ts:65",
+      "rustCommand": "list_my_reviews",
+      "rustModule": "review",
+      "lane": "L7a",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/stores/reader.ts:498"
+      ]
+    },
+    {
+      "channel": "hqsf:list-comments",
+      "method": "listComments",
+      "params": [
+        {
+          "name": "cid",
+          "type": "string"
+        },
+        {
+          "name": "opts",
+          "type": "{limit?: number; page?: number; order?: string}",
+          "optional": true,
+          "fields": [
+            {
+              "name": "limit",
+              "type": "number",
+              "optional": true
+            },
+            {
+              "name": "page",
+              "type": "number",
+              "optional": true
+            },
+            {
+              "name": "order",
+              "type": "string",
+              "optional": true
+            }
+          ]
+        }
+      ],
+      "returns": "CommentListResult",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/comment.handlers.ts:8-9）",
+        "空 cid → '缺少文章 ID'（src/main/ipc/comment.handlers.ts:12）",
+        "catch → fail(err)（src/main/ipc/comment.handlers.ts:15-16）"
+      ],
+      "handler": "src/main/ipc/comment.handlers.ts:7",
+      "rustCommand": "list_comments",
+      "rustModule": "comment",
+      "lane": "L7a",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/stores/reader.ts:360"
+      ]
+    },
+    {
+      "channel": "hqsf:list-recent-comments",
+      "method": "listRecentComments",
+      "params": [
+        {
+          "name": "opts",
+          "type": "{limit?: number; page?: number; order?: string}",
+          "optional": true,
+          "fields": [
+            {
+              "name": "limit",
+              "type": "number",
+              "optional": true
+            },
+            {
+              "name": "page",
+              "type": "number",
+              "optional": true
+            },
+            {
+              "name": "order",
+              "type": "string",
+              "optional": true
+            }
+          ]
+        }
+      ],
+      "returns": "{ items: CommentItem[]; total: number }",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/comment.handlers.ts:20-21）",
+        "catch → fail(err)（src/main/ipc/comment.handlers.ts:25-26）"
+      ],
+      "handler": "src/main/ipc/comment.handlers.ts:19",
+      "rustCommand": "list_recent_comments",
+      "rustModule": "comment",
+      "lane": "L7a",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/browse/RecommendHome.tsx:258",
+        "src/renderer/src/features/browse/RecommendHome.tsx:259"
+      ]
+    },
+    {
+      "channel": "hqsf:add-comment",
+      "method": "addComment",
+      "params": [
+        {
+          "name": "payload",
+          "type": "{cid: string; text: string; parent?: number | string; reviewid?: number | string}",
+          "fields": [
+            {
+              "name": "cid",
+              "type": "string"
+            },
+            {
+              "name": "text",
+              "type": "string"
+            },
+            {
+              "name": "parent",
+              "type": "number | string",
+              "optional": true
+            },
+            {
+              "name": "reviewid",
+              "type": "number | string",
+              "optional": true
+            }
+          ]
+        }
+      ],
+      "returns": "CommentSubmitResult",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/comment.handlers.ts:32-33）",
+        "未登录 → '未登录，无法评论'（src/main/ipc/comment.handlers.ts:35）",
+        "载荷非对象 → '无效的评论数据'（src/main/ipc/comment.handlers.ts:36）",
+        "cid 为空 → '缺少目标文章 ID'（src/main/ipc/comment.handlers.ts:38）",
+        "正文 <4 字 → '评论内容至少 4 个字'（src/main/ipc/comment.handlers.ts:40）",
+        "正文 >2000 字 → '评论内容过长（最多 2000 字）'（src/main/ipc/comment.handlers.ts:41）",
+        "parent 类型非法 → '无效的回复目标'（src/main/ipc/comment.handlers.ts:43）",
+        "reviewid 类型非法 → '无效的评审关联'（src/main/ipc/comment.handlers.ts:47）",
+        "catch → fail(err)（src/main/ipc/comment.handlers.ts:51-52）"
+      ],
+      "handler": "src/main/ipc/comment.handlers.ts:29",
+      "rustCommand": "add_comment",
+      "rustModule": "comment",
+      "lane": "L7a",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/browse/RecommendHome.tsx:340",
+        "src/renderer/src/features/browse/RecommendHome.tsx:357",
+        "src/renderer/src/stores/reader.ts:381"
+      ]
+    },
+    {
+      "channel": "hqsf:search-comments",
+      "method": "searchComments",
+      "params": [
+        {
+          "name": "keyword",
+          "type": "string"
+        },
+        {
+          "name": "limit",
+          "type": "number",
+          "optional": true
+        }
+      ],
+      "returns": "{ items: CommentItem[]; total: number }",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/search.handlers.ts:10-11）",
+        "catch → fail(err)（src/main/ipc/search.handlers.ts:16-17）；limit 缺省 10（src/main/ipc/search.handlers.ts:14）"
+      ],
+      "handler": "src/main/ipc/search.handlers.ts:9",
+      "rustCommand": "search_comments",
+      "rustModule": "search",
+      "lane": "L7a",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/browse/LibraryHome.tsx:94"
+      ]
+    },
+    {
+      "channel": "hqsf:search-reviews",
+      "method": "searchReviews",
+      "params": [
+        {
+          "name": "keyword",
+          "type": "string"
+        },
+        {
+          "name": "limit",
+          "type": "number",
+          "optional": true
+        }
+      ],
+      "returns": "{ items: ReviewItem[]; total: number }",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/search.handlers.ts:21-22）",
+        "catch → fail(err)（src/main/ipc/search.handlers.ts:27-28）；limit 缺省 10（src/main/ipc/search.handlers.ts:25）"
+      ],
+      "handler": "src/main/ipc/search.handlers.ts:20",
+      "rustCommand": "search_reviews",
+      "rustModule": "search",
+      "lane": "L7a",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/browse/LibraryHome.tsx:95"
+      ]
+    },
+    {
+      "channel": "hqsf:search-users",
+      "method": "searchUsers",
+      "params": [
+        {
+          "name": "keyword",
+          "type": "string"
+        },
+        {
+          "name": "limit",
+          "type": "number",
+          "optional": true
+        }
+      ],
+      "returns": "{ items: UserSearchResult[]; total: number }",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/search.handlers.ts:32-33）",
+        "catch → fail(err)（src/main/ipc/search.handlers.ts:38-39）；limit 缺省 10（src/main/ipc/search.handlers.ts:36）"
+      ],
+      "handler": "src/main/ipc/search.handlers.ts:31",
+      "rustCommand": "search_users",
+      "rustModule": "search",
+      "lane": "L7a",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/browse/LibraryHome.tsx:96"
+      ]
+    },
+    {
+      "channel": "hqsf:list-categories",
+      "method": "listCategories",
+      "params": [],
+      "returns": "Array<{ mid: number | string; name: string; slug: string; description?: string; imgurl?: string; count?: number }>",
+      "errors": [
+        "网络/接口异常 → catch fail(err)（src/main/ipc/browse.handlers.ts:11-12）"
+      ],
+      "handler": "src/main/ipc/browse.handlers.ts:7",
+      "rustCommand": "list_categories",
+      "rustModule": "browse",
+      "lane": "L7b",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/navigation/Sidebar.tsx:381"
+      ]
+    },
+    {
+      "channel": "hqsf:list-metas",
+      "method": "listMetas",
+      "params": [
+        {
+          "name": "type",
+          "type": "string"
+        }
+      ],
+      "returns": "MetaInfo[]",
+      "errors": [
+        "网络/接口异常 → catch fail(err)（src/main/ipc/browse.handlers.ts:19-20）"
+      ],
+      "handler": "src/main/ipc/browse.handlers.ts:15",
+      "rustCommand": "list_metas",
+      "rustModule": "browse",
+      "lane": "L7b",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/browse/ActivityHome.tsx:42",
+        "src/renderer/src/features/browse/RecommendHome.tsx:262",
+        "src/renderer/src/features/browse/SerialHome.tsx:33",
+        "src/renderer/src/features/editor/PublishModal.tsx:36",
+        "src/renderer/src/features/editor/PublishModal.tsx:39",
+        "src/renderer/src/features/editor/PublishModal.tsx:42",
+        "src/renderer/src/features/navigation/Sidebar.tsx:399",
+        "src/renderer/src/features/navigation/Sidebar.tsx:413",
+        "src/renderer/src/features/reader/ReaderView.tsx:78",
+        "src/renderer/src/features/reader/ReviewPanel.tsx:66"
+      ]
+    },
+    {
+      "channel": "hqsf:check-forbidden",
+      "method": "checkForbidden",
+      "params": [
+        {
+          "name": "title",
+          "type": "string"
+        },
+        {
+          "name": "text",
+          "type": "string"
+        }
+      ],
+      "returns": "{ code: number; msg: string }",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/browse.handlers.ts:24-25）",
+        "未登录 → fail('未登录')（src/main/ipc/browse.handlers.ts:28）：fail 取字符串的 .message，实际返回 { ok:false }（error 缺省，见异常 A3）",
+        "catch → fail(err)（src/main/ipc/browse.handlers.ts:31-32）"
+      ],
+      "handler": "src/main/ipc/browse.handlers.ts:23",
+      "rustCommand": "check_forbidden",
+      "rustModule": "browse",
+      "lane": "L7b",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/editor/EditorBar.tsx:107"
+      ]
+    },
+    {
+      "channel": "hqsf:list-gpt-models",
+      "method": "listGptModels",
+      "params": [],
+      "returns": "GptModel[]",
+      "errors": [
+        "网络/接口异常 → catch fail(err)（src/main/ipc/browse.handlers.ts:39-40）"
+      ],
+      "handler": "src/main/ipc/browse.handlers.ts:35",
+      "rustCommand": "list_gpt_models",
+      "rustModule": "browse",
+      "lane": "L7b",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/browse/GptListView.tsx:17"
+      ]
+    },
+    {
+      "channel": "hqsf:get-private-chat",
+      "method": "getPrivateChat",
+      "params": [
+        {
+          "name": "touid",
+          "type": "number | string"
+        }
+      ],
+      "returns": "{ chatid: string }",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/chat.handlers.ts:8-9）",
+        "未登录 → '未登录，无法私聊'（src/main/ipc/chat.handlers.ts:11）",
+        "catch → fail(err)（src/main/ipc/chat.handlers.ts:14-15）"
+      ],
+      "handler": "src/main/ipc/chat.handlers.ts:7",
+      "rustCommand": "get_private_chat",
+      "rustModule": "chat",
+      "lane": "L7b",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/chat/PrivateChatModal.tsx:42"
+      ]
+    },
+    {
+      "channel": "hqsf:list-chat-sessions",
+      "method": "listChatSessions",
+      "params": [],
+      "returns": "{ items: ChatSession[] }",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/chat.handlers.ts:19-20）",
+        "未登录 → ok({ items: [] })（src/main/ipc/chat.handlers.ts:22，非失败）",
+        "catch → fail(err)（src/main/ipc/chat.handlers.ts:25-26）"
+      ],
+      "handler": "src/main/ipc/chat.handlers.ts:18",
+      "rustCommand": "list_chat_sessions",
+      "rustModule": "chat",
+      "lane": "L7b",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/notifications/NotificationPanel.tsx:96"
+      ]
+    },
+    {
+      "channel": "hqsf:list-chat-messages",
+      "method": "listChatMessages",
+      "params": [
+        {
+          "name": "chatid",
+          "type": "string"
+        }
+      ],
+      "returns": "{ items: ChatMessage[] }",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/chat.handlers.ts:30-31）",
+        "未登录 → '未登录，无法私聊'（src/main/ipc/chat.handlers.ts:33）",
+        "catch → fail(err)（src/main/ipc/chat.handlers.ts:36-37）"
+      ],
+      "handler": "src/main/ipc/chat.handlers.ts:29",
+      "rustCommand": "list_chat_messages",
+      "rustModule": "chat",
+      "lane": "L7b",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/chat/PrivateChatModal.tsx:49",
+        "src/renderer/src/features/chat/PrivateChatModal.tsx:75",
+        "src/renderer/src/features/chat/PrivateChatModal.tsx:92"
+      ]
+    },
+    {
+      "channel": "hqsf:send-chat-message",
+      "method": "sendChatMessage",
+      "params": [
+        {
+          "name": "chatid",
+          "type": "string"
+        },
+        {
+          "name": "msg",
+          "type": "string"
+        }
+      ],
+      "returns": "null",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/chat.handlers.ts:41-42）",
+        "未登录 → '未登录，无法私聊'（src/main/ipc/chat.handlers.ts:44）",
+        "服务端 code!==1 → resp.msg 或 '发送失败'（src/main/adapters/chat.adapter.ts:78）",
+        "catch → fail(err)（src/main/ipc/chat.handlers.ts:48-49）"
+      ],
+      "handler": "src/main/ipc/chat.handlers.ts:40",
+      "rustCommand": "send_chat_message",
+      "rustModule": "chat",
+      "lane": "L7b",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/chat/PrivateChatModal.tsx:88"
+      ]
+    },
+    {
+      "channel": "hqsf:add-log",
+      "method": "addLog",
+      "params": [
+        {
+          "name": "type",
+          "type": "'likes' | 'mark' | 'reward'"
+        },
+        {
+          "name": "params",
+          "type": "Record<string, unknown>"
+        }
+      ],
+      "returns": "LogOpResult",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/interact.handlers.ts:8-9）",
+        "未登录 → '未登录，无法操作'（src/main/ipc/interact.handlers.ts:11）",
+        "type 非三值之一 → '未知的操作类型'（src/main/ipc/interact.handlers.ts:12）",
+        "params.cid 为空 → '缺少目标文章 ID'（src/main/ipc/interact.handlers.ts:14）",
+        "reward 的 num 非 1-10000 整数 → '投币数量需为 1-10000 的整数'（src/main/ipc/interact.handlers.ts:18）",
+        "likes 的 num 非 1/-1 → '点赞参数错误（num 需为 1 或 -1）'（src/main/ipc/interact.handlers.ts:25）",
+        "⚠ 无 try/catch：服务层抛错使 invoke 直接 reject，不符合 {ok:false,error} 约定（见异常 A4）"
+      ],
+      "handler": "src/main/ipc/interact.handlers.ts:7",
+      "rustCommand": "add_log",
+      "rustModule": "interact",
+      "lane": "L7b",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/reader/ReaderInteractions.tsx:126",
+        "src/renderer/src/features/reader/ReaderInteractions.tsx:142",
+        "src/renderer/src/features/reader/ReaderInteractions.tsx:165"
+      ]
+    },
+    {
+      "channel": "hqsf:is-mark",
+      "method": "isMark",
+      "params": [
+        {
+          "name": "cid",
+          "type": "string"
+        }
+      ],
+      "returns": "MarkStatus",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/interact.handlers.ts:31-32）",
+        "未登录 → '未登录'（src/main/ipc/interact.handlers.ts:34）",
+        "空 cid → '缺少文章 ID'（src/main/ipc/interact.handlers.ts:36）",
+        "catch → fail(err)（src/main/ipc/interact.handlers.ts:39-40）"
+      ],
+      "handler": "src/main/ipc/interact.handlers.ts:30",
+      "rustCommand": "is_mark",
+      "rustModule": "interact",
+      "lane": "L7b",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/reader/ReaderInteractions.tsx:70"
+      ]
+    },
+    {
+      "channel": "hqsf:remove-log",
+      "method": "removeLog",
+      "params": [
+        {
+          "name": "key",
+          "type": "number | string"
+        }
+      ],
+      "returns": "LogOpResult",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/interact.handlers.ts:44-45）",
+        "未登录 → '未登录'（src/main/ipc/interact.handlers.ts:47）",
+        "空 key → '缺少收藏记录 ID'（src/main/ipc/interact.handlers.ts:49）",
+        "catch → fail(err)（src/main/ipc/interact.handlers.ts:52-53）"
+      ],
+      "handler": "src/main/ipc/interact.handlers.ts:43",
+      "rustCommand": "remove_log",
+      "rustModule": "interact",
+      "lane": "L7b",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/reader/ReaderInteractions.tsx:112"
+      ]
+    },
+    {
+      "channel": "hqsf:list-notifications",
+      "method": "listNotifications",
+      "params": [],
+      "returns": "{ items: AppNotification[]; totalUnread: number }",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/notify.handlers.ts:10-11）",
+        "未登录 → ok({ items: [], totalUnread: 0 })（src/main/ipc/notify.handlers.ts:13，非失败）",
+        "catch → fail(err)（src/main/ipc/notify.handlers.ts:39-40）"
+      ],
+      "handler": "src/main/ipc/notify.handlers.ts:9",
+      "rustCommand": "list_notifications",
+      "rustModule": "notify",
+      "lane": "L7b",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/stores/notifications.ts:29"
+      ]
+    },
+    {
+      "channel": "hqsf:get-unread-count",
+      "method": "getUnreadCount",
+      "params": [],
+      "returns": "{ total: number }",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/notify.handlers.ts:44-45）",
+        "未登录 → ok({ total: 0 })（src/main/ipc/notify.handlers.ts:47，非失败）",
+        "catch → fail(err)（src/main/ipc/notify.handlers.ts:50-51）"
+      ],
+      "handler": "src/main/ipc/notify.handlers.ts:43",
+      "rustCommand": "get_unread_count",
+      "rustModule": "notify",
+      "lane": "L7b",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/stores/notifications.ts:32",
+        "src/renderer/src/stores/notifications.ts:49"
+      ]
+    },
+    {
+      "channel": "hqsf:mark-notifications-read",
+      "method": "markNotificationsRead",
+      "params": [
+        {
+          "name": "categories",
+          "type": "string[]"
+        }
+      ],
+      "returns": "null",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/notify.handlers.ts:55-56）",
+        "未登录 → '未登录，无法标记已读'（src/main/ipc/notify.handlers.ts:58）",
+        "catch → fail(err)（src/main/ipc/notify.handlers.ts:62-63）"
+      ],
+      "handler": "src/main/ipc/notify.handlers.ts:54",
+      "rustCommand": "mark_notifications_read",
+      "rustModule": "notify",
+      "lane": "L7b",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/notifications/NotificationPanel.tsx:139",
+        "src/renderer/src/features/notifications/NotificationPanel.tsx:157",
+        "src/renderer/src/stores/notifications.ts:70"
+      ]
+    },
+    {
+      "channel": "hqsf:user-profile",
+      "method": "getUserProfile",
+      "params": [
+        {
+          "name": "uid",
+          "type": "string | number"
+        }
+      ],
+      "returns": "UserProfile",
+      "errors": [
+        "网络/接口异常 → catch fail(err)（src/main/ipc/user.handlers.ts:12-13）；uid 经 checkedUid 归一化，非法值按 '0' 处理（src/main/ipc/shared.ts:37-39）"
+      ],
+      "handler": "src/main/ipc/user.handlers.ts:9",
+      "rustCommand": "user_profile",
+      "rustModule": "user",
+      "lane": "L7b",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/navigation/Sidebar.tsx:316",
+        "src/renderer/src/stores/user.ts:174"
+      ]
+    },
+    {
+      "channel": "hqsf:user-stats",
+      "method": "getUserStats",
+      "params": [
+        {
+          "name": "uid",
+          "type": "string | number"
+        }
+      ],
+      "returns": "UserStats | null",
+      "errors": [
+        "网络/接口异常 → catch fail(err)（src/main/ipc/user.handlers.ts:19-20）"
+      ],
+      "handler": "src/main/ipc/user.handlers.ts:16",
+      "rustCommand": "user_stats",
+      "rustModule": "user",
+      "lane": "L7b",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/navigation/Sidebar.tsx:319",
+        "src/renderer/src/stores/user.ts:175"
+      ]
+    },
+    {
+      "channel": "hqsf:user-self-status",
+      "method": "getSelfStatus",
+      "params": [],
+      "returns": "SelfStatus | null",
+      "errors": [
+        "未登录 → ok(null)（src/main/ipc/user.handlers.ts:26，非失败）",
+        "catch → fail(err)（src/main/ipc/user.handlers.ts:28-29）"
+      ],
+      "handler": "src/main/ipc/user.handlers.ts:23",
+      "rustCommand": "user_self_status",
+      "rustModule": "user",
+      "lane": "L7b",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/navigation/Sidebar.tsx:322",
+        "src/renderer/src/features/settings/UserPanel.tsx:25",
+        "src/renderer/src/stores/user.ts:185"
+      ]
+    },
+    {
+      "channel": "hqsf:user-follow-state",
+      "method": "getFollowState",
+      "params": [
+        {
+          "name": "uid",
+          "type": "string | number"
+        }
+      ],
+      "returns": "boolean",
+      "errors": [
+        "网络/接口异常 → catch fail(err)（src/main/ipc/user.handlers.ts:35-36）"
+      ],
+      "handler": "src/main/ipc/user.handlers.ts:32",
+      "rustCommand": "user_follow_state",
+      "rustModule": "user",
+      "lane": "L7b",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/user/FollowRow.tsx:40",
+        "src/renderer/src/stores/user.ts:182"
+      ]
+    },
+    {
+      "channel": "hqsf:user-follow",
+      "method": "followUser",
+      "params": [
+        {
+          "name": "uid",
+          "type": "string | number"
+        },
+        {
+          "name": "follow",
+          "type": "boolean"
+        }
+      ],
+      "returns": "{ ok: boolean; error?: string }",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/user.handlers.ts:40-41）",
+        "网络/接口异常 → catch fail(err)（src/main/ipc/user.handlers.ts:44-45）"
+      ],
+      "handler": "src/main/ipc/user.handlers.ts:39",
+      "rustCommand": "user_follow",
+      "rustModule": "user",
+      "lane": "L7b",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/user/FollowRow.tsx:61",
+        "src/renderer/src/stores/user.ts:304"
+      ]
+    },
+    {
+      "channel": "hqsf:user-follow-list",
+      "method": "listFollows",
+      "params": [
+        {
+          "name": "uid",
+          "type": "string | number"
+        },
+        {
+          "name": "page",
+          "type": "number",
+          "optional": true
+        },
+        {
+          "name": "limit",
+          "type": "number",
+          "optional": true
+        }
+      ],
+      "returns": "{ items: UserFollowItem[]; total: number }",
+      "errors": [
+        "网络/接口异常 → catch fail(err)（src/main/ipc/user.handlers.ts:51-52）；page/limit 缺省 1/20（src/main/ipc/user.handlers.ts:48）"
+      ],
+      "handler": "src/main/ipc/user.handlers.ts:48",
+      "rustCommand": "user_follow_list",
+      "rustModule": "user",
+      "lane": "L7b",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/stores/user.ts:188",
+        "src/renderer/src/stores/user.ts:257"
+      ]
+    },
+    {
+      "channel": "hqsf:user-fan-list",
+      "method": "listFans",
+      "params": [
+        {
+          "name": "uid",
+          "type": "string | number"
+        },
+        {
+          "name": "page",
+          "type": "number",
+          "optional": true
+        },
+        {
+          "name": "limit",
+          "type": "number",
+          "optional": true
+        }
+      ],
+      "returns": "{ items: UserFollowItem[]; total: number }",
+      "errors": [
+        "网络/接口异常 → catch fail(err)（src/main/ipc/user.handlers.ts:58-59）；page/limit 缺省 1/20（src/main/ipc/user.handlers.ts:55）"
+      ],
+      "handler": "src/main/ipc/user.handlers.ts:55",
+      "rustCommand": "user_fan_list",
+      "rustModule": "user",
+      "lane": "L7b",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/stores/user.ts:258"
+      ]
+    },
+    {
+      "channel": "hqsf:user-marks",
+      "method": "listMarks",
+      "params": [
+        {
+          "name": "page",
+          "type": "number",
+          "optional": true
+        },
+        {
+          "name": "limit",
+          "type": "number",
+          "optional": true
+        }
+      ],
+      "returns": "{ items: UserMarkItem[]; total: number }",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/user.handlers.ts:63-64）",
+        "未登录 → '未登录，无法查看收藏'（src/main/ipc/user.handlers.ts:67）",
+        "catch → fail(err)（src/main/ipc/user.handlers.ts:69-70）"
+      ],
+      "handler": "src/main/ipc/user.handlers.ts:62",
+      "rustCommand": "user_marks",
+      "rustModule": "user",
+      "lane": "L7b",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/stores/user.ts:203",
+        "src/renderer/src/stores/user.ts:250"
+      ]
+    },
+    {
+      "channel": "hqsf:user-articles",
+      "method": "listUserArticles",
+      "params": [
+        {
+          "name": "uid",
+          "type": "string | number"
+        },
+        {
+          "name": "page",
+          "type": "number",
+          "optional": true
+        },
+        {
+          "name": "limit",
+          "type": "number",
+          "optional": true
+        }
+      ],
+      "returns": "{ items: RemoteArticle[]; total: number }",
+      "errors": [
+        "网络/接口异常 → catch fail(err)（src/main/ipc/user.handlers.ts:76-77）"
+      ],
+      "handler": "src/main/ipc/user.handlers.ts:73",
+      "rustCommand": "user_articles",
+      "rustModule": "user",
+      "lane": "L7b",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/stores/user.ts:200",
+        "src/renderer/src/stores/user.ts:261"
+      ]
+    },
+    {
+      "channel": "hqsf:user-reviews",
+      "method": "listUserReviews",
+      "params": [
+        {
+          "name": "uid",
+          "type": "string | number"
+        },
+        {
+          "name": "page",
+          "type": "number",
+          "optional": true
+        },
+        {
+          "name": "limit",
+          "type": "number",
+          "optional": true
+        }
+      ],
+      "returns": "{ items: ReviewItem[]; total: number }",
+      "errors": [
+        "网络/接口异常 → catch fail(err)（src/main/ipc/user.handlers.ts:83-84）"
+      ],
+      "handler": "src/main/ipc/user.handlers.ts:80",
+      "rustCommand": "user_reviews",
+      "rustModule": "user",
+      "lane": "L7b",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/stores/user.ts:201",
+        "src/renderer/src/stores/user.ts:264"
+      ]
+    },
+    {
+      "channel": "hqsf:user-comments",
+      "method": "listUserComments",
+      "params": [
+        {
+          "name": "uid",
+          "type": "string | number"
+        },
+        {
+          "name": "page",
+          "type": "number",
+          "optional": true
+        },
+        {
+          "name": "limit",
+          "type": "number",
+          "optional": true
+        }
+      ],
+      "returns": "CommentListResult",
+      "errors": [
+        "网络/接口异常 → catch fail(err)（src/main/ipc/user.handlers.ts:90-91）"
+      ],
+      "handler": "src/main/ipc/user.handlers.ts:87",
+      "rustCommand": "user_comments",
+      "rustModule": "user",
+      "lane": "L7b",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/stores/user.ts:202",
+        "src/renderer/src/stores/user.ts:267"
+      ]
+    },
+    {
+      "channel": "hqsf:user-feed",
+      "method": "listFollowFeed",
+      "params": [],
+      "returns": "FollowFeedItem[]",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/user.handlers.ts:95-96）",
+        "未登录 → ok([])（src/main/ipc/user.handlers.ts:100，非失败）",
+        "catch → fail(err)（src/main/ipc/user.handlers.ts:102-103）"
+      ],
+      "handler": "src/main/ipc/user.handlers.ts:94",
+      "rustCommand": "user_feed",
+      "rustModule": "user",
+      "lane": "L7b",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/stores/user.ts:247"
+      ]
+    },
+    {
+      "channel": "hqsf:user-clock",
+      "method": "clockIn",
+      "params": [],
+      "returns": "ClockResult",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/user.handlers.ts:107-108）",
+        "未登录 → '未登录，无法签到'（src/main/ipc/user.handlers.ts:111）",
+        "catch → fail(err)（src/main/ipc/user.handlers.ts:113-114）"
+      ],
+      "handler": "src/main/ipc/user.handlers.ts:106",
+      "rustCommand": "user_clock",
+      "rustModule": "user",
+      "lane": "L7b",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/navigation/Sidebar.tsx:581",
+        "src/renderer/src/stores/user.ts:317"
+      ]
+    },
+    {
+      "channel": "hqsf:user-update-profile",
+      "method": "userUpdateProfile",
+      "params": [
+        {
+          "name": "payload",
+          "type": "UserProfileUpdatePayload",
+          "fields": [
+            {
+              "name": "screenName",
+              "type": "string",
+              "optional": true
+            },
+            {
+              "name": "avatar",
+              "type": "string",
+              "optional": true
+            },
+            {
+              "name": "userBg",
+              "type": "string",
+              "optional": true
+            },
+            {
+              "name": "introduce",
+              "type": "string",
+              "optional": true
+            },
+            {
+              "name": "mail",
+              "type": "string",
+              "optional": true
+            },
+            {
+              "name": "phone",
+              "type": "string",
+              "optional": true
+            }
+          ]
+        }
+      ],
+      "returns": "null",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/user.handlers.ts:118-119）",
+        "未登录 → '未登录，无法修改资料'（src/main/ipc/user.handlers.ts:121）",
+        "载荷非对象 → '无效的资料数据'（src/main/ipc/user.handlers.ts:123）",
+        "catch → fail(err)（src/main/ipc/user.handlers.ts:134-135）"
+      ],
+      "handler": "src/main/ipc/user.handlers.ts:117",
+      "rustCommand": "user_update_profile",
+      "rustModule": "user",
+      "lane": "L7b",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/settings/UserPanel.tsx:75"
+      ]
+    },
+    {
+      "channel": "hqsf:pick-upload-user-image",
+      "method": "pickUploadUserImage",
+      "params": [],
+      "returns": "{ url: string } | null",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/user.handlers.ts:139-140）",
+        "未登录 → '未登录，无法上传图片'（src/main/ipc/user.handlers.ts:142）",
+        "catch → fail(err)（src/main/ipc/user.handlers.ts:146-147）"
+      ],
+      "handler": "src/main/ipc/user.handlers.ts:138",
+      "rustCommand": "pick_upload_user_image",
+      "rustModule": "user",
+      "lane": "L7b",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/settings/UserPanel.tsx:64"
+      ]
+    },
+    {
+      "channel": "hqsf:get-settings",
+      "method": "getSettings",
+      "params": [],
+      "returns": "AppSettings",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/settings.handlers.ts:11-12）",
+        "catch → fail(err)（src/main/ipc/settings.handlers.ts:15-16）"
+      ],
+      "handler": "src/main/ipc/settings.handlers.ts:10",
+      "rustCommand": "get_settings",
+      "rustModule": "settings",
+      "lane": "L1",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/stores/settings.ts:111"
+      ]
+    },
+    {
+      "channel": "hqsf:update-settings",
+      "method": "updateSettings",
+      "params": [
+        {
+          "name": "patch",
+          "type": "Partial<AppSettings>",
+          "fields": [
+            {
+              "name": "autoUpdate",
+              "type": "boolean",
+              "optional": true
+            },
+            {
+              "name": "hardwareAccel",
+              "type": "boolean",
+              "optional": true
+            },
+            {
+              "name": "zoomFactor",
+              "type": "number",
+              "optional": true
+            },
+            {
+              "name": "customCss",
+              "type": "string",
+              "optional": true
+            },
+            {
+              "name": "customJs",
+              "type": "string",
+              "optional": true
+            }
+          ]
+        }
+      ],
+      "returns": "AppSettings",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/settings.handlers.ts:20-21）",
+        "patch 非对象/为数组 → '无效的设置数据'（src/main/ipc/settings.handlers.ts:24）",
+        "catch → fail(err)（src/main/ipc/settings.handlers.ts:39-40）"
+      ],
+      "handler": "src/main/ipc/settings.handlers.ts:19",
+      "rustCommand": "update_settings",
+      "rustModule": "settings",
+      "lane": "L1",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/stores/settings.ts:117"
+      ]
+    },
+    {
+      "channel": "hqsf:get-changelog",
+      "method": "getChangelog",
+      "params": [],
+      "returns": "ChangelogData",
+      "errors": [
+        "catch → fail(err)（src/main/ipc/settings.handlers.ts:46-47）"
+      ],
+      "handler": "src/main/ipc/settings.handlers.ts:43",
+      "rustCommand": "get_changelog",
+      "rustModule": "settings",
+      "lane": "L1",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/settings/ChangelogModal.tsx:11"
+      ]
+    },
+    {
+      "channel": "hqsf:clear-cache",
+      "method": "clearCache",
+      "params": [],
+      "returns": "ClearCacheResult",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/settings.handlers.ts:51-52）",
+        "catch → fail(err)（src/main/ipc/settings.handlers.ts:62-63）；清除 session 缓存失败被忽略（src/main/ipc/settings.handlers.ts:56-60）"
+      ],
+      "handler": "src/main/ipc/settings.handlers.ts:50",
+      "rustCommand": "clear_cache",
+      "rustModule": "settings",
+      "lane": "L1",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/settings/SystemPanel.tsx:83"
+      ]
+    },
+    {
+      "channel": "hqsf:uninstall",
+      "method": "uninstall",
+      "params": [],
+      "returns": "null",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/settings.handlers.ts:67-68）",
+        "非 Windows → '当前平台不支持应用内卸载；请使用系统包管理器或删除应用目录'（src/main/ipc/settings.handlers.ts:71）",
+        "catch → fail(err)（src/main/ipc/settings.handlers.ts:75-76）"
+      ],
+      "handler": "src/main/ipc/settings.handlers.ts:66",
+      "rustCommand": "uninstall",
+      "rustModule": "settings",
+      "lane": "L1",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/settings/SystemPanel.tsx:107"
+      ]
+    },
+    {
+      "channel": "hqsf:update-state",
+      "method": "getUpdateState",
+      "params": [],
+      "returns": "UpdateState",
+      "errors": [
+        "无失败分支：() => ok(getUpdateState())，不校验来源、无 try/catch（src/main/ipc/updater.handlers.ts:6）"
+      ],
+      "handler": "src/main/ipc/updater.handlers.ts:6",
+      "rustCommand": "update_state",
+      "rustModule": "updater",
+      "lane": "L4",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/settings/SystemPanel.tsx:35",
+        "src/renderer/src/features/settings/UpdateBanner.tsx:11"
+      ]
+    },
+    {
+      "channel": "hqsf:update-check",
+      "method": "checkForUpdates",
+      "params": [],
+      "returns": "UpdateState",
+      "errors": [
+        "检查失败 → catch fail(err)（src/main/ipc/updater.handlers.ts:10-11）"
+      ],
+      "handler": "src/main/ipc/updater.handlers.ts:7",
+      "rustCommand": "update_check",
+      "rustModule": "updater",
+      "lane": "L4",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/settings/SystemPanel.tsx:44"
+      ]
+    },
+    {
+      "channel": "hqsf:update-download",
+      "method": "downloadUpdate",
+      "params": [],
+      "returns": "null",
+      "errors": [
+        "无可下载更新（status!=='available' 或 url 为空）→ '当前没有可下载的更新'（src/main/ipc/updater.handlers.ts:17-19）",
+        "catch → fail(err)（src/main/ipc/updater.handlers.ts:22-23）"
+      ],
+      "handler": "src/main/ipc/updater.handlers.ts:14",
+      "rustCommand": "update_download",
+      "rustModule": "updater",
+      "lane": "L4",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/settings/SystemPanel.tsx:52",
+        "src/renderer/src/features/settings/UpdateBanner.tsx:31"
+      ]
+    },
+    {
+      "channel": "hqsf:update-install",
+      "method": "installUpdate",
+      "params": [],
+      "returns": "null",
+      "errors": [
+        "无可安装更新（status!=='available' 或 url 为空）→ '当前没有可安装的更新'（src/main/ipc/updater.handlers.ts:29-31）",
+        "catch → fail(err)（src/main/ipc/updater.handlers.ts:34-35）"
+      ],
+      "handler": "src/main/ipc/updater.handlers.ts:26",
+      "rustCommand": "update_install",
+      "rustModule": "updater",
+      "lane": "L4",
+      "kind": "invoke",
+      "rendererCalls": []
+    },
+    {
+      "channel": "media:pick-upload-image",
+      "method": "pickUploadImage",
+      "params": [],
+      "returns": "{ url: string } | null",
+      "errors": [
+        "trusted 拒绝 → '非法调用来源'（src/main/ipc/media.handlers.ts:8-9）",
+        "未登录 → fail('未登录，无法上传图片')（src/main/ipc/media.handlers.ts:11）：fail 取字符串的 .message，实际返回 { ok:false }（error 缺省，见异常 A3）",
+        "catch → fail(err)（src/main/ipc/media.handlers.ts:15-16）"
+      ],
+      "handler": "src/main/ipc/media.handlers.ts:7",
+      "rustCommand": "pick_upload_image",
+      "rustModule": "media",
+      "lane": "L5",
+      "kind": "invoke",
+      "rendererCalls": [
+        "src/renderer/src/features/editor/MilkdownToolbar.tsx:50"
+      ]
+    }
+  ],
+  "events": [
+    {
+      "event": "hqsf:window-maximized-changed",
+      "method": "windowControls.onMaximizedChanged",
+      "payload": "boolean",
+      "handler": "src/main/window/index.ts:70-71",
+      "preloadSubscribe": "src/preload/index.ts:109-113",
+      "rustModule": "window",
+      "lane": "L1",
+      "kind": "event",
+      "rendererCalls": [
+        "src/renderer/src/features/auth/FirstRunAgreement.tsx:34",
+        "src/renderer/src/features/auth/LoginView.tsx:38",
+        "src/renderer/src/features/navigation/TopBar.tsx:82"
+      ]
+    },
+    {
+      "event": "hqsf:update-state",
+      "method": "onUpdateState",
+      "payload": "UpdateState",
+      "handler": "src/main/infra/updater/index.ts:44",
+      "preloadSubscribe": "src/preload/index.ts:263-267",
+      "rustModule": "updater",
+      "lane": "L4",
+      "kind": "event",
+      "rendererCalls": [
+        "src/renderer/src/features/settings/SystemPanel.tsx:38",
+        "src/renderer/src/features/settings/UpdateBanner.tsx:14"
+      ]
+    }
+  ],
+  "anomalies": [
+    "A1 media:pick-upload-image 是全表唯一非 hqsf: 前缀通道（src/main/ipc/media.handlers.ts:7）",
+    "A2 hqsf:update-state 通道名被 invoke（src/main/ipc/updater.handlers.ts:6）与事件（src/main/infra/updater/index.ts:44）复用",
+    "A3 fail(string) 使 error 为 undefined：src/main/ipc/browse.handlers.ts:28（未登录）、src/main/ipc/media.handlers.ts:11（未登录，无法上传图片）",
+    "A4 hqsf:add-log 无 try/catch（src/main/ipc/interact.handlers.ts:7-29），服务层抛错时 invoke reject，违反 {ok:false,error} 约定",
+    "A5 hqsf:toggle-devtools 无 try/catch（src/main/ipc/window.handlers.ts:22-28），唯一失败分支已显式 fail",
+    "A6 计划 §1.3 写 84 条 + 2 事件，实际 85 条 + 2 事件；system 模块计划 5 实际 6（漏计 hqsf:show-message-box）",
+    "A7 lane 映射按任务指令：auth→L4、agreement→L7c、settings/system/window→L1；与计划 §4.2 标数不一致（见文档 §6 A7）",
+    "A8 hqsf:show-message-box handler 形参 message?: string（src/main/ipc/system.handlers.ts:27）vs 契约必填（src/shared/contracts/hqsf-api.ts:78）",
+    "A9 searchKey 仅存在于 search-reviews 服务层内部调用（src/main/ipc/search.handlers.ts:25），不属于 IPC 入参",
+    "A10 45/85 条通道未调用 trusted(event)，清单见文档附录 B"
+  ]
+}
