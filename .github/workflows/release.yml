@@ -1,28 +1,43 @@
 # 三平台出包（迁移计划 P5）。
 #
-# 触发：推 tag `v*` 或手动。CI（ci.yml）只做门禁，不出包。
+# 触发：
+#   - 推 tag `v*`            → 构建 + 创建 draft Release（正式发布流程）
+#   - 推分支 `build-only`    → 只构建 + 上传 artifacts，**不创建 Release**（打包验证用）
+#   - 手动 workflow_dispatch → version 必填；dry_run=true 时同样不创建 Release
 #
-# 前置：
-#   - 渲染层用 npm 构建（`npm run build` → out/renderer），Tauri 的 frontendDist 指向它；
-#   - `api.config.json` 不入库（见 .gitignore），CI 里用 `api.config.example.json` 兜底，
-#     真实发布前必须由维护者在 secrets/构建机里提供正式配置——**否则装出来的客户端连的是示例地址**。
+# 前置与坑（与 ci.yml 同源，均已在下面显式处理）：
+#   - `src-tauri/src/commands_generated.rs` 是 gitignored 生成物 → 构建前必须 `--write`；
+#   - `src-tauri/resources/*` 是 gitignored 生成物，且 `tauri.conf.json` 的
+#     `bundle.resources` 在编译期校验存在 → 必须先跑 `prepare-resources.mjs`；
+#   - `api.config.json` 不入库：CI 用 `api.config.example.json` 兜底并告警，
+#     正式发布必须由维护者在构建机提供真实配置——否则装出来的客户端连的是示例地址；
+#   - 本仓没有 `@tauri-apps/cli` 依赖（也不要为了它改 package-lock），
+#     所以用 `cargo install tauri-cli` + `cargo tauri build`，不经过 npm 脚本。
 
 name: release
 
 on:
   push:
     tags: ["v*"]
+    branches: ["build-only"]
   workflow_dispatch:
     inputs:
       version:
         description: "要发布的版本号（不带 v，例如 2.0.0）"
         required: true
+      dry_run:
+        description: "只构建、不创建 Release"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
 
 env:
   CARGO_TERM_COLOR: always
+  # 打包验证分支与 dry_run 都不建 Release；tag 推送时用 tag 名。
+  IS_DRY_RUN: ${{ github.ref_name == 'build-only' || inputs.dry_run }}
+  RELEASE_TAG: ${{ inputs.version != '' && format('v{0}', inputs.version) || github.ref_name }}
 
 jobs:
   build:
@@ -33,12 +48,19 @@ jobs:
           - platform: ubuntu-22.04
             args: "--bundles deb,appimage"
             artifact: linux
+            bundles: |
+              src-tauri/target/release/bundle/deb/*.deb
+              src-tauri/target/release/bundle/appimage/*.AppImage
           - platform: windows-latest
             args: "--bundles nsis"
             artifact: windows
+            bundles: |
+              src-tauri/target/release/bundle/nsis/*.exe
           - platform: macos-latest
             args: "--bundles dmg"
             artifact: macos
+            bundles: |
+              src-tauri/target/release/bundle/dmg/*.dmg
 
     runs-on: ${{ matrix.platform }}
 
@@ -53,6 +75,8 @@ jobs:
       - name: 安装前端依赖
         run: npm ci
 
+      # `electron-vite build` 同时产出 `out/renderer`（Tauri 的 frontendDist）与
+      # `out/main`/`out/preload`（1.x Electron 遗留，打包不用，但构建脚本是同一个）。
       - name: 构建渲染层（Tauri 的 frontendDist）
         run: npm run build
 
@@ -63,6 +87,13 @@ jobs:
             cp api.config.example.json api.config.json
             echo "::warning::未提供正式 api.config.json，包内使用 api.config.example.json 的地址"
           fi
+
+      # 两个 gitignored 生成物：缺任何一个都会在 `cargo tauri build` 里失败。
+      - name: 生成 dispatch（gitignored 产物）
+        run: node src-tauri/scripts/gen-tauri-commands.mjs --write
+
+      - name: 生成打包资源（gitignored 产物）
+        run: node src-tauri/scripts/prepare-resources.mjs
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -78,15 +109,78 @@ jobs:
             libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
             librsvg2-dev patchelf
 
-      - name: 构建并上传 Release 产物
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: 安装 tauri-cli（cargo 版，避免引入 @tauri-apps/cli 依赖）
+        run: cargo install tauri-cli --version "^2" --locked
+
+      - name: 构建安装包
+        working-directory: src-tauri
+        run: cargo tauri build ${{ matrix.args }}
+
+      - name: 记录产物大小
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/meta"
+          : > "$RUNNER_TEMP/meta/sizes.txt"
+          for f in ${{ matrix.bundles }}; do
+            [ -f "$f" ] || continue
+            printf '%-60s %s\n' "$(basename "$f")" "$(du -h "$f" | cut -f1)" >> "$RUNNER_TEMP/meta/sizes.txt"
+          done
+          cat "$RUNNER_TEMP/meta/sizes.txt"
+
+      - uses: actions/upload-artifact@v4
         with:
-          projectPath: src-tauri
-          tagName: ${{ github.ref_name }}
-          releaseName: "黄芪饮片 ${{ github.ref_name }}"
-          releaseBody: "见 doc/CHANGELOG.md"
-          releaseDraft: true
+          name: bundle-${{ matrix.artifact }}
+          path: ${{ matrix.bundles }}
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: meta-${{ matrix.artifact }}
+          path: ${{ runner.temp }}/meta/sizes.txt
+          if-no-files-found: warn
+
+  # 正式流程才建 Release；`build-only` 分支与 dry_run 只留 artifacts（保留 14 天）。
+  release:
+    needs: build
+    if: github.ref_name != 'build-only' && inputs.dry_run != true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: bundle-*
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: "黄芪饮片 ${{ env.RELEASE_TAG }}"
+          body: "见 doc/CHANGELOG.md"
+          draft: true
           prerelease: false
-          args: ${{ matrix.args }}
+          files: dist/**/*
+
+  # 结论回写：本机只有 api.github.com（匿名 60/h）且 Actions 运行/日志接口要 admin，
+  # 所以用 `git ls-remote origin release-status` + commit message 判断三平台打包结果。
+  status:
+    needs: build
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: 回写 release-status 分支
+        run: |
+          mkdir -p "$RUNNER_TEMP/status" && cd "$RUNNER_TEMP/status"
+          git init -q && git checkout -q -b release-status
+          git config user.name "ci"
+          git config user.email "ci@users.noreply.github.com"
+          {
+            echo "# 三平台打包"
+            echo
+            echo "- commit: $GITHUB_SHA"
+            echo "- ref: $GITHUB_REF"
+            echo "- build: ${{ needs.build.result }}"
+            echo "- run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          } > README.md
+          git add README.md
+          git commit -qm "release: build=${{ needs.build.result }} for ${GITHUB_SHA:0:7} (${GITHUB_REF_NAME})"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" release-status
