@@ -116,37 +116,35 @@ try {
   await check('空地方右键出应用内菜单（刷新 / 开发者工具）', async () => {
     // 派发与读取放在同一条异步脚本内：分两条 WebDriver 命令时，命令之间的窗口失焦
     // 会触发菜单的 onDismiss（window blur）→ 第二次命令永远读到空菜单。
-    // 先按真实路径在 document.body 上派发（「没有人接管的空地」）；万一某个捕获阶段监听
-    // 吃掉了事件，再直接在 window 上派发，至少验证 ContextMenuHost 的兜底处理器是活的。
+    // 采样多个时刻：菜单可能开了又立刻被 scroll/blur 的 onDismiss 关掉，只在最后读会误判。
     const outcome = await app.execAsync(`
       const done = arguments[arguments.length - 1]
-      const info = { attempts: [] }
-      const read = () => {
-        const host = document.querySelector('.context-menu')
-        return host ? host.innerText : ''
-      }
+      const info = { samples: [], reached: false }
+      window.addEventListener('contextmenu', () => { info.reached = true }, true)
       const fire = (target) =>
         target.dispatchEvent(
           new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 600, clientY: 400 })
         )
-      let attempts = 0
-      const step = () => {
-        const target = attempts === 0 ? document.body : window
-        fire(target)
-        attempts += 1
-        setTimeout(() => {
-          const text = read()
-          info.attempts.push({ target: attempts === 1 ? 'body' : 'window', menu: text })
-          if (text || attempts >= 2) return done(info)
-          step()
-        }, 400)
+      const read = () => {
+        const host = document.querySelector('.context-menu')
+        if (!host) return { exists: false, text: '', visible: null }
+        const style = getComputedStyle(host)
+        return { exists: true, text: host.textContent || '', visible: style.visibility }
       }
-      step()
+      fire(document.body)
+      const times = [30, 80, 200, 500]
+      let i = 0
+      const sample = () => {
+        info.samples.push({ at: times[i], ...read() })
+        i += 1
+        if (i < times.length) setTimeout(sample, times[i] - times[i - 1])
+        else done(info)
+      }
+      setTimeout(sample, times[0])
     `)
-    const hits = (outcome?.attempts ?? []).filter((a) => a.menu && a.menu.includes('刷新'))
-    if (hits.length === 0) throw new Error(`右键菜单没有出现：${JSON.stringify(outcome)}`)
-    const menu = hits[0].menu
-    if (!menu.includes('开发者工具')) throw new Error(`菜单里没有「开发者工具」：${JSON.stringify(menu)}`)
+    const hit = (outcome?.samples ?? []).find((s) => s.exists && (s.text || '').includes('刷新'))
+    if (!hit) throw new Error(`右键菜单没有出现：${JSON.stringify(outcome)}`)
+    if (!(hit.text || '').includes('开发者工具')) throw new Error(`菜单里没有「开发者工具」：${JSON.stringify(hit)}`)
     await app.exec("document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); return true")
   })
   await check('渲染层日志落盘（__hqsf_log 通道）', () =>
