@@ -111,7 +111,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
-            librsvg2-dev patchelf
+            librsvg2-dev patchelf \
+            xvfb xdotool dbus-x11 imagemagick libfuse2
 
       - name: 安装 tauri-cli（cargo 版，避免引入 @tauri-apps/cli 依赖）
         run: cargo install tauri-cli --version "^2" --locked
@@ -132,6 +133,21 @@ jobs:
           else
             node scripts/verify-bundles.mjs 2>&1 | tee "$RUNNER_TEMP/meta/verify.txt"
           fi
+
+      # AppImage 是 Linux 用户最常下载的格式，但它没被 ci.yml 的 smoke 覆盖
+      # （那边跑的是 --no-bundle 的裸二进制）。这里真跑一次 AppImage：
+      # 同时验证 type2 runtime / FUSE 挂载 / 打包后的资源路径都对。
+      - name: 冒烟（AppImage，Xvfb）
+        if: matrix.platform == 'ubuntu-22.04'
+        shell: bash
+        run: |
+          set -u
+          APPIMAGE=$(ls src-tauri/target/release/bundle/appimage/*.AppImage | head -1)
+          chmod +x "$APPIMAGE"
+          export HOME="$RUNNER_TEMP/appimage-home"
+          mkdir -p "$HOME"
+          xvfb-run -a -s "-screen 0 1280x800x24" \
+            dbus-run-session -- bash scripts/smoke-tauri.sh "$APPIMAGE"
 
       # 先用 glob 抓 bundle 目录（不依赖手写矩阵路径），产物缺失时这一步就会红。
       - uses: actions/upload-artifact@v4
