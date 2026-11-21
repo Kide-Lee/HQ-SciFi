@@ -3,7 +3,7 @@ import {
   Bell,
   Copy,
   Eye,
-  FileText,
+  MessageCircle,
   Minus,
   PanelLeftClose,
   PanelLeftOpen,
@@ -244,7 +244,7 @@ export function TopBar(): React.JSX.Element {
             aria-label="文章栏"
             aria-expanded={articleActive}
           >
-            <FileText size={14} className="panel-ico idle" />
+            <MessageCircle size={14} className="panel-ico idle" />
             <PanelRightOpen size={14} className="panel-ico peek" />
             <PanelRightClose size={14} className="panel-ico open" />
           </button>
