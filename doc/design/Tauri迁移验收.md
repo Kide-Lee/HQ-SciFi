@@ -400,8 +400,9 @@ Platform secure storage failure: DBus error: The name org.freedesktop.secrets wa
 - **现象**：2.0.15 的 AppImage 里，阅读正文的音视频 `iframe` 占位但内容空白（可拖动选中，事件被跨域 iframe 吞掉）；同一篇文章用 `hq-scifi_2.0.15_amd64.deb` 打开，播放器正常。
 - **A/B 结论**：代码、CSP、导航白名单、网络都相同，唯一差异是渲染引擎来源——deb 用系统 `libwebkit2gtk-4.1`（Debian 13 = 2.54），AppImage 自带一套 WebKit。因此根因在 **AppImage 内嵌的 WebKit**，不是应用逻辑。
 - **证据链**（运行时探针，2.0.15 现场）：应用内 `fetch` 三个播放域名均 ok（网络/TLS 通）；`securitypolicyviolation` 无 `frame-src` 违规（对照组 `example.com` 会违规）；iframe 元素 `src`/尺寸/可见性正确但 `contentDocument.URL === 'about:blank'`；`srcdoc` 子框架能正常渲染；白名单外的子框架 URL 会被拉起系统浏览器（证明 `decide-policy` 对子框架生效）。
-- **安装包缺陷**：`tauri-bundler 2.10.6` 的 `bundle/linux/appimage/linuxdeploy.rs` 只拷 `WebKitNetworkProcess`、`WebKitWebProcess`、`injected-bundle/libwebkit2gtkinjectedbundle.so`；而本机 WebKitGTK 的 helper 目录里还有 `WebKitGPUProcess`。AppImage 内缺它，跨站 iframe 的加载/合成会失败。
-- **修法**：`src-tauri/scripts/prepare-resources.mjs` 从构建机 `/usr/lib/<arch>/webkit2gtk-4.1/WebKitGPUProcess` 拷到 `src-tauri/resources/webkit/`（gitignored）；`src-tauri/tauri.conf.json` 的 `bundle.linux.appimage.files` 把它映射到 `usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitGPUProcess`。
+- **打包器只拷三个 helper**：`tauri-bundler 2.10.6` 的 `bundle/linux/appimage/linuxdeploy.rs` 只拷 `WebKitNetworkProcess`、`WebKitWebProcess`、`injected-bundle/libwebkit2gtkinjectedbundle.so`。**但这条不是根因**：ubuntu 22.04 的 `libwebkit2gtk-4.1-0`（2.44）本来就没有 `WebKitGPUProcess`（24.04 的 2.48 也没有，`packages.ubuntu.com` 的 filelist 可查），所以 AppImage 里的 WebKit 与它自身需要的 helper 是自洽的。
+- **一次失败尝试（已回滚）**：曾按「缺 GPU 进程」假设在 `tauri.conf.json` 的 `bundle.linux.appimage.files` 里映射构建机的 `WebKitGPUProcess`，结果该文件在 ubuntu-22.04 上不存在 → `copy_custom_files` 失败 → **v2.0.16 整轮 build=failure**。已删除该映射与 `prepare-resources.mjs` 的拷贝逻辑。
+- **当前结论**：AppImage 内嵌的是 2.44 这代 WebKit，真机上不渲染跨站 iframe；Linux 用户应使用 deb（系统 WebKit 2.54，实测正常）。彻底修 AppImage 只有两条路：①构建基础镜像升级（抬高 glibc 下限）；②让 AppImage 不内嵌 WebKit、改用系统库（需要脱离 Tauri 现成打包流程）。
 - **待验证**：需要用 2.0.16 的 AppImage 在真机复测（deb 侧已确认正常）。
 
 ## 4.8 端到端自动化（tauri-driver）

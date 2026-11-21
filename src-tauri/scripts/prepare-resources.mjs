@@ -55,31 +55,6 @@ for (const item of mapping) {
   console.error(`[resources] 已拷贝 ${item.from} → resources/${item.to}`);
 }
 
-// AppImage 需要额外带上 WebKit 的 GPU 进程。
-// Tauri 的 AppImage 打包器只拷 `WebKitNetworkProcess`/`WebKitWebProcess`/injected-bundle
-// （tauri-bundler 2.10.6 `bundle/linux/appimage/linuxdeploy.rs`），但 2.46+ 的 WebKitGTK
-// 还会 spawn `WebKitGPUProcess`；AppImage 里缺这个文件时，跨站 iframe（阅读页的
-// 音乐/视频播放器）会停在 about:blank（v2.0.15 实测：deb 正常、AppImage 空白）。
-// 这里把构建机上的同名文件拷到 `resources/webkit/`，再由 tauri.conf.json 的
-// `bundle.linux.appimage.files` 映射进 AppDir 的 `/usr/lib/<arch>/webkit2gtk-4.1/`。
-const helperDir = process.arch === 'x64'
-  ? '/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1'
-  : '/usr/lib/aarch64-linux-gnu/webkit2gtk-4.1';
-const gpuSource = join(helperDir, 'WebKitGPUProcess');
-const gpuTarget = join(targetDir, 'webkit', 'WebKitGPUProcess');
-if (existsSync(gpuSource)) {
-  if (checkOnly) {
-    console.error(`[resources] OK ${gpuSource} → resources/webkit/WebKitGPUProcess（AppImage 必需）`);
-  } else {
-    mkdirSync(dirname(gpuTarget), { recursive: true });
-    copyFileSync(gpuSource, gpuTarget);
-    chmodSync(gpuTarget, 0o755);
-    console.error('[resources] 已拷贝 WebKitGPUProcess → resources/webkit/WebKitGPUProcess（AppImage 必需）');
-  }
-} else {
-  console.error(`[resources] 警告：未找到 ${gpuSource}（非 Linux 或未装 WebKitGTK）；AppImage 打包会缺 GPU 进程`);
-}
-
 if (missing > 0) {
   console.error(`[resources] 共 ${missing} 个源文件缺失；打包前补齐（api.config.json 本地持有、不入库）`);
   process.exit(checkOnly ? 1 : 0);
