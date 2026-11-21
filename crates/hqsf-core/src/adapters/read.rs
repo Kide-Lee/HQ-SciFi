@@ -275,7 +275,7 @@ pub struct CategoryMeta {
 /// 文章元数据（评论/评审脱敏补全用）。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
-pub struct ArticleMeta {
+pub struct ArticleMetaBrief {
     pub author_id: String,
     pub is_anonymous: bool,
 }
@@ -965,7 +965,7 @@ pub fn get_ongoing_review_mids(ctx: &CoreCtx) -> BTreeSet<String> {
 #[derive(Debug, Serialize, Deserialize)]
 struct ArticleMetaCache {
     /// `None` 表示「查过但没有」（负缓存，1.x 同样缓存 null）。
-    meta: Option<ArticleMeta>,
+    meta: Option<ArticleMetaBrief>,
     at: i64,
 }
 
@@ -977,7 +977,7 @@ fn meta_cache_key(cid: &str) -> String {
 ///
 /// 1.x 内部走 `listRemoteArticles({searchParams:{cid},limit:2,order:'created'})`，
 /// 所以这里同样会顺带触发活动 mid 集合的查询（与 1.x 的请求序列一致）。
-pub fn get_article_meta_by_cid(ctx: &CoreCtx, cid: &str) -> Option<ArticleMeta> {
+pub fn get_article_meta_by_cid(ctx: &CoreCtx, cid: &str) -> Option<ArticleMetaBrief> {
     let now = ctx.clock.now_ms();
     if let Some(cache) = read_meta_json::<ArticleMetaCache>(ctx, &meta_cache_key(cid))
         && now - cache.at < META_CACHE_TTL_MS
@@ -1000,7 +1000,7 @@ pub fn get_article_meta_by_cid(ctx: &CoreCtx, cid: &str) -> Option<ArticleMeta> 
             out.items
                 .into_iter()
                 .find(|a| a.cid == cid)
-                .map(|a| ArticleMeta {
+                .map(|a| ArticleMetaBrief {
                     author_id: a.author_id,
                     is_anonymous: a.is_anonymous,
                 })
@@ -1020,7 +1020,10 @@ pub fn get_article_meta_by_cid(ctx: &CoreCtx, cid: &str) -> Option<ArticleMeta> 
 ///
 /// 对应 1.x `fillArticleAnonMeta`（前 4 条、去重、逐条 3 秒超时、失败不阻塞）。
 /// 返回 `(cid, meta)` 的映射；调用方按字段合并（`a || b` 语义，见各自 adapter）。
-pub fn fill_article_anon_meta(ctx: &CoreCtx, cids: &[String]) -> BTreeMap<String, ArticleMeta> {
+pub fn fill_article_anon_meta(
+    ctx: &CoreCtx,
+    cids: &[String],
+) -> BTreeMap<String, ArticleMetaBrief> {
     let mut seen = BTreeSet::new();
     let mut metas = BTreeMap::new();
     for cid in cids.iter().take(4) {

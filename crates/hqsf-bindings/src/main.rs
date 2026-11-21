@@ -45,7 +45,7 @@ fn type_collection() -> Types {
         .register::<hqsf_core::adapters::read::ArticleDetail>()
         .register::<hqsf_core::adapters::read::ArticleListOptions>()
         .register::<hqsf_core::adapters::read::ArticleListOut>()
-        .register::<hqsf_core::adapters::read::ArticleMeta>()
+        .register::<hqsf_core::adapters::read::ArticleMetaBrief>()
         .register::<hqsf_core::domain::article::ArticleRow>()
         .register::<hqsf_core::commands::browse::BrowseMetasArgs>()
         .register::<hqsf_core::adapters::read::CategoryMeta>()
