@@ -24,7 +24,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "要发布的版本号（不带 v，例如 2.0.15）"
+        description: "要发布的版本号（不带 v，例如 2.0.16）"
         required: true
       dry_run:
         description: "只构建、不创建 Release"

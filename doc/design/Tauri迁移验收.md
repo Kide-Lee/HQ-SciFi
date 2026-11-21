@@ -395,6 +395,15 @@ Platform secure storage failure: DBus error: The name org.freedesktop.secrets wa
 8. ✅ 收尾清理（用户指示 `m02087` 后执行）：已删除 `src/main`/`src/preload`、`electron.vite.config.ts`、`electron-builder.yml`、`tsconfig.node.json`、`scripts/win-prebuild.mjs`、`scripts/archive-release.mjs`、1.x 专用测试脚本与 `.dsh/skills/cdp-debugging`；依赖移除 electron 系与 better-sqlite3，`package-lock.json` 重生成（`npm ci` dry-run 通过）；1.x 文档归档到 `doc/archive/1.x/`；`README`/`AGENTS`/`CHANGELOG` 同步改写。
    - 前置耦合**已解除**（`85df4b5`）：渲染层改用纯 Vite 构建（`vite.web.config.ts` → `out/web`，`npm run build:web`），`tauri.conf.json` 的 `frontendDist` 指向 `out/web`；`npm run build`（electron-vite）仅剩 1.x 自用。删 1.x 时只需删文件与依赖，不必动 Tauri 构建链路。
 
+## 4.7.1 AppImage 内嵌播放器空白（A/B 定位 + 修法）
+
+- **现象**：2.0.15 的 AppImage 里，阅读正文的音视频 `iframe` 占位但内容空白（可拖动选中，事件被跨域 iframe 吞掉）；同一篇文章用 `hq-scifi_2.0.15_amd64.deb` 打开，播放器正常。
+- **A/B 结论**：代码、CSP、导航白名单、网络都相同，唯一差异是渲染引擎来源——deb 用系统 `libwebkit2gtk-4.1`（Debian 13 = 2.54），AppImage 自带一套 WebKit。因此根因在 **AppImage 内嵌的 WebKit**，不是应用逻辑。
+- **证据链**（运行时探针，2.0.15 现场）：应用内 `fetch` 三个播放域名均 ok（网络/TLS 通）；`securitypolicyviolation` 无 `frame-src` 违规（对照组 `example.com` 会违规）；iframe 元素 `src`/尺寸/可见性正确但 `contentDocument.URL === 'about:blank'`；`srcdoc` 子框架能正常渲染；白名单外的子框架 URL 会被拉起系统浏览器（证明 `decide-policy` 对子框架生效）。
+- **安装包缺陷**：`tauri-bundler 2.10.6` 的 `bundle/linux/appimage/linuxdeploy.rs` 只拷 `WebKitNetworkProcess`、`WebKitWebProcess`、`injected-bundle/libwebkit2gtkinjectedbundle.so`；而本机 WebKitGTK 的 helper 目录里还有 `WebKitGPUProcess`。AppImage 内缺它，跨站 iframe 的加载/合成会失败。
+- **修法**：`src-tauri/scripts/prepare-resources.mjs` 从构建机 `/usr/lib/<arch>/webkit2gtk-4.1/WebKitGPUProcess` 拷到 `src-tauri/resources/webkit/`（gitignored）；`src-tauri/tauri.conf.json` 的 `bundle.linux.appimage.files` 把它映射到 `usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitGPUProcess`。
+- **待验证**：需要用 2.0.16 的 AppImage 在真机复测（deb 侧已确认正常）。
+
 ## 4.8 端到端自动化（tauri-driver）
 
 1.x 用 Chrome DevTools Protocol 驱动界面；Tauri/WebKitGTK 没有 CDP，改用官方 `tauri-driver`（W3C WebDriver，Linux 后端 `WebKitWebDriver`）。

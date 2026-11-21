@@ -4,10 +4,10 @@
 # 用法（CI）：xvfb-run -a -s "-screen 0 1280x800x24" dbus-run-session -- bash scripts/e2e/run.sh
 # 本机（有 WebKitGTK 的机器）：
 #   cargo build --manifest-path src-tauri/Cargo.toml --features devtools
-#   APP_BIN=$(realpath src-tauri/target/debug/huangqi-scifi) xvfb-run -a dbus-run-session -- bash scripts/e2e/run.sh
+#   APP_BIN=$(realpath src-tauri/target/debug/hq-scifi) xvfb-run -a dbus-run-session -- bash scripts/e2e/run.sh
 set -uo pipefail
 
-APP="${APP_BIN:-$(realpath src-tauri/target/debug/huangqi-scifi 2>/dev/null || echo '')}"
+APP="${APP_BIN:-$(realpath src-tauri/target/debug/hq-scifi 2>/dev/null || realpath src-tauri/target/debug/huangqi-scifi 2>/dev/null || echo '')}"
 PORT="${WD_PORT:-4444}"
 DRIVER_BIN="${TAURI_DRIVER_BIN:-tauri-driver}"
 NATIVE_DRIVER="${NATIVE_DRIVER_BIN:-$(command -v WebKitWebDriver)}"
