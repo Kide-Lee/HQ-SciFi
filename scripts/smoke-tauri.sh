@@ -52,7 +52,12 @@ echo "--- 本地库 ---"
 find "$HOME" -maxdepth 6 -name 'hqsf.db*' 2>/dev/null || true
 
 # 窗口存在 ≠ 界面画出来了：截一张图，用「颜色种数」判断是不是白屏。
-# 60px 的纯白窗口只有 1 种颜色；正常界面有文字、图标、分栏底色，通常上百种。
+# 纯色窗口只有 1 种颜色；正常界面有文字、图标、分栏底色，通常上百种。
+#
+# 截图前先等 2s：`xdotool` 一找到窗口就截，可能正好截在「窗口已映射、首帧还没画完」的中间态
+# （AppImage 冷启动时实测会从 916 色掉到 438 色，同一份产物跑两次也不一样）。等首帧落定再截，
+# 结果才稳定可比。
+sleep 2
 colors=0
 screenshot_ok=0
 if [ -n "${WINDOW_ID:-}" ] && command -v import > /dev/null; then
@@ -76,8 +81,9 @@ fail=0
 [ "$found" = 1 ] || { echo "::error::没有找到窗口"; fail=1; }
 [ "$alive" = 1 ] || { echo "::error::进程提前退出"; fail=1; }
 [ "$db_count" -ge 1 ] || { echo "::error::没有生成 hqsf.db（CoreCtx/Db::open 没走通）"; fail=1; }
-# 截图只在能截时判定：少于 20 种颜色基本就是白屏/纯色（渲染层没挂上）。
-if [ "$screenshot_ok" = 1 ] && [ "${colors:-0}" -lt 20 ]; then
+# 截图只在能截时判定：少于 100 种颜色基本就是白屏/纯色（渲染层没挂上）。
+# 实测登录页稳定在 900+ 色；阈值取 100 既不会被字体/抗锯齿波动误伤，又能抓住「只画了底色」。
+if [ "$screenshot_ok" = 1 ] && [ "${colors:-0}" -lt 100 ]; then
   echo "::error::窗口疑似白屏（unique_colors=$colors），渲染层可能未加载"
   fail=1
 fi
