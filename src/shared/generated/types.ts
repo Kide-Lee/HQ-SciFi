@@ -110,7 +110,7 @@ export type ArticleListOut = {
 };
 
 /**  文章元数据（评论/评审脱敏补全用）。 */
-export type ArticleMeta = {
+export type ArticleMetaBrief = {
 	authorId: string,
 	isAnonymous: boolean,
 };

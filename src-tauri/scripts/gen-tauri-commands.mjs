@@ -348,11 +348,17 @@ function modulePathOf(file) {
  */
 function collectCoreTypes() {
   const index = new Map();
+  const duplicates = [];
   for (const file of collectCoreFiles(coreSrcDir)) {
     const source = readFileSync(file, 'utf8');
     for (const match of source.matchAll(/^pub\s+(struct|enum|type)\s+([A-Z][A-Za-z0-9_]*)/gm)) {
       const [, kind, name] = match;
-      if (index.has(name)) continue;
+      if (index.has(name)) {
+        // 同名类型会让「按名字找 core 类型」的推断静默选错模块（曾发生：适配器层的
+        // ArticleMeta 被当成 sync 命令入参的 domain::sync::ArticleMeta，编译期才报 E0308）。
+        duplicates.push({ name, first: index.get(name).module, second: modulePathOf(file) });
+        continue;
+      }
       const entry = { module: modulePathOf(file), kind };
       if (kind === 'struct') {
         const parsed = parseStructFields(source, name);
@@ -361,6 +367,7 @@ function collectCoreTypes() {
       index.set(name, entry);
     }
   }
+  index.duplicates = duplicates;
   return index;
 }
 
@@ -376,6 +383,14 @@ function collectModules() {
 
 const modules = collectModules();
 const coreTypes = collectCoreTypes();
+if (coreTypes.duplicates.length > 0) {
+  console.error('[gen-tauri-commands] 内核存在同名公开类型，无法按名字推断参数类型：');
+  for (const dup of coreTypes.duplicates) {
+    console.error(`  - ${dup.name}：${dup.first} / ${dup.second}`);
+  }
+  console.error('请改名消除歧义（生成器按类型名匹配，重名会静默选错模块）。');
+  process.exit(1);
+}
 const generated = [];
 const manual = [];
 
