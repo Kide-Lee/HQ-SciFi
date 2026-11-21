@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Circle, LogOut } from 'lucide-react'
 import { useAuthStore } from '../../stores/auth'
 import { useUiStore } from '../../stores/ui'
+import { cachedImageUrl } from '../../lib/sanitize'
 
 export function UserPanel({ onClose }: { onClose: () => void }): React.JSX.Element {
   const session = useAuthStore((s) => s.session)
@@ -96,7 +97,7 @@ export function UserPanel({ onClose }: { onClose: () => void }): React.JSX.Eleme
         </div>
         <div className="settings-row">
           <span className="settings-label">头像</span>
-          {form.avatar ? <img className="settings-avatar" src={form.avatar} alt="头像" /> : <Circle size={24} />}
+          {form.avatar ? <img className="settings-avatar" src={cachedImageUrl(form.avatar)} alt="头像" /> : <Circle size={24} />}
           <button className="ghost-btn" onClick={() => void uploadImage('avatar')}>
             上传
           </button>

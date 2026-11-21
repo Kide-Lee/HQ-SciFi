@@ -23,6 +23,7 @@ import { useDocsStore } from '../../stores/docs'
 import { useEditorStore } from '../../stores/editor'
 import { useReaderStore } from '../../stores/reader'
 import { sortActivities, activityPhase, ACTIVITY_PHASE_LABEL } from '../../lib/activity'
+import { cachedImageUrl } from '../../lib/sanitize'
 import { listAllActivityArticles } from '../../lib/listAll'
 import { isReviewDisabledCategoryName } from '../../lib/category'
 import type { ArticleRow, LocalNode, MetaInfo, RemoteArticle } from '../../../../shared/types'
@@ -642,7 +643,7 @@ export function Sidebar(): React.JSX.Element {
                   title="查看我的主页"
                 >
                   {avatar ? (
-                    <img className="avatar-img" src={String(avatar)} alt="" referrerPolicy="no-referrer" />
+                    <img className="avatar-img" src={cachedImageUrl(String(avatar))} alt="" referrerPolicy="no-referrer" />
                   ) : (
                     nickname.slice(0, 1)
                   )}
