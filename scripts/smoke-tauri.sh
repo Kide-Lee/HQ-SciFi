@@ -41,20 +41,45 @@ done
 alive=0
 kill -0 "$APP_PID" 2>/dev/null && alive=1
 
+db_count=$(find "$HOME" -maxdepth 6 -name 'hqsf.db' 2>/dev/null | wc -l)
+
 echo "window_found=$found"
-xdotool search --name "$TITLE" 2>/dev/null | head -3 || true
+WINDOW_ID=$(xdotool search --name "$TITLE" 2>/dev/null | head -1)
+echo "window_id=${WINDOW_ID:-none}"
 echo "app_alive=$alive"
+echo "db_count=$db_count"
 echo "--- 本地库 ---"
 find "$HOME" -maxdepth 6 -name 'hqsf.db*' 2>/dev/null || true
+
+# 窗口存在 ≠ 界面画出来了：截一张图，用「颜色种数」判断是不是白屏。
+# 60px 的纯白窗口只有 1 种颜色；正常界面有文字、图标、分栏底色，通常上百种。
+colors=0
+screenshot_ok=0
+if [ -n "${WINDOW_ID:-}" ] && command -v import > /dev/null; then
+  if import -window "$WINDOW_ID" "$HOME/shot.png" 2>"$HOME/shot.err"; then
+    colors=$(convert "$HOME/shot.png" -format %k info: 2>/dev/null || echo 0)
+    screenshot_ok=1
+  else
+    echo "截图失败（不判失败）：$(tail -3 "$HOME/shot.err" 2>/dev/null)"
+  fi
+fi
+echo "screenshot_ok=$screenshot_ok unique_colors=$colors"
+[ "$screenshot_ok" = 1 ] && echo "--- 截图尺寸 ---" && identify "$HOME/shot.png" 2>/dev/null | head -1
+
 echo "--- app.log（尾部）---"
 tail -120 "$HOME/app.log" 2>/dev/null || true
 
 kill "$APP_PID" 2>/dev/null || true
 wait "$APP_PID" 2>/dev/null || true
 
-if [ "$found" = 1 ] && [ "$alive" = 1 ]; then
-  echo "冒烟通过"
-  exit 0
+fail=0
+[ "$found" = 1 ] || { echo "::error::没有找到窗口"; fail=1; }
+[ "$alive" = 1 ] || { echo "::error::进程提前退出"; fail=1; }
+[ "$db_count" -ge 1 ] || { echo "::error::没有生成 hqsf.db（CoreCtx/Db::open 没走通）"; fail=1; }
+# 截图只在能截时判定：少于 20 种颜色基本就是白屏/纯色（渲染层没挂上）。
+if [ "$screenshot_ok" = 1 ] && [ "${colors:-0}" -lt 20 ]; then
+  echo "::error::窗口疑似白屏（unique_colors=$colors），渲染层可能未加载"
+  fail=1
 fi
-echo "::error::Tauri 应用未能创建窗口或提前退出（见上面的 app.log）"
-exit 1
+[ "$fail" = 0 ] || { echo "::error::冒烟失败（见上面各部分输出）"; exit 1; }
+echo "冒烟通过"
