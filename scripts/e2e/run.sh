@@ -36,6 +36,10 @@ mkdir -p "$E2E_SHOT_DIR"
 export HQSF_TEST=1
 export WEBKIT_DISABLE_COMPOSITING_MODE=1
 export WEBKIT_DISABLE_DMABUF_RENDERER=1
+# CI 的 Xvfb 里 WebKitGPUProcess 起不来时，WebKit 会重载页面（表现成「协议门又回来了」，
+# 因为 App 重新挂载、agreementOk 重新计算）。这两个开关让 WebKit 退回单进程/无沙箱路径。
+export WEBKIT_DISABLE_GPU_PROCESS=1
+export WEBKIT_FORCE_SANDBOX=0
 export LIBGL_ALWAYS_SOFTWARE=1
 # 应用启动时按该顺序找 api.config.json：给驱动进程的环境变量会被子进程继承。
 if [ -z "${HQSF_API_CONFIG:-}" ] && [ -f "$(pwd)/api.config.json" ]; then
