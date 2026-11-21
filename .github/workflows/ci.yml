@@ -67,19 +67,6 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      # `tauri.conf.json` 的 `bundle.resources` 在**编译期**就会校验源文件存在，
-      # 而 `src-tauri/resources/*` 是 prepare-resources.mjs 的生成物（gitignored）：
-      # CI 检出后必须先生成，否则 `cargo check` 直接报
-      # `resource path resources/agreement.md doesn't exist`。
-      # `api.config.json` 不入库，CI 用 example 兜底（真实发布会由维护者提供正式配置）。
-      - name: 准备打包资源（gitignored 生成物）
-        run: |
-          if [ ! -f api.config.json ]; then
-            echo "::warning::CI 使用 api.config.example.json 作为 api.config.json 兜底"
-            cp api.config.example.json api.config.json
-          fi
-          node src-tauri/scripts/prepare-resources.mjs
-
       - run: npm ci
       - run: npm run typecheck
 
@@ -121,10 +108,23 @@ jobs:
           node --check src-tauri/scripts/gen-tauri-commands.mjs
           node --check src-tauri/scripts/prepare-resources.mjs
 
+      # `tauri.conf.json` 的 `bundle.resources` 在**编译期**就会校验源文件存在，
+      # 而 `src-tauri/resources/*` 是 prepare-resources.mjs 的生成物（gitignored）：
+      # 检出后必须先生成，否则 `cargo check` 直接报
+      # `resource path resources/agreement.md doesn't exist`。
+      # `api.config.json` 不入库，CI 用 example 兜底（真实发布会由维护者提供正式配置）。
+      - name: 准备打包资源（gitignored 生成物）
+        run: |
+          if [ ! -f api.config.json ]; then
+            echo "::warning::CI 使用 api.config.example.json 作为 api.config.json 兜底"
+            cp api.config.example.json api.config.json
+          fi
+          node src-tauri/scripts/prepare-resources.mjs
+
       - run: npm ci
 
       # `tauri::generate_context!()` 在编译期把 `frontendDist`（`../out/renderer`）嵌进二进制，
-      # 目录不存在会直接编译失败；CI 里没有本地 api.config.json，故不跑 prepare-resources（只影响打包）。
+      # 目录不存在会直接编译失败；因此这里先产出前端产物（资源文件上一步已生成）
       - name: 前端产物（编译期被嵌入）
         run: npm run build
 
