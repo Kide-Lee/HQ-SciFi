@@ -354,7 +354,10 @@ impl crate::ports::Launcher for RecordingLauncher {
 #[derive(Default)]
 pub struct FakeWindow {
     pub zoom: Mutex<Vec<f64>>,
+    /// 实际注入的 CSS（空串不记录，对齐壳层「空串=只清理」的语义）。
     pub css: Mutex<Vec<String>>,
+    /// **每次** `insert_css` 调用的入参（含空串），用于断言「清空自定义 CSS 时也确实调了过来」。
+    pub css_calls: Mutex<Vec<String>>,
     pub removed_css: Mutex<Vec<String>>,
     pub js: Mutex<Vec<String>>,
     pub maximized: Mutex<bool>,
@@ -392,6 +395,7 @@ impl crate::ports::WindowOps for FakeWindow {
         Ok(())
     }
     fn insert_css(&self, css: &str) -> CoreResult<String> {
+        self.css_calls.lock().unwrap().push(css.to_string());
         if css.is_empty() {
             return Ok(String::new());
         }

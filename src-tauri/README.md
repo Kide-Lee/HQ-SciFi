@@ -26,7 +26,8 @@ src-tauri/
 ├── src/
 │   ├── main.rs                # 极薄入口：hq_scifi_lib::run()
 │   ├── lib.rs                 # 启动编排：单实例 → CoreCtx → 窗口 → 协议 → 导航策略
-│   ├── dispatch.rs            # HqsfError/HqsfResult + 内部命令（85 条由下一张卡生成）
+│   ├── dispatch.rs            # HqsfError/HqsfResult + WholePayload（整包入参）+ 内部命令
+│   ├── commands_generated.rs  # 85 个 #[tauri::command]（生成物，gitignored）
 │   └── runtime/               # 端口实现（files/secrets/http/events/clock/paths/platform）
 └── testdata/contracts/        # 冻结的 85 通道契约（上一阶段产出）
 ```
@@ -38,14 +39,16 @@ main.rs
 └─ hq_scifi_lib::run()
    ├─ 注册 single-instance（第二个实例 → 聚焦已有窗口）
    ├─ 注册 opener / dialog / clipboard-manager 插件
-   ├─ register_uri_scheme_protocol("hqsf-img")
+   ├─ register_asynchronous_uri_scheme_protocol("hqsf-img")   # 后台线程抓图
+   ├─ commands_generated::register(builder)                    # 85 条命令静态注册
    ├─ setup:
    │   ├─ runtime::mark_main_thread()   # 供 blocking dialog 判死锁风险
    │   ├─ detect_test_mode()            # --test 或 HQSF_TEST=1 → appData/hqsf-test
    │   ├─ AppPaths{data_dir,resource_dir,documents_dir,test_mode}
+   │   ├─ migrate_legacy_data(旧 userData → data_dir)   # 必须在 Db::open 之前
    │   ├─ Db::open(data_dir/hqsf.db)
    │   ├─ CoreCtx::new(files, secrets, http, events, clock, paths, db, platform)
-   │   ├─ manage(AppState{core, maximized, startup})
+   │   ├─ manage(AppState{core, maximized, startup, updater})
    │   └─ create_main_window()          # from_config(create:false) + 导航/新窗口/加载回调
    │       └─ on_page_load(Finished): show+focus + 注入 Ctrl+F12 + apply_settings_to_window()
    └─ app.run():
@@ -161,9 +164,14 @@ TODO(verify)：迁移计划 §1.5 写测试目录为 `com.huangqisf.client-test`
 - 协议 origin 随平台变：**Windows/Android** = `http://hqsf-img.localhost/...`；
   **Linux/macOS** = `hqsf-img://localhost/...`。所以渲染层 URL 拼装也必须按平台分支
   （1.x 渲染层 `src/renderer/src/lib/sanitize.ts:83` 写死 `hqsf-img://fetch?url=` → 下一张卡要改）。
-- 当前实现只做「解析 `?url=` + 只允许 http(s)」并返回 **501**；抓取/缓存留给 media lane。
-  TODO(media lane)：改成 `register_asynchronous_uri_scheme_protocol`（同步回调里不能阻塞网络 I/O），
-  接入 10MB 单图 / 16MB 缓存上限与 `Cache-Control: max-age=31536000`。
+- 已接真（第二轮）：`hqsf_core::infra::media::shared().get_with_content_type(&ctx, url)`，
+  命中磁盘/内存缓存直接返回，否则下载并落 `cache/images/<sha1(url)>`（单图 10MB、目录 16MB、
+  内存 LRU 8MB、in-flight 去重）；`Content-Type` 用内核返回值。
+- 注册用**异步**版 `register_asynchronous_uri_scheme_protocol` + 后台线程 `responder.respond(...)`：
+  同步 handler 在 Linux/GTK 上跑主线程，网络慢会冻界面。
+- 响应头：`Cache-Control: no-store`（内核自己缓存，webview 再缓存会让「清除缓存」失效）、
+  `Access-Control-Allow-Origin: *`（自定义协议是独立 origin，`<img>`/canvas 需要 CORS）。
+- 失败映射：`NotFound`→404、`Forbidden`→403、其余（网络/上游/缓存）→502，body 是内核中文文案。
 
 ## 开发 / 构建
 
@@ -208,33 +216,65 @@ cargo build --release --features devtools   # 需要 Ctrl+F12 调试面板时
 
 另外 `hqsf:uninstall` 成功后额外 `app.exit(0)`（1.x `setImmediate(app.quit)`）。
 
-当前状态：**约 40/85 可自动生成**（数字随 lane 落地增长，跑脚本看准确值；写到本文时是 41/44），
-其余标 MANUAL 并给出原因（lane 未实现 / 契约与 core 签名不一致 / core 用 `*Args` 结构体吃掉多个参数）。生成器刻意**不**做「通用转发命令」，否则 85 条白名单会塌缩成
-一个动态入口（违反迁移计划 §6.4）。
+当前状态：**85/85 全部自动生成，MANUAL 0 条**（内核 85 条 `pub fn` 已全部落地）。
 
-## 未完成 / 下一张卡
+两条形态规则：
 
-1. **85 条命令 dispatch**：`scripts/gen-tauri-commands.mjs` 写好并可 dry-run ——
-   **当前约 41 条可自动生成、44 条 MANUAL**（数字随 lane 落地变化；未实现函数约 18 条，其余是 core 用
-   参数结构体 `*Args` 吃掉多个渲染层参数 / 形参名与契约不一致，需要按契约展开再构造）。
-   - 生成物 `src/commands_generated.rs` 不提交（`.gitignore` 已忽略）；
-   - `--report` 看能生成哪些、`--emit` 把 rust 打到 stdout 快速核对；
-   - 生成后需要 `mod commands_generated;` + 把命令名并进 `lib.rs` 的 `generate_handler![]`；
-   - **camelCase 形参**（`dirRel`/`oldRel`/`cancelId`…）在 Rust 里非法：要么用
-     `#[tauri::command(rename_all = "camelCase")]` + snake_case 形参，要么让命令收
-     `serde_json::Value` 再反序列化成 `*Args`；入参对象键必须与 `src/bridge/index.ts` 的
-     `argsFor()` 一致（契约 `params[i].name`）。
-2. **窗口行为**：`data-tauri-drag-region` 替代 `-webkit-app-region: drag`（1.x 自定义标题栏靠 CSS，
+1. **平铺形参**（53 条）：命令形参名 = core 形参名（snake_case），`#[tauri::command(rename_all =
+   "camelCase")]` 让 tauri 按 lowerCamelCase 去 JS 对象里取键，正好命中契约 `params[i].name`
+   （`dir_rel`→`dirRel`、`is_draft`→`isDraft`…）。生成器逐条断言 `toLowerCamel(形参) === 契约名`。
+2. **整包入参**（32 条，core 用 `*Args` 结构体吃掉整个载荷）：生成
+   `args: WholePayload<ListReviewsArgs>`，由 `dispatch.rs` 里 `WholePayload` 的
+   `CommandArg` 实现**忽略按键取值**、直接把整个 JSON 载荷反序列化成结构体。这样
+   `{opts: …}` / `{cid, opts}` / `{payload: …}` / `{reviewId, type}` 都能落地；
+   含 `type` 关键字的 3 个通道（`list-metas` / `add-log` / `set-review-attitude`）靠内核结构体
+   自己的 `#[serde(rename = "type")]` 还原。camelCase 字段名来自结构体自身的
+   `#[serde(rename_all = "camelCase")]`。
+
+生成器刻意**不**做「通用转发命令」，否则 85 条白名单会塌缩成一个动态入口（违反迁移计划 §6.4）；
+注册走 `register()` 里的 `tauri::generate_handler![…85 条…]` 静态展开。
+
+`--verify` 是纯 Node 的契约门禁（CI 的 shell job 会跑）：85 条各生成一次、命令名 == 契约
+`rustCommand`、每条带 `rename_all`、平铺形参 wire 名与契约参数逐一相等、整包结构体 wire 字段
+⊇ 契约参数名、`register()` 覆盖全部命令、生成物无漂移。
+
+## 集成状态（第二轮）
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 85 条命令 dispatch | ✅ 已生成（`--write`） | `commands_generated.rs` 704 行、85 条 `#[tauri::command(rename_all = "camelCase")] pub async fn` + `register()`；生成物 gitignored，**编译前必须先跑生成器**（CI shell job 已加步骤） |
+| `hqsf-img` 协议 | ✅ 接真 | 走 `media::shared().get_with_content_type`，异步注册 + 后台线程 |
+| 启动数据迁移 | ✅ 已接 | `migrate_legacy_data(旧 userData → data_dir)` 在 `Db::open` 之前；`NoSource`/`AlreadyMigrated`/`DryRun` 静默，`Migrated` 打日志，失败 → `PendingStartupError` 弹框 |
+| 设置生效链路 | ✅ 已接 | `on_page_load(Finished)` 每次调 `commands::settings::apply_settings_to_window(&ctx)`；内核内部：`set_zoom(zoomFactor)` → 非空 `insert_css(customCss)` → 非空 `execute_js(customJs)` |
+| 更新状态机 | ✅ 已注入 | `AppState.updater: Arc<UpdateStateStore>`，四条 `update-*` 命令共享（1.x 是模块级单例） |
+
+**已知缺口（内核侧，壳层不改）**：`services::settings` 只在 `customCss`/`customJs` **非空**时才调
+`insert_css`/`execute_js`，所以「把自定义 CSS 从有改到空」时同一会话里旧样式会残留（刷新后消失）。
+壳层 `insert_css("")` 本身支持「移除」，需要内核在清空时也调用一次。
+
+**必须 CI（真机）验证的 Top 5**（本机无 WebKitGTK，全都只能靠 CI 首跑暴露）：
+
+1. `cargo check --manifest-path src-tauri/Cargo.toml --all-targets` 能否过（重点：生成的 85 条命令的
+   `State<'_, AppState>` 生命周期、`WholePayload` 的 `CommandArg` impl、`generate_handler!` 里
+   `crate::dispatch::__hqsf_toggle_devtools` 路径展开）。
+2. `tauri::generate_context!()` 编译期嵌入 `../out/renderer`（CI 先 `npm run build`）。
+3. `register_asynchronous_uri_scheme_protocol` 的 handler 签名与 `UriSchemeResponder` 的 `Send` 移动
+   （已按 docs.rs 2.12 核对：`Fn(UriSchemeContext, Request<Vec<u8>>, UriSchemeResponder)`）。
+4. `app.path().config_dir()` 在 Linux 上是否等于 Electron 的 `app.getPath('appData')`（迁移源目录命中率）。
+5. 权限最小集是否够用：`core:default` + `core:window:allow-start-dragging`（无 fs/shell/http 权限，
+   文件访问全走命令）。
+
+## 未完成（后续卡）
+
+1. **窗口行为**：`data-tauri-drag-region` 替代 `-webkit-app-region: drag`（1.x 自定义标题栏靠 CSS，
    Tauri 需在 DOM 上加属性 + capability `core:window:allow-start-dragging`，已开）；macOS
    `ExitRequested` + `prevent_exit()` 才能让「关窗不退出 + Dock 重开」与 1.x 完全一致。
-3. **启动任务**：1.x `scheduleAutoUpdateCheck()` / `startupTokenCheck()` → updater / auth lane 命令。
-4. ~~did-finish-load 的 applyWindowCustomCode~~：已接内核
-   `commands::settings::apply_settings_to_window(&state.core)`（缩放 / 自定义 CSS / 自定义 JS 的重放
-   都在内核，壳层只在 `on_page_load(Finished)` 触发一次）。
-5. **`HostInfo` 构造**：`lib.rs::build_host_info(app)` 已按契约填好
-   `platform/arch/app_version/is_test_mode/packaged/isAppImage`，生成命令时直接用。
-6. **`uninstall` 成功后退出**：1.x `setImmediate(app.quit)`；命令层返回后需要壳层 `app.exit(0)`
-   （生成命令时特殊处理，不要放进通用模板）。
+2. **启动任务**：1.x `scheduleAutoUpdateCheck()` / `startupTokenCheck()` → updater / auth lane 命令。
+3. **渲染层协议 URL**：`src/renderer/src/lib/sanitize.ts:83` 写死 `hqsf-img://fetch?url=`，
+   Windows 上应为 `http://hqsf-img.localhost/fetch?url=`（壳层两种形态都接受，但渲染层要按平台拼）。
+4. **发布流程**：`.github/workflows/release.yml` 打包前也要跑
+   `node src-tauri/scripts/gen-tauri-commands.mjs --write` + `prepare-resources.mjs`
+   （生成物与 resources 都不入库）。
 
 ## TODO(verify) 清单（全部在源码里可 grep）
 

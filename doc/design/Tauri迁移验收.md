@@ -17,7 +17,7 @@
 
 | 级别 | 含义 | 当前 |
 | --- | --- | --- |
-| 逻辑级 | 内核可 `cargo test`、可 `clippy -D warnings`、契约/绑定/类型零漂移、markdown 零差异 | ✅ 达成 |
+| 逻辑级 | 内核可 `cargo test`、可 `clippy -D warnings`、契约/绑定/类型零漂移、markdown 零差异、85 条 dispatch 全量生成且契约仿真校验通过 | ✅ 达成 |
 | 产品级 | 壳层可编译、三平台出包、GUI 与 1.x 行为对等、真机迁移成功 | ⏳ 待 CI / 真机 |
 
 ---
@@ -176,6 +176,31 @@ node_modules/.bin/tsc --noEmit -p tsconfig.node.json
 
 ---
 
+## 4.1 壳层集成的两个「只能靠推理发现」的坑（已修，记录备查）
+
+本机编译不了 `src-tauri`，所以这两处在写代码时是「看起来对、跑起来必错」的：
+
+1. **`#[tauri::command]` 的参数名大小写**
+   实际读 `tauri-macros-2.5.0` 的 `src/command/wrapper.rs`：`argument_case` 默认值是 `ArgumentCase::Camel`，即 `dir_rel` 默认就去找 JS 对象的 `dirRel`。**结论：默认已是 camelCase**，桥接层与契约的 `dirRel/oldRel/newRel/reviewId/filePath/isDraft` 天然对得上。生成器仍然**显式**逐条写 `rename_all = "camelCase"`——不是修 bug，而是不依赖上游默认值（默认值一变就是 4 条通道静默失效）。
+2. **结构体入参必须吃整个 payload**
+   Tauri 按「声明参数名」去 JS 对象里取键。若生成 `args: ListReviewsArgs`，它就会去找 `args` 键，而桥接层发的是平铺对象（`{opts: …}`）→ 运行时 `invalid args`。修法：`WholePayload<T>` 实现 `tauri::ipc::CommandArg`，直接 `command.message.payload()` 反序列化整个 body。**32 条结构体入参通道**都依赖这一点。
+   附带好处：3 条载荷里有 `type` 键的通道（`list-metas`/`add-log`/`set-review-attitude`）由内核 `#[serde(rename = "type")]` 还原，绕开了「Rust 形参不能叫 `type`」的问题。
+
+这两条都进了 `gen-tauri-commands.mjs --verify` 的静态校验：每条命令必须带 `rename_all`；平铺命令逐位比对契约参数名；整包命令断言 `*Args` 的 serde wire 字段集合 ⊇ 契约参数名集合。
+
+## 4.2 集成完成情况（第二轮）
+
+| 项 | 状态 |
+| --- | --- |
+| 85 条 dispatch | ✅ 85/85 自动生成、MANUAL 0、`--verify` 通过（含漂移检测实测会拦） |
+| 命令注册 | ✅ `register()` 静态 `generate_handler!`，无通用转发命令 |
+| `hqsf-img` 协议 | ✅ 异步协议 → `media::shared().get_with_content_type`，404/403/502 分类，`no-store` + CORS |
+| 启动数据迁移 | ✅ `Db::open` 之前调 `migrate_legacy_data`，`NoSource/AlreadyMigrated/DryRun` 静默、`Err` 走 `PendingStartupError` 弹框 |
+| 设置即时生效 | ✅ `on_page_load(Finished)` 每次重放 zoom/css/js；**内核侧已修**「customCss 清空不生效」的残留（空串也调 `insert_css`，壳层语义=只清理），加了回归测试 |
+| 更新状态 | ✅ `AppState.updater: Arc<UpdateStateStore>`，四条 `update-*` 共享 |
+
+---
+
 ## 5. 回滚与共存
 
 - **回滚**：迁移只**复制**不删除 Electron 数据（`migrate_legacy_data` 只读源、写 staging、rename 落位到新目录），旧 `~/.config/hqsf-client/` 保持原样，1.2.13 仍可直接运行。
@@ -186,8 +211,8 @@ node_modules/.bin/tsc --noEmit -p tsconfig.node.json
 
 ## 6. 剩余工作
 
-1. shell 集成收尾：85 命令 dispatch 生成 + `--verify` 入 CI、`hqsf-img` 接 `MediaCache`、启动时接数据迁移、设置重放。
-2. CI 首次真跑（含 `shell` job），修编译错误。
-3. 三平台真机验证（§4 列表），记录 §6.3 量化指标。
-4. 文档收尾：AGENTS.md 补 Rust 工作流、README 换 Tauri 构建说明、CHANGELOG 写 2.0.0、计划 §11 回填执行记录。
-5. 发布：`v2.0.0` tag → draft release → 2.0.0 对外。
+1. ✅ 壳层集成（dispatch / 协议 / 迁移 / 设置重放）——代码级完成。
+2. ⏳ **CI 首次真跑**：`shell` job 的 `cargo check --manifest-path src-tauri/Cargo.toml` 是第一个真正的编译校验，重点看 CI 的 Top 5（`State<'_, AppState>` 生命周期、`WholePayload` 的 `CommandArg` 与 tauri 2.12 trait 是否完全对上、`generate_context!` 嵌入 `out/renderer`、异步协议 handler 的 `Send` 约束、capabilities 最小集是否够用）。
+3. ⏳ 三平台真机验证（§4 列表），记录 §6.3 量化指标。
+4. ⏳ 发布：`v2.0.0` tag → draft release → 对外；发布前必须在构建机提供真实 `api.config.json`（当前 `release.yml` 用 example 兜底，装出来会连示例地址）。
+5. ⏳ 收尾清理：真机验证通过后删除 `src/main`/`src/preload`（1.x Electron 主进程）、`better-sqlite3` 依赖与 `electron-builder.yml`、`scripts/win-prebuild.mjs`。

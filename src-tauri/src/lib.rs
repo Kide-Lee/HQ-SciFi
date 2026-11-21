@@ -33,6 +33,7 @@
 //!
 //! 启动路径禁止 `unwrap()`/`expect()`：所有失败都转成 `anyhow::Error` 或显式 `eprintln!` + 退出码。
 
+mod commands_generated;
 mod dispatch;
 mod runtime;
 
@@ -44,6 +45,9 @@ use anyhow::anyhow;
 use hqsf_core::CoreCtx;
 use hqsf_core::commands::system::HostInfo;
 use hqsf_core::infra::db::Db;
+use hqsf_core::infra::media;
+use hqsf_core::infra::migrate::{self, MigrateOptions, MigrationStatus};
+use hqsf_core::infra::updater::UpdateStateStore;
 use hqsf_core::ports::Platform;
 use tauri::http::{Request, Response, StatusCode};
 use tauri::webview::{NewWindowResponse, PageLoadEvent};
@@ -74,6 +78,9 @@ pub struct AppState {
     /// 自定义 CSS 注入的互斥锁由 `WindowOps` 自己持有；这里留一个位置给后续需要的
     /// 启动期一次性状态（当前仅占位，避免下一张卡反复改结构体）。
     pub startup: Mutex<StartupFlags>,
+    /// 更新状态机（`hqsf-core` 的 `UpdateStateStore`）：四条 `update-*` 通道共享同一份状态，
+    /// 内核不自己造单例，所以由壳层持有并注入（1.x 是模块级变量 `src/main/infra/updater`）。
+    pub updater: Arc<UpdateStateStore>,
 }
 
 /// 启动期标记（后续卡按需扩展）。
@@ -141,6 +148,32 @@ fn build_core(app: &AppHandle) -> anyhow::Result<CoreCtx> {
     // 数据目录必须先存在：`Db::open` 只建自己的父目录，缓存/日志等子目录由各自 lane 建。
     std::fs::create_dir_all(&app_paths.data_dir)
         .map_err(|e| anyhow!("创建数据目录 {} 失败：{e}", app_paths.data_dir.display()))?;
+
+    // 一次性数据迁移：**必须在 `Db::open` 之前**（迁移会创建/原子替换 `data_dir/hqsf.db`）。
+    // 来源是旧 Electron 的 userData（`~/.config/hqsf-client`），只读、永不删除，可随时回滚。
+    // 语义：NoSource（新用户）/AlreadyMigrated（幂等）/DryRun 静默跳过；Migrated 记一行日志；
+    // 失败按启动失败处理（`setup` 会写 `PendingStartupError` 并弹框，不 panic、不静默继续建空库）。
+    let legacy_dir =
+        paths::legacy_data_dir(app, test_mode).map_err(|e| anyhow!("解析旧版数据目录失败：{e}"))?;
+    match migrate::migrate_legacy_data(&legacy_dir, &app_paths.data_dir, &MigrateOptions::default())
+    {
+        Ok(report) => match report.status {
+            MigrationStatus::Migrated => eprintln!(
+                "[hqsf] 已从旧版本数据目录迁移：{} → {}",
+                legacy_dir.display(),
+                app_paths.data_dir.display()
+            ),
+            MigrationStatus::AlreadyMigrated
+            | MigrationStatus::NoSource
+            | MigrationStatus::DryRun => {}
+        },
+        Err(error) => {
+            return Err(anyhow!(
+                "迁移旧版本数据（{}）失败：{error}",
+                legacy_dir.display()
+            ));
+        }
+    }
 
     let db = Db::open(&app_paths.db_path())
         .map_err(|e| anyhow!("打开本地索引库 {} 失败：{e}", app_paths.db_path().display()))?;
@@ -210,50 +243,87 @@ const DEVTOOLS_HOTKEY_JS: &str = r#"
 /// 单图 10MB、缓存目录 16MB 上限）。
 ///
 /// 迁移差异：
-///   - 这里只做了「解析 + 安全校验」，实际抓取/缓存**留给 media lane**
-///     （`crates/hqsf-core/src/infra/media.rs`）。在此之前返回 501，让渲染层能看出是
-///     「协议通了但还没实现」而不是「图片 404」。
-///   - Tauri 同步协议回调要求尽快返回（Windows WebView2 / WKWebView 对阻塞敏感），
-///     真正实现时必须换成 `register_asynchronous_uri_scheme_protocol` 并在后台线程抓取。
-///     TODO(media lane): 换成异步注册 + 走 `CoreCtx.http`（或缓存模块），并补 CORS 头。
+///   - 抓取/缓存逻辑**全在内核**（`crates/hqsf-core/src/infra/media.rs` 的
+///     `media::shared().get_with_content_type(&ctx, url)`：sha1 文件名、`.meta` 存
+///     Content-Type、单图 10MB / 目录 16MB、内存 LRU + in-flight 去重）。壳层只做
+///     「取 `?url=` → 校验协议 → 调内核 → 造 HTTP 响应」，与 1.x 的分层一致。
+///   - 协议注册用**异步**版（`register_asynchronous_uri_scheme_protocol`）：同步 handler 在
+///     Linux/GTK 上跑主线程，网络慢时会冻住界面；这里把抓图丢给后台线程，用
+///     `UriSchemeResponder` 回填结果。
+///   - 响应头：`Content-Type` 取内核返回值；`Cache-Control: no-store`（内核已自缓存，
+///     webview 再缓存会让「清除缓存」命令失效）；`Access-Control-Allow-Origin: *`
+///     （自定义协议是独立 origin，`<img>`/canvas 需要 CORS）。
+///   - 失败映射：`NotFound` → 404、`Forbidden` → 403、其余（网络/上游/缓存）→ 502，
+///     body 是内核的中文文案（1.x 这里渲染层只看到图片加载失败，看不到原因）。
 fn handle_image_protocol(
-    _context: UriSchemeContext<'_, Wry>,
+    context: UriSchemeContext<'_, Wry>,
     request: Request<Vec<u8>>,
-) -> Response<Vec<u8>> {
-    let target = extract_image_url(&request);
-
-    let (status, body) = match target {
-        Some(url) => {
-            if url.starts_with("http://") || url.starts_with("https://") {
-                (
-                    StatusCode::NOT_IMPLEMENTED,
-                    format!("[hqsf] hqsf-img 协议尚未接入 media lane：{url}"),
-                )
-            } else {
-                (
-                    StatusCode::FORBIDDEN,
-                    format!("[hqsf] 仅支持 http(s) 图片地址：{url}"),
-                )
-            }
-        }
-        None => (
+    responder: tauri::UriSchemeResponder,
+) {
+    // 参数解析很便宜，留在当前线程；抓图可能几十毫秒到数秒，必须丢到后台线程，
+    // 否则 Linux/GTK 上自定义协议回调在**主线程**执行会把界面冻住（1.x 用 `net.fetch` 天然异步）。
+    let Some(target) = extract_image_url(&request) else {
+        responder.respond(text_response(
             StatusCode::BAD_REQUEST,
-            "[hqsf] 缺少 url 查询参数（形如 ?url=<encodeURIComponent(url)>）".to_string(),
-        ),
+            "[hqsf] 缺少 url 查询参数（形如 ?url=<encodeURIComponent(url)>）",
+        ));
+        return;
     };
+    if !(target.starts_with("http://") || target.starts_with("https://")) {
+        // 1.x 同样只放行 http(s)：本地文件不走这个协议（`asset:` 协议没有开启）。
+        responder.respond(text_response(
+            StatusCode::FORBIDDEN,
+            &format!("[hqsf] 仅支持 http(s) 图片地址：{target}"),
+        ));
+        return;
+    }
 
-    let mut builder = Response::builder()
+    // 取 `AppState` 里的同一个 `CoreCtx`：图片缓存要有内存 LRU 与 in-flight 去重，
+    // 必须命中 `media::shared()` 这一份实例（`clear-cache` 清的就是它）。
+    let app = context.app_handle().clone();
+    std::thread::spawn(move || {
+        let Some(state) = app.try_state::<AppState>() else {
+            responder.respond(text_response(
+                StatusCode::SERVICE_UNAVAILABLE,
+                "[hqsf] 应用尚未初始化完成",
+            ));
+            return;
+        };
+        let response = match media::shared().get_with_content_type(&state.core, &target) {
+            Ok((bytes, content_type)) => Response::builder()
+                .status(StatusCode::OK)
+                .header("content-type", content_type)
+                // 内核自己做了磁盘/内存缓存；webview 缓存会让「清除缓存」命令失效，故禁用。
+                .header("cache-control", "no-store")
+                // 自定义协议在 webview 里是独立 origin，`<img>`/canvas 需要 CORS 头。
+                .header("access-control-allow-origin", "*")
+                .body(bytes.to_vec())
+                .unwrap_or_else(|_| Response::new(Vec::new())),
+            Err(error) => {
+                // 错误分类：目标不存在 → 404；越权 → 403；上游/网络/缓存失败 → 502。
+                // body 用内核的中文文案（1.x 在这里是渲染层看不到的日志，这里返回正文更可诊断）。
+                let status = match error {
+                    hqsf_core::CoreError::NotFound(_) => StatusCode::NOT_FOUND,
+                    hqsf_core::CoreError::Forbidden(_) => StatusCode::FORBIDDEN,
+                    _ => StatusCode::BAD_GATEWAY,
+                };
+                eprintln!("[hqsf] hqsf-img 取图失败（{target}）：{error}");
+                text_response(status, &error.to_string())
+            }
+        };
+        responder.respond(response);
+    });
+}
+
+/// 纯文本响应（协议失败分支）：不缓存、允许跨 origin 读取。
+fn text_response(status: StatusCode, message: &str) -> Response<Vec<u8>> {
+    Response::builder()
         .status(status)
         .header("content-type", "text/plain; charset=utf-8")
-        // 自定义协议在 webview 里是独立 origin，图片请求需要 CORS 才可被 `<img>`/canvas 使用。
-        .header("access-control-allow-origin", "*");
-    if status != StatusCode::NOT_IMPLEMENTED {
-        // 失败不要缓存，避免把 501/403 固化进 webview 的 HTTP 缓存。
-        builder = builder.header("cache-control", "no-store");
-    }
-    builder
-        .body(body.into_bytes())
-        // Response::builder 的失败只可能是非法 header（这里是常量），兜底返回空响应而不是 panic。
+        .header("access-control-allow-origin", "*")
+        .header("cache-control", "no-store")
+        .body(message.as_bytes().to_vec())
+        // 非法 header 仅可能来自常量，兜底返回空响应而不是 panic。
         .unwrap_or_else(|_| Response::new(Vec::new()))
 }
 
@@ -378,51 +448,63 @@ pub fn run() -> anyhow::Result<()> {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         // 图片协议：注册名与 1.x 一致；平台 origin 差异见 handle_image_protocol 的注释。
-        .register_uri_scheme_protocol(IMAGE_PROTOCOL, handle_image_protocol)
-        .invoke_handler(tauri::generate_handler![dispatch::__hqsf_toggle_devtools])
-        .setup(|app| {
-            // 主线程 id 必须在任何命令/对话框之前记录：dialog / clipboard 的 blocking API 靠它
-            // 判断「现在能不能阻塞等待主线程」（见 `runtime::is_main_thread`）。
-            runtime::mark_main_thread();
-            // 启动失败用的错误槽：必须最先 manage，后面任何一步失败都能往里写。
-            app.manage(PendingStartupError::default());
+        // 用**异步**注册（responder 回调）：同步注册会在主线程阻塞抓图，Linux/GTK 上直接卡界面。
+        .register_asynchronous_uri_scheme_protocol(IMAGE_PROTOCOL, handle_image_protocol);
 
-            // 1.x bootstrap（`src/main/bootstrap/index.ts:40-85`）：建 ctx / 建窗口，失败
-            // `dialog.showErrorBox` + `app.exit(1)`。
-            //
-            // 差异（重要）：这里**不**在 setup 里返回 Err。tauri 一旦在 setup 返回 Err 就不会进入
-            // 事件循环，而对话框需要主线程跑起来才能显示 → 1.x 那个「错误框」在这里永远弹不出来，
-            // 进程只会静默退出。改为：记下错误、返回 Ok 进入事件循环，在 `RunEvent::Ready` 里
-            // 弹框（非阻塞），用户关掉后再 `exit(1)`。
-            let core = match build_core(app.handle()) {
-                Ok(core) => Arc::new(core),
-                Err(err) => {
-                    eprintln!("[hqsf] 启动失败：{err:#}");
-                    if let Some(pending) = app.try_state::<PendingStartupError>() {
-                        pending.set(format!("{err:#}"));
-                    }
-                    return Ok(());
-                }
-            };
+    // 85 条命令 + 内部命令由生成器产出（`src/commands_generated.rs`，gitignored）：
+    // 先生成再编译 —— `node src-tauri/scripts/gen-tauri-commands.mjs --write`。
+    builder = commands_generated::register(builder);
 
-            app.manage(AppState {
-                core,
-                maximized: Arc::new(AtomicBool::new(false)),
-                startup: Mutex::new(StartupFlags::default()),
-            });
+    builder = builder.setup(|app| {
+        // 主线程 id 必须在任何命令/对话框之前记录：dialog / clipboard 的 blocking API 靠它
+        // 判断「现在能不能阻塞等待主线程」（见 `runtime::is_main_thread`）。
+        runtime::mark_main_thread();
+        // 启动失败用的错误槽：必须最先 manage，后面任何一步失败都能往里写。
+        app.manage(PendingStartupError::default());
 
-            if let Err(err) = create_main_window(app.handle()) {
-                eprintln!("[hqsf] 创建窗口失败：{err:#}");
+        // 1.x bootstrap（`src/main/bootstrap/index.ts:40-85`）：建 ctx / 建窗口，失败
+        // `dialog.showErrorBox` + `app.exit(1)`。
+        //
+        // 差异（重要）：这里**不**在 setup 里返回 Err。tauri 一旦在 setup 返回 Err 就不会进入
+        // 事件循环，而对话框需要主线程跑起来才能显示 → 1.x 那个「错误框」在这里永远弹不出来，
+        // 进程只会静默退出。改为：记下错误、返回 Ok 进入事件循环，在 `RunEvent::Ready` 里
+        // 弹框（非阻塞），用户关掉后再 `exit(1)`。
+        let core = match build_core(app.handle()) {
+            Ok(core) => Arc::new(core),
+            Err(err) => {
+                eprintln!("[hqsf] 启动失败：{err:#}");
                 if let Some(pending) = app.try_state::<PendingStartupError>() {
                     pending.set(format!("{err:#}"));
                 }
                 return Ok(());
             }
+        };
 
-            // TODO(next card): 1.x bootstrap 里 `scheduleAutoUpdateCheck()` / `startupTokenCheck()`
-            // 对应 updater lane 与 auth lane，等对应命令实现后在这里挂启动任务。
-            Ok(())
+        // 更新状态机：1.x 是模块级单例；内核不持全局状态，所以壳层建一份并注入。
+        // 版本号取运行中的包版本（`update-state` 的 `currentVersion` 字段来源）。
+        let updater = Arc::new(UpdateStateStore::new(
+            app.package_info().version.to_string(),
+        ));
+
+        app.manage(AppState {
+            core,
+            maximized: Arc::new(AtomicBool::new(false)),
+            startup: Mutex::new(StartupFlags::default()),
+            updater,
         });
+
+        if let Err(err) = create_main_window(app.handle()) {
+            eprintln!("[hqsf] 创建窗口失败：{err:#}");
+            if let Some(pending) = app.try_state::<PendingStartupError>() {
+                pending.set(format!("{err:#}"));
+            }
+            return Ok(());
+        }
+
+        // TODO(next card): 1.x bootstrap 里 `scheduleAutoUpdateCheck()` / `startupTokenCheck()`
+        // 对应 updater lane 与 auth lane，等对应命令实现后在这里挂启动任务。
+        Ok(())
+    });
 
     let app = builder
         .build(tauri::generate_context!())

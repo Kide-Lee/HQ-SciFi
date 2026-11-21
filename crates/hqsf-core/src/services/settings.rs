@@ -78,9 +78,10 @@ pub fn update(ctx: &CoreCtx, patch: &serde_json::Value) -> CoreResult<AppSetting
 pub fn apply_settings_to_window(ctx: &CoreCtx, settings: &AppSettings) {
     let window = &ctx.platform.window;
     let _ = window.set_zoom(settings.zoom_factor);
-    if !settings.custom_css.is_empty() {
-        let _ = window.insert_css(&settings.custom_css);
-    }
+    // 空串也要调：壳层 `insert_css` 的语义是「先移除上次注入的节点，再按需注入」，
+    // 所以传入空串等于「清空自定义 CSS」。若这里跳过空串，用户把 customCss 清空后
+    // 旧样式会残留在当前页面会话里（刷新才消失）。
+    let _ = window.insert_css(&settings.custom_css);
     if !settings.custom_js.is_empty() {
         let _ = window.execute_js(&settings.custom_js);
     }
@@ -191,6 +192,23 @@ mod tests {
         assert_eq!(
             *h.window.js.lock().unwrap(),
             vec!["console.log('hi')".to_string()]
+        );
+    }
+
+    #[test]
+    fn clearing_custom_css_still_calls_insert_css_so_the_shell_can_drop_the_style() {
+        // 回归：曾经只在 `customCss` 非空时才调 `insert_css`，导致「清空自定义 CSS」
+        // 后旧样式留在当前页面（壳层 insert_css("") 才是清除语义）。
+        let h = Harness::new();
+        update(
+            h.ctx(),
+            &serde_json::json!({"customCss": "body { color: red; }"}),
+        )
+        .unwrap();
+        update(h.ctx(), &serde_json::json!({"customCss": ""})).unwrap();
+        assert_eq!(
+            *h.window.css_calls.lock().unwrap(),
+            vec!["body { color: red; }".to_string(), String::new()]
         );
     }
 
