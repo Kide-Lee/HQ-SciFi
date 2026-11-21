@@ -286,18 +286,27 @@ node_modules/.bin/tsc --noEmit -p tsconfig.node.json
 
 新增 CI job `smoke`（`scripts/smoke-tauri.sh`）：装 `xvfb` + `dbus-x11` + `xdotool`，`cargo tauri build --no-bundle` 出可执行文件，再 `xvfb-run … dbus-run-session -- bash scripts/smoke-tauri.sh` 真正启动。
 
-判定三条（全部满足才绿）：进程 30 秒内不退出、X11 里能按标题「黄芪饮片」找到窗口、数据目录里出现 `hqsf.db`。
+判定四条（全部满足才绿）：进程 30 秒内不退出、X11 里能按标题「黄芪饮片」找到窗口、数据目录里出现 `hqsf.db`、**截图不是白屏**。
+
+第四条是后补的：窗口存在不等于界面画出来了（WebKit 初始化失败时窗口照样在，只是整片白）。所以 `scripts/smoke-tauri.sh` 用 `import -window` 截图、再用 ImageMagick 数颜色种数——正常界面有文字/图标/分栏底色，实测 **916 种颜色**，低于 20 种即判白屏失败。
 
 首跑即通过（run 44888241049，commit `b866af6`）：
 
 ```
 window_found=1
+window_id=2097155
 app_alive=1
+db_count=1
 --- 本地库 ---
 .../.local/share/hqsf-test/hqsf.db
 .../.local/share/hqsf-test/hqsf.db-wal
 .../.local/share/hqsf-test/hqsf.db-shm
+screenshot_ok=1 unique_colors=916
+--- 截图尺寸 ---
+.../shot.png PNG 1200x800 1200x800+0+0 8-bit sRGB 30712B
 ```
+
+916 种颜色说明渲染层真的画出来了（React 挂载、样式加载、图标绘制），不是空白 WebView。
 
 `app.log` 里唯一一条告警恰好是**预期行为**：
 
@@ -308,7 +317,9 @@ Platform secure storage failure: DBus error: The name org.freedesktop.secrets wa
 
 即：无 Secret Service 的容器里 keyring 不可用 → 会话校验**降级跳过而不是崩溃**（这正是 §3 里说的「钥匙串不可用直接失败但只影响会话」的设计）。
 
-这一步能证明的：GTK/WebView 初始化、窗口创建、`CoreCtx` 装配、`Db::open`、启动编排（单实例/迁移/设置重放/后台任务）在干净环境里都走通了。
+这一步能证明的：GTK/WebView 初始化、窗口创建、**渲染层真实绘制**、`CoreCtx` 装配、`Db::open`、启动编排（单实例/迁移/设置重放/后台任务）在干净环境里都走通了。
+
+`release.yml` 的 Linux 分支还会额外跑一次 **AppImage 冒烟**（`if: matrix.platform == 'ubuntu-22.04'`，apt 里装 `libfuse2`），因为用户下载最多的是 AppImage，而 `ci.yml` 的冒烟跑的是 `--no-bundle` 裸二进制——type2 runtime、FUSE 挂载、打包后的资源路径只有真跑 AppImage 才验证得到。
 这一步仍证明不了的：中文输入法（IME 与 contenteditable 的真实交互）、H.264/AAC 解码、真实 Secret Service、拖拽手感——这些必须在装了包的 GUI 真机上做（§4 第 1/2/6/11 项）。
 
 ---
