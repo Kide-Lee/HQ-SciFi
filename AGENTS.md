@@ -84,7 +84,8 @@ node_modules/.bin/vite build --config vite.web.config.ts  # 渲染层构建（ou
   - **渲染层日志**：`console.*` 与未捕获异常会经内部命令 `__hqsf_log`（`src-tauri/src/dispatch.rs`）落盘到 `<data_dir>/logs/renderer.log`（超过 1 MB 滚动成 `renderer.log.1`）。用户报「白屏/报错」时先要这个文件，不必让他装 devtools。
   - **交互式检查**：只有带 `devtools` feature 的构建才有 WebKit Inspector。本机/CI 用 `cargo tauri build --features devtools`（`release.yml` 已带），运行时 `Ctrl+F12` 或右键「开发者工具」。
   - **远程检查器**（不弹窗也能连）：`WEBKIT_INSPECTOR_SERVER=127.0.0.1:9222 ./hq-scifi_*_amd64.AppImage`，然后用 **WebKit 内核**浏览器（Epiphany/Safari）打开 `http://127.0.0.1:9222`；Chromium 系连不上。
-  - **端到端自动化**：用 `tauri-driver`（Linux 后端 `WebKitWebDriver`）替代 1.x 的 CDP 脚本；不要再手写 X11 注入做断言。
+  - **端到端自动化**：`tauri-driver`（Linux 后端 `WebKitWebDriver`）替代 1.x 的 CDP 脚本。跑法：`cargo build --manifest-path src-tauri/Cargo.toml --features devtools` 后 `APP_BIN=$(realpath src-tauri/target/debug/huangqi-scifi) xvfb-run -a dbus-run-session -- bash scripts/e2e/run.sh`；断言在 `scripts/e2e/smoke.mjs`（#root 渲染 / 标题 / `__TAURI_INTERNALS__` / `window.hqsf` / 登录层 / 空白处右键菜单 / `__hqsf_log` 落盘），CI 的 `e2e` job 跑同一套，失败详情看 `e2e-logs` 分支与 `e2e-evidence` artifact。不要再手写 X11 注入做断言。
+  - **本地 HMR 开发循环**：`npm run dev:web`（Vite dev server，127.0.0.1:5173）+ `cargo tauri dev --features devtools`（`tauri.conf.json` 已有 `devUrl`/`beforeDevCommand`）。改动渲染层即时热更新，等价 1.x 的 `npm run dev`；本机没有 WebKitGTK 时这两条跑不了（只能靠 CI）。
   - 排查 iframe/媒体这类「引擎行为」问题时，注意 **AppImage 自带一套 WebKit、deb/NSIS/dmg 用系统或内置的**：两者行为可能不同，A/B 对照是最快的判别手段。
 
 - **本机沙箱限制**：`~` 根只读 → `~/.cargo`、`~/.cache` 不可写，cargo 必须 `export CARGO_HOME=$PWD/.cargo-home`；本机**没有全局 npm**（需要时用 `COREPACK_HOME=$PWD/.corepack corepack npm …`；脚本直接用 `node_modules/.bin/*`）；`/tmp` 不跨命令持久；删文件用 `find -delete`（`rm` 走回收站会报只读）。
