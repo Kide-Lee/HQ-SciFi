@@ -360,6 +360,45 @@ const DEVTOOLS_HOTKEY_JS: &str = r#"
 })();
 "#;
 
+/// 页面加载完成后注入 console/异常转发（发布包没有 devtools 时的排障通道）。
+///
+/// 目的：release 包不编译 `devtools` feature，用户机器上看不到控制台；这里把
+/// `console.*`、`window.onerror`、`unhandledrejection` 转发到壳层内部命令
+/// `__hqsf_log`，落盘到 `<data_dir>/logs/renderer.log`（1MB 滚动一份 `.1` 备份）。
+/// 只转发、不改行为：原 `console.*` 照旧输出，转发失败静默（不能让日志影响页面）。
+const CONSOLE_FORWARD_JS: &str = r#"
+(function () {
+  if (window.__hqsfConsoleForwarded) return;
+  window.__hqsfConsoleForwarded = true;
+  function send(level, parts) {
+    try {
+      var text = parts.map(function (part) {
+        if (typeof part === 'string') return part;
+        try { return JSON.stringify(part); } catch (err) { return String(part); }
+      }).join(' ');
+      window.__TAURI_INTERNALS__.invoke('__hqsf_log', { level: level, message: text });
+    } catch (err) {
+      /* 壳层未注册该命令时静默 */
+    }
+  }
+  ['log', 'info', 'warn', 'error', 'debug'].forEach(function (key) {
+    var original = typeof console[key] === 'function' ? console[key].bind(console) : function () {};
+    console[key] = function () {
+      var args = Array.prototype.slice.call(arguments);
+      send(key, args);
+      original.apply(null, args);
+    };
+  });
+  window.addEventListener('error', function (event) {
+    send('error', ['uncaught: ' + (event.message || '') + ' @ ' + (event.filename || '') + ':' + (event.lineno || 0)]);
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    var reason = event.reason;
+    send('error', ['unhandledrejection: ' + ((reason && (reason.stack || reason.message)) || String(reason))]);
+  });
+})();
+"#;
+
 /// `hqsf-img` 协议处理器。
 ///
 /// 1.x：`src/main/infra/media/imgcache.ts:281-300` —— 读 `?url=`、校验 http(s)、
@@ -522,6 +561,10 @@ fn create_main_window(app: &AppHandle) -> anyhow::Result<WebviewWindow> {
             // Ctrl+F12（替代 `before-input-event`）；页面 reload 后需要重放，故放在 page load 里。
             if let Err(e) = window.eval(DEVTOOLS_HOTKEY_JS) {
                 eprintln!("[hqsf] 注入 devtools 快捷键监听失败：{e}");
+            }
+            // console/异常转发到 <data_dir>/logs/renderer.log（发布包没有 devtools 时的排障通道）。
+            if let Err(e) = window.eval(CONSOLE_FORWARD_JS) {
+                eprintln!("[hqsf] 注入 console 转发失败：{e}");
             }
             // 1.x `did-finish-load → applyWindowCustomCode()`：重放 zoomFactor / customCss / customJs。
             // 业务规则在 settings lane（`hqsf_core::commands::settings::apply_settings_to_window`），

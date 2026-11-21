@@ -80,6 +80,13 @@ node_modules/.bin/vite build --config vite.web.config.ts  # 渲染层构建（ou
 
 ## Notes
 
+- **调试与排障（替代 Electron 时代的 CDP）**
+  - **渲染层日志**：`console.*` 与未捕获异常会经内部命令 `__hqsf_log`（`src-tauri/src/dispatch.rs`）落盘到 `<data_dir>/logs/renderer.log`（超过 1 MB 滚动成 `renderer.log.1`）。用户报「白屏/报错」时先要这个文件，不必让他装 devtools。
+  - **交互式检查**：只有带 `devtools` feature 的构建才有 WebKit Inspector。本机/CI 用 `cargo tauri build --features devtools`（`release.yml` 已带），运行时 `Ctrl+F12` 或右键「开发者工具」。
+  - **远程检查器**（不弹窗也能连）：`WEBKIT_INSPECTOR_SERVER=127.0.0.1:9222 ./hq-scifi_*_amd64.AppImage`，然后用 **WebKit 内核**浏览器（Epiphany/Safari）打开 `http://127.0.0.1:9222`；Chromium 系连不上。
+  - **端到端自动化**：用 `tauri-driver`（Linux 后端 `WebKitWebDriver`）替代 1.x 的 CDP 脚本；不要再手写 X11 注入做断言。
+  - 排查 iframe/媒体这类「引擎行为」问题时，注意 **AppImage 自带一套 WebKit、deb/NSIS/dmg 用系统或内置的**：两者行为可能不同，A/B 对照是最快的判别手段。
+
 - **本机沙箱限制**：`~` 根只读 → `~/.cargo`、`~/.cache` 不可写，cargo 必须 `export CARGO_HOME=$PWD/.cargo-home`；本机**没有全局 npm**（需要时用 `COREPACK_HOME=$PWD/.corepack corepack npm …`；脚本直接用 `node_modules/.bin/*`）；`/tmp` 不跨命令持久；删文件用 `find -delete`（`rm` 走回收站会报只读）。
 - **本机没有 pkg-config / WebKitGTK**，`src-tauri` 编译不了；因此 `src-tauri` 的改动只能靠静态自查 + CI 的 `shell` job，务必：`node --check` 脚本、`gen-tauri-commands.mjs --verify`、`prepare-resources.mjs --check`。
 - **金标准语料的生成方式**：`scripts/gen-markdown-corpus.mjs` import `scripts/markdown-oracle/md2html.ts`（从 1.x 冻结而来的真实现，**不要修改**）+ `src/shared/*` + `node_modules/turndown` 产出 JSONL 并冻结入库；不要手写期望值。comrak / KaTeX / turndown 升级后必须重跑语料（`infra/markdown/tests.rs` 会逐条打印首差字节）。
