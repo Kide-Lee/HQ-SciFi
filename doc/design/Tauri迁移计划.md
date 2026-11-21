@@ -18,7 +18,7 @@
 | D4 | 前后端边界 | 保留 `window.hqsf` 的 **85 方法门面**，渲染层几乎不动 | 141 个渲染层文件不重写；门面是唯一 seam，也是多 agent 的写域边界 |
 | D5 | 跨语言契约 | **tauri-specta** 生成 TS 客户端**与领域类型** + CI 漂移检查 | 类型单一来源从「手写 TS」改为「Rust 定义、生成 TS」，消灭双份 DTO |
 | D6 | 插件框架 | **不引入 Cordis** | 动态服务查找反静态分析、失败后移到运行期；收益不抵成本 |
-| D7 | 版本与分支 | Tauri 版为 **2.0.0**；Electron 1.x 保留维护分支 | 迁移期双轨，可随时回滚 |
+| D7 | 版本与分支 | Tauri 版为 **2.0.14**；Electron 1.x 保留维护分支 | 迁移期双轨，可随时回滚 |
 | D8 | 打包 | NSIS / deb / AppImage / dmg；**不承诺 MSI**（Linux 上无法产出） | 与官方交叉编译限制一致 |
 
 ### 0.1 决策变更记录（防回流）
@@ -196,9 +196,9 @@ HQ-SciFi/
 ### P5 — 发布切换（约 1 周）
 
 1. CI 三平台产物 + `scripts/archive-release.mjs` 改造复用。
-2. 版本 2.0.0；README / AGENTS.md / `doc/design/` 全量同步（含把本文件转正为「架构现状」）。
+2. 版本 2.0.14；README / AGENTS.md / `doc/design/` 全量同步（含把本文件转正为「架构现状」）。
 3. Electron 版本打 `1.x-maintenance` 分支，`main` 合入 Tauri，删除 `src/main`、`src/preload`。
-4. 更新检查仍在同一 GitHub releases 通道（2.0.0 release notes 说明需重装 + 重新登录）。
+4. 更新检查仍在同一 GitHub releases 通道（2.0.14 release notes 说明需重装 + 重新登录）。
 
 ---
 
@@ -519,7 +519,7 @@ DoD:
 | P2 骨架 + 垂切 | core/壳切分、端口、绑定器、桥接门面 | ✅ `crates/hqsf-core` + `hqsf-bindings` + `src-tauri` + `src/bridge`；门面 85 方法渲染层零改动 | 完成 |
 | P3 并行域迁移 | 9 条 lane | ✅ 全部落地（L1/L2/L3/L4/L5/L6/L7a/L7b/L7c + L8 迁移）：Rust 26,386 行、521 测试 | 完成（超预期：计划 ≤10,000 行，实际含测试 26k） |
 | P4 集成对等 | 全量对等 + 数据迁移 + 事件 | ✅ 代码级 + **壳层编译通过**：85/85 dispatch 自动生成（MANUAL 0）+ 契约仿真 `--verify`、`hqsf-img` 接 `MediaCache`、启动前数据迁移、设置重放、更新状态共享、启动后台任务（会话校验 / 10s 自动更新检查）、无边框窗口拖拽兼容层；CI `shell` job `cargo check --all-targets` 于 run 44879836235 通过（`990af64`） | 编译级完成，GUI 行为待真机 |
-| P5 发布切换 | CI 三平台 + 文档 + 2.0.0 | ✅ **三平台打包已跑通**（`release.yml` + `build-only` 分支验证：Linux deb/AppImage、Windows NSIS、macOS dmg 全部构建并上传产物，体积见验收 §4.5；Intel macOS 已加入矩阵待下一轮）；文档与 CHANGELOG 已就绪 | 装包/真机（IME、媒体、迁移、keyring）与 tag 正式发布待执行 |
+| P5 发布切换 | CI 三平台 + 文档 + 2.0.14 | ✅ **三平台打包已跑通**（`release.yml` + `build-only` 分支验证：Linux deb/AppImage、Windows NSIS、macOS dmg 全部构建并上传产物，体积见验收 §4.5；Intel macOS 已加入矩阵待下一轮）；文档与 CHANGELOG 已就绪 | 装包/真机（IME、媒体、迁移、keyring）与 tag 正式发布待执行 |
 
 #### 11.1.1 第三轮（P4 收尾）：三处「本机看不出来、跑起来必错」的补齐
 
