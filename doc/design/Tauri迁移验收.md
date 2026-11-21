@@ -173,6 +173,7 @@ node_modules/.bin/tsc --noEmit -p tsconfig.node.json
 | 8 | 自定义 CSS/JS 注入的实际效果 | 中 | 需 GUI | 设置里写一段 CSS，确认 `insert_css` 的 `<style>` 生效且 reload 后重放 |
 | 9 | Ctrl+F12 devtools（`__TAURI_INTERNALS__.invoke` 非公开 API） | 低 | 需 GUI | release 包用 `devtools` feature 版验证 |
 | 10 | 中文排序拼音序 | 低 | 需 ICU | 与产品确认是否接受字典序 |
+| 11 | **无边框窗口拖拽**（`-webkit-app-region` 在 WebKit 无效） | 中 | 需 GUI | Windows/Linux 装包后拖顶栏、拖左栏空白、双击最大化；见 §4.3 |
 
 ---
 
@@ -187,6 +188,19 @@ node_modules/.bin/tsc --noEmit -p tsconfig.node.json
    附带好处：3 条载荷里有 `type` 键的通道（`list-metas`/`add-log`/`set-review-attitude`）由内核 `#[serde(rename = "type")]` 还原，绕开了「Rust 形参不能叫 `type`」的问题。
 
 这两条都进了 `gen-tauri-commands.mjs --verify` 的静态校验：每条命令必须带 `rename_all`；平铺命令逐位比对契约参数名；整包命令断言 `*Args` 的 serde wire 字段集合 ⊇ 契约参数名集合。
+
+## 4.3 无边框窗口拖拽：从 CSS 私有属性改为 JS 端口调用
+
+1.x 靠 Chromium 私有 CSS `-webkit-app-region: drag|no-drag`（`src/renderer/src/styles/index.css` 共 9 处）让无边框窗口可拖动。**这条声明在 WebKitGTK / WKWebView 里是无效属性**，而 `tauri.conf.json` 在 Windows/Linux 上是 `decorations:false`（自绘 36px 顶栏），照搬 CSS 会导致这两个平台**窗口完全拖不动**——一个容易漏掉的功能回归。
+
+修法（保留 Electron 原行为，Tauri 补一层）：
+
+- 渲染层三个「可拖拽区」根节点加 `data-hqsf-drag-region`：`features/navigation/TopBar.tsx` 的 `<header class="topbar">`、`features/navigation/Sidebar.tsx` 的 `<aside class="sidebar">`、`features/auth/{LoginView,FirstRunAgreement}.tsx` 的 `.window-drag-bar`；
+- 新增 `src/bridge/drag.ts`：Tauri 环境下捕获阶段监听 `mousedown`，从 target 向上找 `data-hqsf-drag-region`，**中途碰到交互元素**（`button/input/textarea/select/a/[contenteditable]/[role=button]/[data-hqsf-no-drag]`）就放弃；命中则 `invoke('plugin:window|start_dragging')`；`event.detail === 2` 时改调 `window.hqsf.windowControls.toggleMaximize()`（等价 1.x 双击标题栏最大化）；
+- 左栏拖宽分隔条 `.sidebar-resizer` 标 `data-hqsf-no-drag`（它自己有 mousedown 处理，不能被拖窗口抢走）；
+- 不用 Tauri 内置的 `data-tauri-drag-region`：它的判定只看 **mousedown 目标元素本身**是否带属性，而顶栏标题、图标都是子元素（1.x 里点子元素也能拖），逐个子元素补属性会随 UI 改动失效。
+
+对应权限：`capabilities/default.json` 的 `core:window:allow-start-dragging`（双击最大化走应用自己的 `hqsf:window-maximize-toggle`，不需要额外 window 权限）。
 
 ## 4.2 集成完成情况（第二轮）
 

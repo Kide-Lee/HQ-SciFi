@@ -131,7 +131,7 @@ export function TopBar(): React.JSX.Element {
   }, [articleAvailable])
 
   return (
-    <header className={isMac ? 'topbar topbar-mac' : 'topbar'}>
+    <header className={isMac ? 'topbar topbar-mac' : 'topbar'} data-hqsf-drag-region="">
       {/* v0.0.3：左侧——阅读态显示「返回列表」 */}
       <div className="topbar-left">
         {/* v0.0.6：折叠左栏按钮移到顶栏左侧（原在右侧窗口控件旁） */}
