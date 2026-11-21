@@ -145,15 +145,27 @@ async function fetchInboxType(token: string, type: NotificationCategory, limit =
 
 /** 拉取全部四类收件箱并按未读分组数回填 read 标记 */
 export async function listInbox(token: string): Promise<AppNotification[]> {
+  // 单个分类失败（服务端下线某类、某类接口 5xx/超时）不能拖垮整个消息中心：
+  // 旧实现用 Promise.all，review 一类报错会让评论/系统/私信全部消失。
   const [grouped, unread] = await Promise.all([
-    Promise.all(INBOX_TYPES.map((type) => fetchInboxType(token, type))),
-    getUnreadCounts(token)
+    Promise.allSettled(INBOX_TYPES.map((type) => fetchInboxType(token, type))),
+    getUnreadCounts(token).catch(() => ({
+      total: 0,
+      comment: 0,
+      review: 0,
+      finance: 0,
+      system: 0,
+      fan: 0,
+      chat: 0
+    }))
   ])
 
   const all: AppNotification[] = []
   for (let i = 0; i < INBOX_TYPES.length; i++) {
     const type = INBOX_TYPES[i]
-    const items = grouped[i]
+    const result = grouped[i]
+    if (result.status !== 'fulfilled') continue
+    const items = result.value
     // 优先采用服务端逐条 isread；缺失时用 unreadNum 的分组未读数兜底：
     // 按时间倒序，把缺失标记的最前若干条补为未读
     const sorted = [...items].sort((a, b) => b.time - a.time)

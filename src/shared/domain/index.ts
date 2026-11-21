@@ -378,6 +378,8 @@ export interface ReviewTaskItem {
   activeid?: number | string
   activeName?: string
   articleTitle?: string
+  /** 任务时间（秒级时间戳，服务端 created） */
+  created?: number
 }
 
 // ---------- 评论（hqComments/） ----------

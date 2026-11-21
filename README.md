@@ -35,12 +35,14 @@
 
 | 平台 | 文件 |
 | --- | --- |
-| Windows | [hq-scifi.Setup.1.1.12.exe](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v1.1.12/hq-scifi.Setup.1.1.12.exe) |
-| Linux | [hq-scifi-1.1.12.AppImage](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v1.1.12/hq-scifi-1.1.12.AppImage)（无需安装，直接运行） |
-| Linux | [hq-scifi_1.1.12_amd64.deb](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v1.1.12/hq-scifi_1.1.12_amd64.deb)（Debian/Ubuntu 系） |
-| macOS | [hq-scifi-1.1.12-arm64.dmg](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v1.1.12/hq-scifi-1.1.12-arm64.dmg)（Apple Silicon，M 系列） |
-| macOS | [hq-scifi-1.1.12-x64.dmg](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v1.1.12/hq-scifi-1.1.12-x64.dmg)（Intel） |
+| Windows | [hq-scifi.Setup.1.2.13.exe](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v1.2.13/hq-scifi.Setup.1.2.13.exe) |
+| Linux | [hq-scifi-1.2.13.AppImage](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v1.2.13/hq-scifi-1.2.13.AppImage)（无需安装，直接运行） |
+| Linux | [hq-scifi_1.2.13_amd64.deb](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v1.2.13/hq-scifi_1.2.13_amd64.deb)（Debian/Ubuntu 系） |
+| macOS | [hq-scifi-1.2.13-arm64.dmg](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v1.2.13/hq-scifi-1.2.13-arm64.dmg)（Apple Silicon，M 系列） |
+| macOS | [hq-scifi-1.2.13-x64.dmg](https://github.com/Kide-Lee/HQ-SciFi/releases/download/v1.2.13/hq-scifi-1.2.13-x64.dmg)（Intel） |
 
+> **v1.2.13**：**荒启改版适配与文章/评审修复**——活动文章按页拉全并按 cid 去重（作品统计与活动树不再缺文章）；markdown 文章改用服务端渲染 HTML；文章详情缓存改为 10 分钟硬过期，作者补写后及时刷新；消息中心合并网页端独立的「待评审」任务并支持点击直达，收件箱单类异常不再拖垮整个消息列表。更新日志见 [doc/CHANGELOG.md](doc/CHANGELOG.md)。
+>
 > **v1.1.12**：**右栏重组与阅读体验**——顶栏右栏按钮拆为「设置」「文章」：设置栏固定 历史 / 消息 / 设置（设置内含 系统 / 界面 / 用户），文章栏按视图显示 目录 / 评论 / 评审 / 搜索，两栏各自记住上次页签；有未读通知时设置按钮显示铃铛 + 红点；移除左栏底部设置按钮与独立设置弹窗。新增阅读历史（右栏「历史」，上限 200 篇）；评审 / 评论 / 评审内评论的未提交草稿自动缓存并在切 tab、刷新、重启后恢复（保留 30 天，可一键丢弃）；左栏树形内容展开 / 收起加入 200ms 动画；左右栏拖动指示条统一。更新日志见 [doc/CHANGELOG.md](doc/CHANGELOG.md)。
 >
 > **v1.1.11**：**架构重构与行为收口**——主进程按 bootstrap / window / ipc / services / adapters / infra / domain 分层，IPC 按领域拆分（81 个 handler），共享契约与渲染层 feature / 通用 UI 目录落地；用户可见行为：启动始终进入推荐首页、评审面板默认“所有评审”、作品库默认评分排序、文件树右键与写作首页卡片支持重命名 / 移动、新建草稿纯空白、阅读页右栏默认关闭；登录仅需本应用《黄芪饮片用户协议》，**不再要求荒启平台用户协议**；修复密码框按 Enter 绕过协议直接登录的问题；新增 activity / lib / ipc-contracts 测试脚本。更新日志见 [doc/CHANGELOG.md](doc/CHANGELOG.md)。

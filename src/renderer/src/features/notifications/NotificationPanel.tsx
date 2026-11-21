@@ -65,6 +65,7 @@ export function NotificationPanel(): React.JSX.Element {
   const markRead = useNotificationStore((s) => s.markRead)
   const markCategoryRead = useNotificationStore((s) => s.markCategoryRead)
   const openArticle = useReaderStore((s) => s.openArticle)
+  const loadReviewTasks = useReaderStore((s) => s.loadReviewTasks)
   const openPanelTab = useUiStore((s) => s.openPanelTab)
   const openUserPage = useUiStore((s) => s.openUserPage)
   const [groupKey, setGroupKey] = useState<NotificationGroup>('interact')
@@ -80,6 +81,8 @@ export function NotificationPanel(): React.JSX.Element {
   // 每次打开消息面板都重新拉取，保证列表和未读数是最新的
   useEffect(() => {
     void load()
+    // 网页端把待评审拆成独立任务：打开消息面板时强制刷新一次，角标与新任务才及时出现
+    void loadReviewTasks(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -164,7 +167,7 @@ export function NotificationPanel(): React.JSX.Element {
     const reader = useReaderStore.getState()
     // 用户页打开消息时先退出用户页，否则 MainArea 会继续停留在用户页
     if (ui.userPageUid) ui.closeUserPage()
-    const tab = n.review ? 'review' : n.comment?.reviewid ? 'review' : 'comments'
+    const tab = n.category === 'review' || n.comment?.reviewid ? 'review' : 'comments'
     if (n.review?.id) {
       reader.setTarget({ cid, reviewId: String(n.review.id) })
     } else if (n.comment?.coid) {
@@ -336,6 +339,8 @@ export function NotificationPanel(): React.JSX.Element {
                 <div
                   key={n.id}
                   className={`notification-item${n.read ? '' : ' unread'}`}
+                  onClick={n.cid ? () => openMessage(n) : undefined}
+                  style={n.cid ? { cursor: 'pointer' } : undefined}
                   onContextMenu={(e) => handleNotificationContextMenu(e, n)}
                 >
                   <div className="notification-item-head">
@@ -347,7 +352,13 @@ export function NotificationPanel(): React.JSX.Element {
                   </div>
                   <div className="notification-item-text">{n.text}</div>
                   {!n.read && (
-                    <button className="notification-mark-read" onClick={() => void markRead(n.id)}>
+                    <button
+                      className="notification-mark-read"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        void markRead(n.id)
+                      }}
+                    >
                       标记已读
                     </button>
                   )}

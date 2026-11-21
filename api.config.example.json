@@ -62,7 +62,7 @@
       "method": "GET"
     },
     "selectContents": {
-      "path": "metas/selectContents",
+      "path": "hqMetas/selectContents",
       "method": "GET"
     },
     "metasList": {

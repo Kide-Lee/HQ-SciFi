@@ -111,7 +111,7 @@ interface ReaderState {
   /** 已成功拉取过评审任务（避免无任务时空对象反复请求；失败不置位，允许重试） */
   reviewTasksLoaded: boolean
   /** 拉取当前账号评审任务（幂等：已拉过则跳过；失败静默，不影响列表） */
-  loadReviewTasks: () => Promise<void>
+  loadReviewTasks: (force?: boolean) => Promise<void>
 
   // ---- 评审记录（v0.0.7：「已评审」= 本人评审过该文章，不限评审任务） ----
   /** cid → 本人已写过该文章的评审；loadMyReviewed 填充（登录/挂载时一次拉全） */
@@ -475,9 +475,10 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
   quoteToReview: (text) => set(() => ({ pendingReviewQuote: { seq: ++quoteSeq, text } })),
   consumeReviewQuote: () => set({ pendingReviewQuote: null }),
 
-  loadReviewTasks: async () => {
-    // 幂等：已成功拉取过则不再重复请求（无任务时为空对象，用独立 loaded 标志）
-    if (get().reviewTasksLoaded) return
+  loadReviewTasks: async (force = false) => {
+    // 幂等：已成功拉取过则不再重复请求（无任务时为空对象，用独立 loaded 标志）；
+    // 打开消息面板时传 force=true，保证新分配的评审任务与角标及时出现。
+    if (!force && get().reviewTasksLoaded) return
     try {
       const res = await window.hqsf.listReviewTasks()
       if (res.ok) {
