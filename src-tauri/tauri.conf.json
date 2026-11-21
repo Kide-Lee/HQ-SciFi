@@ -5,6 +5,8 @@
   "version": "2.0.15",
   "identifier": "com.huangqisf.client",
   "build": {
+    "beforeDevCommand": "node_modules/.bin/vite --config vite.web.config.ts",
+    "devUrl": "http://127.0.0.1:5173",
     "frontendDist": "../out/web"
   },
   "app": {

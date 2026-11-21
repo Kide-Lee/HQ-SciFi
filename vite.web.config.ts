@@ -17,18 +17,26 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'node:path'
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   root: resolve(__dirname, 'src/renderer'),
-  // 用相对路径：与 1.x electron-vite 产物（`./assets/...`）保持一致，
+  // 构建用相对路径：与 1.x electron-vite 产物（`./assets/...`）保持一致，
   // 也避免 Tauri 自定义协议根（tauri://localhost / http://tauri.localhost）在不同平台上
-  // 对绝对路径的解析差异。
-  base: './',
+  // 对绝对路径的解析差异。dev 模式（`vite` 起 HMR 服务、Tauri 通过 devUrl 连过来）必须是
+  // 绝对根，否则模块请求会拼到错误的路径上。
+  base: command === 'serve' ? '/' : './',
   resolve: {
     alias: {
       '@renderer': resolve(__dirname, 'src/renderer/src')
     }
   },
   plugins: [react()],
+  // 本地开发：`npm run dev:web` 起这个服务（固定端口，tauri.conf.json 的 devUrl 指向它）；
+  // 配合 `cargo tauri dev` 就有 HMR + devtools，等价于 1.x 的 `npm run dev`。
+  server: {
+    port: 5173,
+    strictPort: true,
+    host: '127.0.0.1'
+  },
   build: {
     outDir: resolve(__dirname, 'out/web'),
     emptyOutDir: true,
@@ -37,4 +45,4 @@ export default defineConfig({
     target: 'es2020',
     sourcemap: false
   }
-})
+}))

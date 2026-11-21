@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# 端到端冒烟编排：Xvfb（调用方负责）里起 tauri-driver，再跑 W3C WebDriver 断言。
+#
+# 用法（CI）：xvfb-run -a -s "-screen 0 1280x800x24" dbus-run-session -- bash scripts/e2e/run.sh
+# 本机（有 WebKitGTK 的机器）：
+#   cargo build --manifest-path src-tauri/Cargo.toml --features devtools
+#   APP_BIN=$(realpath src-tauri/target/debug/huangqi-scifi) xvfb-run -a dbus-run-session -- bash scripts/e2e/run.sh
+set -uo pipefail
+
+APP="${APP_BIN:-$(realpath src-tauri/target/debug/huangqi-scifi 2>/dev/null || echo '')}"
+PORT="${WD_PORT:-4444}"
+DRIVER_BIN="${TAURI_DRIVER_BIN:-tauri-driver}"
+NATIVE_DRIVER="${NATIVE_DRIVER_BIN:-$(command -v WebKitWebDriver)}"
+
+[ -n "$APP" ] && [ -x "$APP" ] || { echo "::error::找不到可执行文件：APP_BIN=${APP:-<空>}（先 cargo build）"; exit 1; }
+[ -n "$NATIVE_DRIVER" ] && [ -x "$NATIVE_DRIVER" ] || { echo "::error::找不到 WebKitWebDriver（apt install webkit2gtk-driver）"; exit 1; }
+command -v "$DRIVER_BIN" > /dev/null || { echo "::error::找不到 tauri-driver（cargo install tauri-driver）"; exit 1; }
+
+export E2E_SHOT_DIR="${E2E_SHOT_DIR:-$(pwd)/.e2e}"
+export APP_BIN="$APP"
+mkdir -p "$E2E_SHOT_DIR"
+
+# 与 smoke-tauri.sh 保持一致：隔离数据目录 + 容器里退回软件渲染（否则 WebKitGTK 白屏/崩溃）。
+export HQSF_TEST=1
+export WEBKIT_DISABLE_COMPOSITING_MODE=1
+export WEBKIT_DISABLE_DMABUF_RENDERER=1
+export LIBGL_ALWAYS_SOFTWARE=1
+# 应用启动时按该顺序找 api.config.json：给驱动进程的环境变量会被子进程继承。
+if [ -z "${HQSF_API_CONFIG:-}" ] && [ -f "$(pwd)/api.config.json" ]; then
+  export HQSF_API_CONFIG="$(pwd)/api.config.json"
+fi
+
+"$DRIVER_BIN" --port "$PORT" --native-driver "$NATIVE_DRIVER" > "$E2E_SHOT_DIR/driver.log" 2>&1 &
+DRIVER_PID=$!
+cleanup() {
+  kill "$DRIVER_PID" 2>/dev/null || true
+  wait "$DRIVER_PID" 2>/dev/null || true
+}
+trap cleanup EXIT
+
+status=0
+node scripts/e2e/smoke.mjs || status=$?
+
+# renderer.log：__hqsf_log 的落盘通道（用户报错时要的那个文件）。路径随数据目录而定，直接找。
+LOG=$(find "$HOME" -maxdepth 6 -path '*logs/renderer.log' 2>/dev/null | head -1)
+echo "--- renderer.log ---"
+if [ -n "$LOG" ]; then
+  echo "path=$LOG bytes=$(wc -c < "$LOG")"
+  tail -n 20 "$LOG" || true
+  [ -s "$LOG" ] || { echo "::error::renderer.log 是空文件（渲染层没有输出过 console）"; status=1; }
+else
+  echo "::error::没找到 renderer.log（__hqsf_log 未生效）"
+  status=1
+fi
+
+echo "--- driver.log（尾部）---"
+tail -n 20 "$E2E_SHOT_DIR/driver.log" || true
+exit "$status"

@@ -277,12 +277,115 @@ jobs:
         if: steps.smoke_check.outcome == 'failure'
         run: exit 1
 
+  # 端到端：tauri-driver（Linux 后端 WebKitWebDriver）驱动真实应用做断言。
+  # 这是 1.x 时代 CDP 脚本的替代物——WebKitGTK 没有 CDP，官方自动化路径就是 W3C WebDriver。
+  # 与 smoke 的分工：smoke 只证明「进程活着 + 有窗口 + 不白屏」；这里证明「渲染层跑到哪一步、
+  # 桥接层就绪、右键菜单被接管、__hqsf_log 真的落盘」。
+  e2e:
+    name: 端到端（tauri-driver）
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Linux 系统依赖（含 WebKitWebDriver）
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
+            librsvg2-dev patchelf pkg-config xvfb dbus-x11 webkit2gtk-driver curl
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "src-tauri -> target"
+
+      - name: 安装前端依赖
+        run: npm ci
+
+      - name: 构建渲染层
+        run: npm run build:web
+
+      - name: 准备 api.config.json（CI 兜底）
+        shell: bash
+        run: |
+          if [ ! -f api.config.json ]; then
+            cp api.config.example.json api.config.json
+            echo "::warning::未提供正式 api.config.json，E2E 用示例地址"
+          fi
+
+      - run: node src-tauri/scripts/gen-tauri-commands.mjs --write
+
+      - run: node src-tauri/scripts/prepare-resources.mjs
+
+      - name: 安装 tauri-driver
+        run: cargo install tauri-driver --locked
+
+      - name: 构建调试版应用（tauri-driver 要求）
+        working-directory: src-tauri
+        run: cargo build --features devtools
+
+      - name: 端到端断言
+        id: e2e_check
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          export HOME="$RUNNER_TEMP/e2ehome"
+          mkdir -p "$HOME"
+          export APP_BIN="$(realpath src-tauri/target/debug/huangqi-scifi)"
+          xvfb-run -a -s "-screen 0 1280x800x24" \
+            dbus-run-session -- bash scripts/e2e/run.sh 2>&1 | tee "$RUNNER_TEMP/e2e.log"
+
+      - name: 上传证据（截图 + 驱动日志）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-evidence
+          path: .e2e
+          if-no-files-found: warn
+
+      - name: 回写 E2E 日志
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/e2e-status" && cd "$RUNNER_TEMP/e2e-status"
+          git init -q && git checkout -q -b e2e-logs
+          git config user.name "ci"
+          git config user.email "ci@users.noreply.github.com"
+          {
+            echo "# 端到端（tauri-driver）"
+            echo
+            echo "- commit: $GITHUB_SHA"
+            echo "- outcome: ${{ steps.e2e_check.outcome }}"
+            echo "- run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo
+            echo '```'
+            if [ -f "$RUNNER_TEMP/e2e.log" ]; then
+              tail -c 200000 "$RUNNER_TEMP/e2e.log"
+            else
+              echo "(E2E 未产生输出)"
+            fi
+            echo '```'
+          } > README.md
+          git add README.md
+          git commit -qm "ci: e2e ${{ steps.e2e_check.outcome }} for $GITHUB_SHA"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" e2e-logs
+
+      - name: 失败传递
+        if: steps.e2e_check.outcome == 'failure'
+        run: exit 1
+
   # 汇总三层闸门 + 冒烟的结论并推到 `ci-status` 分支：本机只有 api.github.com（且匿名限额 60/h），
   # Actions 日志接口要 admin，所以用 `git ls-remote origin ci-status` + commit message 读结论。
   # 壳层 cargo 输出详情仍在 `ci-logs` 分支（shell job 自己回写）。
   status:
     name: 汇总状态（回写 ci-status 分支）
-    needs: [core, tsc, shell, smoke]
+    needs: [core, tsc, shell, smoke, e2e]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -300,10 +403,11 @@ jobs:
             echo "- tsc: ${{ needs.tsc.result }}"
             echo "- shell: ${{ needs.shell.result }}"
             echo "- smoke: ${{ needs.smoke.result }}"
+            echo "- e2e: ${{ needs.e2e.result }}"
             echo "- run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           } > README.md
           git add README.md
-          git commit -qm "ci: core=${{ needs.core.result }} tsc=${{ needs.tsc.result }} shell=${{ needs.shell.result }} smoke=${{ needs.smoke.result }} for ${GITHUB_SHA:0:7}"
+          git commit -qm "ci: core=${{ needs.core.result }} tsc=${{ needs.tsc.result }} shell=${{ needs.shell.result }} smoke=${{ needs.smoke.result }} e2e=${{ needs.e2e.result }} for ${GITHUB_SHA:0:7}"
           git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci-status
 
   # 三平台出包在 release.yml（tag 触发），CI 不跑，省时间。

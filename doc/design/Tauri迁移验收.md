@@ -394,3 +394,12 @@ Platform secure storage failure: DBus error: The name org.freedesktop.secrets wa
 7. ⏳ 发布：`v2.0.14` tag → draft release → 对外；发布前必须在构建机提供真实 `api.config.json`（当前 `release.yml` 用 example 兜底，装出来会连示例地址）。tag 号与 `tauri.conf.json` 的 `version` 现在由产物自检强制对齐。
 8. ✅ 收尾清理（用户指示 `m02087` 后执行）：已删除 `src/main`/`src/preload`、`electron.vite.config.ts`、`electron-builder.yml`、`tsconfig.node.json`、`scripts/win-prebuild.mjs`、`scripts/archive-release.mjs`、1.x 专用测试脚本与 `.dsh/skills/cdp-debugging`；依赖移除 electron 系与 better-sqlite3，`package-lock.json` 重生成（`npm ci` dry-run 通过）；1.x 文档归档到 `doc/archive/1.x/`；`README`/`AGENTS`/`CHANGELOG` 同步改写。
    - 前置耦合**已解除**（`85df4b5`）：渲染层改用纯 Vite 构建（`vite.web.config.ts` → `out/web`，`npm run build:web`），`tauri.conf.json` 的 `frontendDist` 指向 `out/web`；`npm run build`（electron-vite）仅剩 1.x 自用。删 1.x 时只需删文件与依赖，不必动 Tauri 构建链路。
+
+## 4.8 端到端自动化（tauri-driver）
+
+1.x 用 Chrome DevTools Protocol 驱动界面；Tauri/WebKitGTK 没有 CDP，改用官方 `tauri-driver`（W3C WebDriver，Linux 后端 `WebKitWebDriver`）。
+
+- 断言脚本：`scripts/e2e/smoke.mjs`（零依赖，用 Node 原生 `fetch` 说 WebDriver 协议），编排 `scripts/e2e/run.sh`。
+- 覆盖：`#root` 渲染出内容、窗口标题、`__TAURI_INTERNALS__.invoke`、`window.hqsf` 的 81 方法 + `windowControls`、未登录登录层、空白处右键菜单含「刷新/开发者工具」、`__hqsf_log` 真的写出 `renderer.log`。
+- CI：`ci.yml` 的 `e2e` job（debug 构建 `cargo build --features devtools`）→ 结论回写 `e2e-logs` 分支，截图与驱动日志作为 `e2e-evidence` artifact。
+- 本机：`APP_BIN=$(realpath src-tauri/target/debug/huangqi-scifi) xvfb-run -a dbus-run-session -- bash scripts/e2e/run.sh`。

@@ -13,7 +13,9 @@
     "test:lib-rules": "node --experimental-strip-types scripts/test-lib-rules.mjs",
     "test:draft-cache": "node --experimental-strip-types scripts/test-draft-cache.mjs",
     "test:read-history": "node --experimental-strip-types scripts/test-read-history.mjs",
-    "gen:markdown-corpus": "node scripts/gen-markdown-corpus.mjs"
+    "gen:markdown-corpus": "node scripts/gen-markdown-corpus.mjs",
+    "dev:web": "vite --config vite.web.config.ts",
+    "dev:app": "cargo tauri dev --features devtools"
   },
   "dependencies": {
     "@codemirror/lang-markdown": "^6.5.2",
