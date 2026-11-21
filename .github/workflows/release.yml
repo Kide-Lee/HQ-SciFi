@@ -51,13 +51,16 @@ jobs:
           - platform: windows-latest
             args: "--bundles nsis"
             artifact: windows
-          # macos-latest 现在是 arm64：Intel Mac 需要单独一条（与 1.x 的 x64/arm64 两个 dmg 对齐）。
+          # macOS 只在 arm64 runner 上跑，用 `--target` 交叉出 x64 dmg
+          # （`macos-13` 这类 Intel runner 已排不到；与 1.x 的 x64/arm64 两个 dmg 对齐）。
           - platform: macos-latest
-            args: "--bundles dmg"
+            args: "--bundles dmg --target aarch64-apple-darwin"
             artifact: macos-arm64
-          - platform: macos-13
-            args: "--bundles dmg"
+            rust_target: aarch64-apple-darwin
+          - platform: macos-latest
+            args: "--bundles dmg --target x86_64-apple-darwin"
             artifact: macos-x64
+            rust_target: x86_64-apple-darwin
 
     runs-on: ${{ matrix.platform }}
 
@@ -94,6 +97,10 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      - name: 追加交叉编译目标
+        if: matrix.rust_target
+        run: rustup target add ${{ matrix.rust_target }}
+
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: "src-tauri -> target"
@@ -117,7 +124,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: bundle-${{ matrix.artifact }}
-          path: src-tauri/target/release/bundle/
+          path: |
+            src-tauri/target/release/bundle/
+            src-tauri/target/*/release/bundle/
           if-no-files-found: error
 
       # 只做记录，不允许它把已经成功的打包判成失败（首跑就是被它挡掉的）。
@@ -127,7 +136,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/meta"
           {
-            find src-tauri/target/release/bundle -type f \
+            find src-tauri/target -type f \
               \( -name '*.deb' -o -name '*.AppImage' -o -name '*.exe' -o -name '*.dmg' \) \
               -exec du -h {} + || true
           } > "$RUNNER_TEMP/meta/sizes.txt" 2>&1
