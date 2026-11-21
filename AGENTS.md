@@ -87,6 +87,7 @@ node_modules/.bin/vite build --config vite.web.config.ts  # 渲染层构建（ou
   - **端到端自动化**：`tauri-driver`（Linux 后端 `WebKitWebDriver`）替代 1.x 的 CDP 脚本。跑法：`cargo build --manifest-path src-tauri/Cargo.toml --features devtools` 后 `APP_BIN=$(realpath src-tauri/target/debug/huangqi-scifi) xvfb-run -a dbus-run-session -- bash scripts/e2e/run.sh`；断言在 `scripts/e2e/smoke.mjs`（#root 渲染 / 标题 / `__TAURI_INTERNALS__` / `window.hqsf` / 登录层 / 空白处右键菜单 / `__hqsf_log` 落盘），CI 的 `e2e` job 跑同一套，失败详情看 `e2e-logs` 分支与 `e2e-evidence` artifact。不要再手写 X11 注入做断言。
   - **本地 HMR 开发循环**：`npm run dev:web`（Vite dev server，127.0.0.1:5173）+ `cargo tauri dev --features devtools`（`tauri.conf.json` 已有 `devUrl`/`beforeDevCommand`）。改动渲染层即时热更新，等价 1.x 的 `npm run dev`；本机没有 WebKitGTK 时这两条跑不了（只能靠 CI）。
   - 排查 iframe/媒体这类「引擎行为」问题时，注意 **AppImage 自带一套 WebKit、deb/NSIS/dmg 用系统或内置的**：两者行为可能不同，A/B 对照是最快的判别手段。
+- **AppImage 必须带 `WebKitGPUProcess`**：Tauri 打包器只拷 Network/Web/injected-bundle 三个 helper，2.46+ 的 WebKitGTK 还要 GPU 进程；缺它时跨站 iframe（阅读页播放器）会停在 about:blank（2.0.15 真机现象）。`prepare-resources.mjs` 会自动从构建机拷到 `resources/webkit/`，再由 `bundle.linux.appimage.files` 映射进 AppDir；升级 WebKit 或改打包器时别丢这一步。
 
 - **本机沙箱限制**：`~` 根只读 → `~/.cargo`、`~/.cache` 不可写，cargo 必须 `export CARGO_HOME=$PWD/.cargo-home`；本机**没有全局 npm**（需要时用 `COREPACK_HOME=$PWD/.corepack corepack npm …`；脚本直接用 `node_modules/.bin/*`）；`/tmp` 不跨命令持久；删文件用 `find -delete`（`rm` 走回收站会报只读）。
 - **本机没有 pkg-config / WebKitGTK**，`src-tauri` 编译不了；因此 `src-tauri` 的改动只能靠静态自查 + CI 的 `shell` job，务必：`node --check` 脚本、`gen-tauri-commands.mjs --verify`、`prepare-resources.mjs --check`。

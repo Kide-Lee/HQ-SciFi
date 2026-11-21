@@ -6,11 +6,11 @@
 #   - 本 crate 是**独立工作区**（根 Cargo.toml 的 `[workspace].exclude` 已排除 src-tauri）：
 #     本机没有 pkg-config / WebKitGTK，`cargo metadata`/`check` 会失败，所以壳层不参与内核的 workspace 构建。
 # 版本对齐说明：serde/serde_json/thiserror/rusqlite 与根 `Cargo.toml` 的 workspace.dependencies 对齐
-#   （serde 1、serde_json 1、thiserror 2、rusqlite 0.43 + bundled、edition 2024、rust-version 1.90、version 2.0.15）。
+#   （serde 1、serde_json 1、thiserror 2、rusqlite 0.43 + bundled、edition 2024、rust-version 1.90、version 2.0.16）。
 
 [package]
 name = "hq-scifi"
-version = "2.0.15"
+version = "2.0.16"
 description = "荒启科幻桌面客户端（Tauri 2 壳层：窗口 / 自定义协议 / 系统端口 / 命令 dispatch）"
 edition = "2024"
 rust-version = "1.90"
