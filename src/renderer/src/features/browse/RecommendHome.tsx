@@ -7,6 +7,7 @@ import { ErrorBanner } from '../../components/ErrorBanner'
 import { SkeletonArticleCard, SkeletonFeedCard } from '../../components/Skeletons'
 import { CommentFeedCard, ReviewFeedCard } from '../../components/FeedCards'
 import { ACTIVITY_PHASE_LABEL, activityPhase, sortActivities } from '../../lib/activity'
+import { cachedImageUrl } from '../../lib/sanitize'
 import type { ApiResult, CommentItem, MetaInfo, RemoteArticle, ReviewItem } from '../../../../shared/types'
 
 /**
@@ -153,6 +154,8 @@ function ActivityCarousel({ items, onOpen }: { items: MetaInfo[]; onOpen: (m: Me
         <div className="activity-carousel-track" style={{ transform: `translateX(-${index * 100}%)` }}>
           {items.map((m) => {
             const phase = activityPhase(m)
+            const cover =
+              m.imgurl && /^https?:\/\//i.test(m.imgurl) ? cachedImageUrl(m.imgurl) : undefined
             return (
               <button
                 key={String(m.mid)}
@@ -160,8 +163,10 @@ function ActivityCarousel({ items, onOpen }: { items: MetaInfo[]; onOpen: (m: Me
                 className="activity-carousel-slide"
                 onClick={() => onOpen(m)}
                 style={{
-                  backgroundImage: m.imgurl
-                    ? `linear-gradient(90deg, rgba(15,23,42,0.76), rgba(15,23,42,0.18)), url("${m.imgurl}")`
+                  // 封面同样走本地图片缓存协议（hqsf-img），与其他所有远程图片一致：
+                  // 直接用 https 地址在 Tauri 的 WebView 里不一定能拿到（也进不了离线缓存）。
+                  backgroundImage: cover
+                    ? `linear-gradient(90deg, rgba(15,23,42,0.76), rgba(15,23,42,0.18)), url("${cover}")`
                     : 'linear-gradient(120deg, #4A6CF7, #7C3AED)'
                 }}
               >
