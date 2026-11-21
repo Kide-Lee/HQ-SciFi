@@ -365,6 +365,16 @@ Platform secure storage failure: DBus error: The name org.freedesktop.secrets wa
 
 ---
 
+## 4.7 子框架导航：内嵌播放器为什么是一块空白（2.0.15 修复）
+
+**现象**：阅读正文里的网易云/QQ 音乐/B 站播放器位置是一块透明空白（能框选到），并且加载文章时播放页会被弹到系统浏览器。
+
+**根因（代码级）**：`wry 0.57.3` 的 WebKitGTK 后端在 `src/webkitgtk/mod.rs:562-586` 把 `PolicyDecisionType::NavigationAction` 一律交给 `on_navigation` 回调，**不看 `is_main_frame`**。壳层 1.x 的不变式是「非应用自身 origin 一律拒绝并交系统浏览器」，于是 `<iframe>` 的首次导航也被拒绝：iframe 内容不加载（透明块），同一分支的 `open_external_quietly` 还把播放页丢给了浏览器。
+
+**修法**：只对三个播放器端点开白名单——`hqsf_core::domain::embed::is_embedded_media_url`（host 精确 + 路径边界匹配，`/outchain/playerground`、`cdn.music.163.com`、`music.163.com/song` 都不算），壳层 `on_navigation` 命中即放行，其余 `http(s)` 行为不变。判定放内核是为了能在本机用单元测试覆盖（壳层本机不可编译）。
+
+**验证**：`cargo test -p hqsf-core --lib domain::embed`（2 组测试）；壳层改动由 CI `shell` job 编译（`ci-status` for `3d51c1d` = 四门禁全绿）。真机效果待用户在 2.0.15 上确认（清单第 5 项）。
+
 ## 5. 回滚与共存
 
 - **回滚**：迁移只**复制**不删除 Electron 数据（`migrate_legacy_data` 只读源、写 staging、rename 落位到新目录），旧 `~/.config/hqsf-client/` 保持原样，1.2.13 仍可直接运行。
