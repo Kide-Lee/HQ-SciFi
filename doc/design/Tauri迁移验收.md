@@ -326,6 +326,8 @@ Platform secure storage failure: DBus error: The name org.freedesktop.secrets wa
 1. ✅ 壳层集成（dispatch / 协议 / 迁移 / 设置重放）——代码级完成。
 2. ✅ **CI 首次真跑**：`shell` job 的 `cargo check --all-targets` 已于 `990af64` 通过（`State<'_, AppState>`、`WholePayload: CommandArg`、`generate_context!`、异步协议 handler、capabilities 都在真实编译里过了）；失败与修复过程见 §4.1.1 与 §4.4。
 3. ✅ **三平台打包**：`release.yml` 经 `build-only` 分支验证（run 44884693708，commit `3251c68`），Linux deb 14 MB / AppImage 87 MB、Windows NSIS 7.8 MB、macOS dmg 11 MB，产物已上传（见 §4.5）；Intel macOS 已加入矩阵。
-4. ⏳ 装包与真机验证（§4 列表：IME、媒体编解码、keyring、真实 WAL 库迁移、自定义 CSS、devtools、无边框拖拽、拼音排序、`executableName`），并记录 §6.3 量化指标。
-5. ⏳ 发布：`v2.0.14` tag → draft release → 对外；发布前必须在构建机提供真实 `api.config.json`（当前 `release.yml` 用 example 兜底，装出来会连示例地址）。
-6. ⏳ 收尾清理：真机验证通过后删除 `src/main`/`src/preload`（1.x Electron 主进程）、`better-sqlite3` 依赖与 `electron-builder.yml`、`scripts/win-prebuild.mjs`。
+4. ✅ **产物自检**（run 44890975878，commit `8cdb81b`，四类产物全绿）：deb `Depends: libwebkit2gtk-4.1-0, libgtk-3-0`、包内三个资源齐全；dmg `id=com.huangqisf.client version=2.0.14`；NSIS `ProductVersion: 2.0.14`；可执行文件名 `huangqi-scifi` 已随 `mainBinaryName` 落地。证据见 `release-status` 分支的「产物自检」段。
+5. ✅ **启动冒烟**：CI `smoke` job 在 Xvfb 里真启动（§4.6），四道门禁（core/tsc/shell/smoke）在 `8cdb81b` 全绿。
+6. ⏳ 装包与真机验证（§4 第 1/2/5/6/8/9/10/11 项）：按 `doc/design/真机验证清单.md` 逐项执行并回填结果。
+7. ⏳ 发布：`v2.0.14` tag → draft release → 对外；发布前必须在构建机提供真实 `api.config.json`（当前 `release.yml` 用 example 兜底，装出来会连示例地址）。tag 号与 `tauri.conf.json` 的 `version` 现在由产物自检强制对齐。
+8. ⏳ 收尾清理：真机验证通过后删除 `src/main`/`src/preload`（1.x Electron 主进程）、`better-sqlite3` 依赖与 `electron-builder.yml`、`scripts/win-prebuild.mjs`；届时需把渲染层构建从 electron-vite 切到纯 Vite（当前 `npm run build` 同时产出 `out/main`/`out/preload`，删 1.x 会连带断掉渲染层构建——这是清理前必须先拆的一处耦合，已记入清单）。
