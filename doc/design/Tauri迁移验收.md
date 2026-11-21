@@ -237,6 +237,8 @@ node_modules/.bin/tsc --noEmit -p tsconfig.node.json
 | 4 | `20b006e` | shell ❌ | 资源已就绪；暴露 `E0308`：dispatch 把 `domain::sync::ArticleMeta` 写成同名 `adapters::read::ArticleMeta` |
 | 5 | `990af64` | shell ✅ | 改名 `ArticleMetaBrief` + 生成器同名门禁；`cargo check --all-targets` 通过（run 44879836235），内核/TS job 同轮通过 |
 | 6 | `33cbac7` | **三 job 全绿** | `core=success tsc=success shell=success`（由新增的 `status` job 回写 `ci-status` 分支确认） |
+| 7 | `85df4b5` | **四门禁全绿** | 渲染层切纯 Vite（`out/web`）：`core/tsc/shell/smoke` 全绿；同轮三平台出包成功、AppImage 冒烟 `unique_colors=916` |
+| 8 | `dc56405` | **四门禁全绿** | 冒烟截图等首帧（`sleep 2`）+ 白屏阈值 100 色；裸二进制与 AppImage 均 916 色，消除中间态抖动 |
 
 `ci-status` 分支（汇总 job）与 `ci-logs` 分支（壳层 cargo 输出）的用途：本机沙箱只有 `api.github.com` 可达且有 60 次/小时匿名限额、Actions 日志接口需要 admin，所以 CI 把「三个 job 结论」推到 `ci-status`（commit message 即 `core=… tsc=… shell=…`）、把「cargo 输出尾部」推到 `ci-logs`，本地 `git ls-remote origin ci-status` / `git fetch --force origin ci-logs` 即可判断，不烧 API 限额。
 
@@ -343,4 +345,5 @@ Platform secure storage failure: DBus error: The name org.freedesktop.secrets wa
 5. ✅ **启动冒烟**：CI `smoke` job 在 Xvfb 里真启动（§4.6），四道门禁（core/tsc/shell/smoke）在 `8cdb81b` 全绿。
 6. ⏳ 装包与真机验证（§4 第 1/2/5/6/8/9/10/11 项）：按 `doc/design/真机验证清单.md` 逐项执行并回填结果。
 7. ⏳ 发布：`v2.0.14` tag → draft release → 对外；发布前必须在构建机提供真实 `api.config.json`（当前 `release.yml` 用 example 兜底，装出来会连示例地址）。tag 号与 `tauri.conf.json` 的 `version` 现在由产物自检强制对齐。
-8. ⏳ 收尾清理：真机验证通过后删除 `src/main`/`src/preload`（1.x Electron 主进程）、`better-sqlite3` 依赖与 `electron-builder.yml`、`scripts/win-prebuild.mjs`；届时需把渲染层构建从 electron-vite 切到纯 Vite（当前 `npm run build` 同时产出 `out/main`/`out/preload`，删 1.x 会连带断掉渲染层构建——这是清理前必须先拆的一处耦合，已记入清单）。
+8. ⏳ 收尾清理：真机验证通过后删除 `src/main`/`src/preload`（1.x Electron 主进程）、`better-sqlite3` 依赖与 `electron-builder.yml`、`scripts/win-prebuild.mjs`。
+   - 前置耦合**已解除**（`85df4b5`）：渲染层改用纯 Vite 构建（`vite.web.config.ts` → `out/web`，`npm run build:web`），`tauri.conf.json` 的 `frontendDist` 指向 `out/web`；`npm run build`（electron-vite）仅剩 1.x 自用。删 1.x 时只需删文件与依赖，不必动 Tauri 构建链路。
