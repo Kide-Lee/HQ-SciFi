@@ -188,10 +188,16 @@ try {
   console.log(`e2e 通过（${passed} 项）`)
   await sleep(0)
 } catch (error) {
-  try {
-    writeFileSync(`${SHOTS}/failure.png`, await app.screenshot())
-  } catch {
-    /* 截图失败不掩盖原始错误 */
+  // 会话/应用已退出时，后续 WebDriver 调用会报 `fetch failed`（连接已断）。
+  // 那是「进程没了」的次生错误，不该盖掉真正的断言失败信息。
+  if (error?.message === 'fetch failed') {
+    console.log('WARN WebDriver 会话已断开（应用可能已退出），跳过失败截图')
+  } else {
+    try {
+      writeFileSync(`${SHOTS}/failure.png`, await app.screenshot())
+    } catch {
+      /* 截图失败不掩盖原始错误 */
+    }
   }
   console.error(`e2e 失败：${error.message}`)
   process.exitCode = 1
