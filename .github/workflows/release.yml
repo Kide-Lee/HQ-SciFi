@@ -125,10 +125,12 @@ jobs:
       - name: 产物自检（版本 / 依赖 / 资源 / bundle id）
         shell: bash
         run: |
+          mkdir -p "$RUNNER_TEMP/meta"
+          set -o pipefail
           if [[ "$RELEASE_TAG" == v* ]]; then
-            node scripts/verify-bundles.mjs --expect-version "${RELEASE_TAG#v}"
+            node scripts/verify-bundles.mjs --expect-version "${RELEASE_TAG#v}" 2>&1 | tee "$RUNNER_TEMP/meta/verify.txt"
           else
-            node scripts/verify-bundles.mjs
+            node scripts/verify-bundles.mjs 2>&1 | tee "$RUNNER_TEMP/meta/verify.txt"
           fi
 
       # 先用 glob 抓 bundle 目录（不依赖手写矩阵路径），产物缺失时这一步就会红。
@@ -156,7 +158,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: meta-${{ matrix.artifact }}
-          path: ${{ runner.temp }}/meta/sizes.txt
+          path: |
+            ${{ runner.temp }}/meta/sizes.txt
+            ${{ runner.temp }}/meta/verify.txt
           if-no-files-found: warn
 
   # 正式流程才建 Release；`build-only` 分支与 dry_run 只留 artifacts（保留 14 天）。
@@ -213,6 +217,16 @@ jobs:
             echo
             # 注意：这里已 cd 到 $RUNNER_TEMP/status，artifacts 解在工作区根。
             for f in "$GITHUB_WORKSPACE"/meta/*/sizes.txt; do
+              [ -f "$f" ] || continue
+              echo "### $(basename "$(dirname "$f")")"
+              echo '```'
+              cat "$f"
+              echo '```'
+            done
+            echo
+            echo "## 产物自检"
+            echo
+            for f in "$GITHUB_WORKSPACE"/meta/*/verify.txt; do
               [ -f "$f" ] || continue
               echo "### $(basename "$(dirname "$f")")"
               echo '```'
