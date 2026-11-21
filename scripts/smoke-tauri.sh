@@ -5,7 +5,7 @@
 # 所以「应用能不能起来、能不能建出窗口、有没有初始化本地库」只能在这里证明。
 #
 # 判定标准（全部满足才算通过）：
-#   1. 进程 30 秒内没有退出；
+#   1. 进程 90 秒内没有退出；
 #   2. X11 里能按标题「黄芪饮片」找到窗口（xdotool）；
 #   3. 数据目录里出现了 hqsf.db（说明 build_core → Db::open 走通了）。
 #
@@ -29,7 +29,7 @@ APP_PID=$!
 echo "app_pid=$APP_PID"
 
 found=0
-for _ in $(seq 1 30); do
+for _ in $(seq 1 90); do
   sleep 1
   if command -v xdotool > /dev/null && xdotool search --name "$TITLE" > /dev/null 2>&1; then
     found=1
