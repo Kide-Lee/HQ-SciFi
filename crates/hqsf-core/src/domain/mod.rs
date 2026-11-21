@@ -9,6 +9,7 @@
 
 pub mod article;
 pub mod comment;
+pub mod embed;
 pub mod review;
 pub mod sync;
 pub mod user;
