@@ -80,9 +80,16 @@ AppImage 另有 `scripts/smoke-tauri.sh`（Xvfb + `dbus-run-session`）：等窗
 7. **api.config.json 三档**：CI 依次取 secret `HQSF_API_CONFIG_B64` → 工作区 `api.config.json` → `api.config.example.json`（兜底，会在 step summary 里告警）。**没有 secret 时打出来的包连的是示例地址**，正式对外发布前必须配 secret（`base64 -w0 api.config.json`）。
 8. **运行期配置优先级**：`data_dir/api.config.json` > `resource_dir/api.config.json`（内核 `services/net.rs::api_config_candidates`），所以临时验证可以把真实配置丢进数据目录，不用重新打包。
 9. **重打 tag 要 force 覆盖远端**：`git push origin :refs/tags/v2.0.14 && git tag -d v2.0.14 && git tag -a v2.0.14 … && git push origin v2.0.14`；draft Release 已存在时 job 会自动改走 `upload --clobber`。
-10. **版本号三处**：`Cargo.toml`、`src-tauri/Cargo.toml`、`src-tauri/tauri.conf.json`（`package.json` 2.0 起也是发布版本号，1.x 时代是 1.2.13）。
+10. **draft 里会残留上一轮的垃圾资产**：第一版用 `softprops/action-gh-release` 时，它把 `dist/` 里 422 个文件逐个上传，中途失败 → draft 里留下几百个无用资产（实测 273 个）。现在 `release` job 在新建前会先 `gh release delete --yes` 掉**旧的 draft**（已是正式发布版则只 `upload --clobber`，不删除），并在日志里打印最终 `Release 资产数`，应等于 5。
+11. **版本号三处**：`Cargo.toml`、`src-tauri/Cargo.toml`、`src-tauri/tauri.conf.json`（`package.json` 2.0 起也是发布版本号，1.x 时代是 1.2.13）。
 
-## 本地预检（不编译壳，6 秒）
+## Release 正文与标题（别用占位）
+
+- **标题 = tag 名**（`v2.0.14`），与历史版本一致；不要写「黄芪饮片 v…」这类别名，页面列表里会与其他版本不同形。
+- **正文自动从 `doc/CHANGELOG.md` 抽本版本那一节**（`release` job 里的 python 片段，按 `## v<version>` 切到下一个 `## v`），所以**发版前必须先把这个版本的 CHANGELOG 写好**（去掉「未发布」、写清用户可见变化、安装包用实测体积）。
+- 抽出来的正文同时随 `meta-*` 上传，`release-status` 里能看到。
+
+## 已知坑（都踩过）
 
 ```bash
 export CARGO_HOME=$PWD/.cargo-home

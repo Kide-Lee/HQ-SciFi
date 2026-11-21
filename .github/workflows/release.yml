@@ -288,17 +288,45 @@ jobs:
           fi
           printf '上传 %d 个安装包：\n' "${#files[@]}" >> "$LOG"
           printf '  %s\n' "${files[@]}" >> "$LOG"
+          # 更新说明直接从 doc/CHANGELOG.md 抽本版本那一节，别写「见 CHANGELOG」这种占位。
+          python3 - "$RELEASE_TAG" > "$RUNNER_TEMP/release-notes.md" <<'PYEOF'
+          import re, sys
+          version = sys.argv[1].lstrip("v")
+          text = open("doc/CHANGELOG.md", encoding="utf-8").read()
+          pat = re.compile(r"^##\s+v" + re.escape(version) + r"\b.*?\n(.*?)(?=^##\s+v|\Z)", re.M | re.S)
+          m = pat.search(text)
+          if not m:
+              print("> 更新说明见仓库 doc/CHANGELOG.md。")
+          else:
+              body = m.group(1).strip()
+              body = re.sub(r"\n---\s*$", "", body)
+              print(body)
+          PYEOF
+          cp "$RUNNER_TEMP/release-notes.md" "$RUNNER_TEMP/meta/release-notes.md"
+
+          # draft 可能是上一轮失败留下的（老版本第三方 action 会先传一堆文件再报错，
+          # 于是 draft 里能残留几百个无用资产）→ 新建前先整份删掉，保证资产干净。
+          created=0
           if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release 已存在，改为覆盖上传产物" >> "$LOG"
-            gh release upload "$RELEASE_TAG" "${files[@]}" --clobber --repo "$GITHUB_REPOSITORY" >> "$LOG" 2>&1 || exit 1
-          else
+            is_draft=$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft' 2>/dev/null || echo false)
+            if [ "$is_draft" = "true" ]; then
+              echo "删除旧的 draft Release（清理历史残留资产）" >> "$LOG"
+              gh release delete "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --yes >> "$LOG" 2>&1 || exit 1
+            else
+              echo "Release 已发布，改为覆盖上传产物（不删除，避免影响线上）" >> "$LOG"
+              gh release upload "$RELEASE_TAG" "${files[@]}" --clobber --repo "$GITHUB_REPOSITORY" >> "$LOG" 2>&1 || exit 1
+              created=1
+            fi
+          fi
+          if [ "$created" -eq 0 ]; then
             gh release create "$RELEASE_TAG" \
               --repo "$GITHUB_REPOSITORY" \
-              --draft --title "黄芪饮片 $RELEASE_TAG" \
-              --notes "见 doc/CHANGELOG.md" \
+              --draft --title "$RELEASE_TAG" \
+              --notes-file "$RUNNER_TEMP/release-notes.md" \
               "${files[@]}" >> "$LOG" 2>&1 || exit 1
           fi
-          tail -8 "$LOG"
+          echo "Release 资产数: $(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets | length' 2>/dev/null)" >> "$LOG"
+          tail -12 "$LOG"
 
       - name: 回写 Release 结论（失败时含原因）
         if: always()
