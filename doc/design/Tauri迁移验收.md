@@ -9,7 +9,7 @@
 
 ## 0. 一句话结论
 
-**逻辑级迁移已完成**：85/85 条 IPC 通道在 Rust 侧有实现，521 个 Rust 测试全绿，markdown 渲染与 1.x **逐字节相等**（143/143 + 22/22 + 22/22），契约、绑定、类型三者有无漂移的自动门禁。
+**逻辑级迁移已完成**：85/85 条 IPC 通道在 Rust 侧有实现，526 个 Rust 测试全绿，markdown 渲染与 1.x **逐字节相等**（127/127 + 22/22 + 22/22），契约、绑定、类型三者有无漂移的自动门禁。
 
 **产品级尚未验证**：本机没有 WebKitGTK / pkg-config，`src-tauri` 壳层无法编译，因此 GUI、中文输入法、媒体播放、安装包、真机数据迁移**全部待 CI 与真机**（见 §4）。
 
@@ -30,7 +30,7 @@
 | --- | --- | --- |
 | `crates/hqsf-core/src/` | 26,386 | adapters 7,400 / commands 4,479 / infra 8,424 / services 3,568 / domain 1,376 / 其余（ports/ctx/error/testkit/registry） |
 | `crates/hqsf-bindings/src/main.rs` | 263 | 无头绑定生成器（98 个根类型 + 85 条命令） |
-| `crates/hqsf-core/testdata/` | — | `markdown/corpus.jsonl`（143 条）、`frontmatter.jsonl`（22）、`html2md.jsonl`（22） |
+| `crates/hqsf-core/testdata/` | — | `markdown/corpus.jsonl`（127 条）、`frontmatter.jsonl`（22）、`html2md.jsonl`（22） |
 | `crates/hqsf-core/assets/` | — | `katex.min.js`（272,179 B，0.18.4 MIT）、`turndown.js`（588 KB，7.2.4 MIT + domino） |
 
 分层与 1.x 一一对应：`adapters`（字段规整）→ `domain`（纯规则）→ `services`（用例编排）→ `commands`（IPC 入口）→ `infra`（DB/FS/网络/会话/设置/媒体/markdown/迁移）。全部 IO 经 `ctx` 的端口（`FileStore`/`SecretStore`/`HttpTransport`/`EventSink`/`Clock`/`AppPaths`/`Platform`），内核零 `tauri` 依赖。
@@ -99,11 +99,20 @@ node_modules/.bin/tsc --noEmit -p tsconfig.node.json
 
 | 项 | 语料 | 结果 |
 | --- | --- | --- |
-| `md_to_html` | 143 篇 / 1.4 MB（repo 真实 md 49 篇 + 手写边界 94 条） | **143/143 逐字节相等**（L0） |
+| `md_to_html` | 127 篇 / 1.0 MB（repo 真实 md 33 篇 + 手写边界 94 条） | **127/127 逐字节相等**（L0） |
 | `frontmatter` 解析 | 22 条 | 22/22 与 TS 真实现逐字段相等 |
 | `html_to_md`（turndown） | 22 条 | 22/22 逐字节相等 |
 
 为什么这一项是硬门禁：`mdToHtml` 不是显示用途，而是**发布链路写进接口的 HTML**（`sync-service.ts:488`、`:563` 推送、`read.adapter.ts:1025` 摘要、`agreement.adapter.ts:45` 协议）。语料由 `scripts/gen-markdown-corpus.mjs` 直接 import 1.x 真实现生成（可重跑、幂等），Rust 侧 comrak + 三段预处理 + AST 手术 + linkify 移植 + 字节级后处理复刻，数学公式用 `rquickjs` 加载**同一份** `katex.min.js` 渲染，因此连 KaTeX 的 HTML 都逐字节一致。
+
+
+### 2.2.1 语料对拍抓到的一处真实差异（已修）
+
+重生成语料（143 → 127 条，旧语料里混入的 `.shell-tmp/` 临时解包 md 已消失）后，`md_to_html` 由「全过」变成 **126/127**：`doc/design/真机验证清单.md` 里一行同时写了 ```js（未配对的三反引号）和 `` `$x^2$` ``，期望是 `<code>$x^2$</code>`，实际渲染成了 KaTeX 公式。
+
+- 根因（用 comrak 原始 AST 验证）：**遇到未配对的长反引号串后，comrak 不再把后续单反引号配对成 `Code` 节点**，`$x^2$` 落进 `Text` 就被行内公式预处理当成公式；markdown-it 只是把 ``` 当字面量，后面的单反引号照常配对。这不是理论差异——用户在自己的文档里写代码围栏示例时就会踩到，而这段 HTML 会经 `contentsAdd`/`contentsUpdate` 推给线上。
+- 修法：新增 `crates/hqsf-core/src/infra/markdown/inline_code.rs`，在块级公式预处理之后、行内公式探测之前，按 markdown-it 的 `code_inline` 语义重新配对（闭合串搜索不看反斜杠转义，扫描位置的串才看），把**未配对**的反引号串整体换成私有区哨兵 `U+E004`（长度不变），渲染后由 `postprocess` 还原成字面量反引号。配对成功的串原样交给 comrak。
+- 结果：语料 **127/127 L0 逐字节相等**（新增回归测试 `stray_backticks_do_not_swallow_later_inline_code`），内核 **526 个测试**全绿。
 
 ### 2.3 数据迁移（SP-4）
 
@@ -332,7 +341,7 @@ Platform secure storage failure: DBus error: The name org.freedesktop.secrets wa
 
 - **回滚**：迁移只**复制**不删除 Electron 数据（`migrate_legacy_data` 只读源、写 staging、rename 落位到新目录），旧 `~/.config/hqsf-client/` 保持原样，1.2.13 仍可直接运行。
 - **共存**：Tauri 2.0.14 使用独立 appId 数据目录；首次启动检测到旧数据即迁移，`--force` 可重跑（源指纹变化才允许）。
-- **双轨期**：`src/bridge` 保留 Electron 分支（`protocol.ts` 按 `window.hqsf` 是否存在分派），`npm run dev`（Electron）在迁移窗口期内仍可用。
+- **回滚手段**：1.x 的安装包仍在 GitHub Releases（v1.2.13），需要回退时装回即可；**1.x 源码已从仓库删除**（`doc/archive/1.x/` 保留设计文档），不再维护 `1.x-maintenance` 分支。`src/bridge` 里的 Electron 分支仅作为「非 Tauri 环境（如纯浏览器预览）」的降级路径保留，不再有 Electron 宿主。
 
 ---
 
@@ -345,5 +354,5 @@ Platform secure storage failure: DBus error: The name org.freedesktop.secrets wa
 5. ✅ **启动冒烟**：CI `smoke` job 在 Xvfb 里真启动（§4.6），四道门禁（core/tsc/shell/smoke）在 `8cdb81b` 全绿。
 6. ⏳ 装包与真机验证（§4 第 1/2/5/6/8/9/10/11 项）：按 `doc/design/真机验证清单.md` 逐项执行并回填结果。
 7. ⏳ 发布：`v2.0.14` tag → draft release → 对外；发布前必须在构建机提供真实 `api.config.json`（当前 `release.yml` 用 example 兜底，装出来会连示例地址）。tag 号与 `tauri.conf.json` 的 `version` 现在由产物自检强制对齐。
-8. ⏳ 收尾清理：真机验证通过后删除 `src/main`/`src/preload`（1.x Electron 主进程）、`better-sqlite3` 依赖与 `electron-builder.yml`、`scripts/win-prebuild.mjs`。
+8. ✅ 收尾清理（用户指示 `m02087` 后执行）：已删除 `src/main`/`src/preload`、`electron.vite.config.ts`、`electron-builder.yml`、`tsconfig.node.json`、`scripts/win-prebuild.mjs`、`scripts/archive-release.mjs`、1.x 专用测试脚本与 `.dsh/skills/cdp-debugging`；依赖移除 electron 系与 better-sqlite3，`package-lock.json` 重生成（`npm ci` dry-run 通过）；1.x 文档归档到 `doc/archive/1.x/`；`README`/`AGENTS`/`CHANGELOG` 同步改写。
    - 前置耦合**已解除**（`85df4b5`）：渲染层改用纯 Vite 构建（`vite.web.config.ts` → `out/web`，`npm run build:web`），`tauri.conf.json` 的 `frontendDist` 指向 `out/web`；`npm run build`（electron-vite）仅剩 1.x 自用。删 1.x 时只需删文件与依赖，不必动 Tauri 构建链路。

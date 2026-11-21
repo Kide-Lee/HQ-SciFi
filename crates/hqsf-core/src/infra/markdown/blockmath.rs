@@ -206,7 +206,7 @@ fn ends_block(line: &str) -> bool {
 }
 
 /// 该行是否开启一个围栏代码块；返回 `(围栏字符, 长度)`。
-fn opening_fence(line: &str) -> Option<(u8, usize)> {
+pub(crate) fn opening_fence(line: &str) -> Option<(u8, usize)> {
     let trimmed = line.trim_start();
     let indent = line.len() - trimmed.len();
     if indent > 3 {
@@ -228,7 +228,7 @@ fn opening_fence(line: &str) -> Option<(u8, usize)> {
 }
 
 /// 该行是否闭合当前围栏。
-fn is_closing_fence(line: &str, ch: u8, len: usize) -> bool {
+pub(crate) fn is_closing_fence(line: &str, ch: u8, len: usize) -> bool {
     let trimmed = line.trim_start();
     let indent = line.len() - trimmed.len();
     if indent > 3 {

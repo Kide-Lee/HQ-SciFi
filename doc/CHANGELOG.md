@@ -1,12 +1,12 @@
 # 更新日志
 
-## v2.0.14（迁移中，未发布）
+## v2.0.14（未发布）
 
 ### 架构
-- 桌面壳由 Electron 34 换成 **Tauri 2.12**；后端由 Node/TypeScript 主进程改为 **100% Rust**（`crates/hqsf-core`，26k 行、521 个测试）。
+- 桌面壳由 Electron 34 换成 **Tauri 2.12**；后端由 Node/TypeScript 主进程改为 **100% Rust**（`crates/hqsf-core`，26k 行、526 个测试）。
 - 保留渲染层全部业务代码不改，通过 `src/bridge/` 的 `window.hqsf` 同形门面接入（85 个方法 + 2 个事件）。
 - IPC 契约冻结为 85 条具名命令（无通用转发代理），通道名、参数、错误文案与原实现逐条对齐（见 `doc/design/Tauri命令契约.md`）。
-- markdown 渲染改为 Rust `comrak` + QuickJS 内嵌同一份 KaTeX/turndown，发布链路写出的 HTML 与 v1.2.13 **逐字节一致**（143 篇真实/边界语料 + 22 条 frontmatter + 22 条 html→md）。
+- markdown 渲染改为 Rust `comrak` + QuickJS 内嵌同一份 KaTeX/turndown，发布链路写出的 HTML 与 v1.2.13 **逐字节一致**（127 篇真实/边界语料 + 22 条 frontmatter + 22 条 html→md）。
 
 ### 用户可见变化
 - **升级到 2.0.14 后首次启动需要重新登录一次**：登录凭据从 Electron `safeStorage` 迁到系统钥匙串，旧 token 无法解密（本地文章、草稿、阅读历史、设置会迁移）。
@@ -17,6 +17,8 @@
 - Linux 版**不再自带渲染引擎**：依赖系统 `libwebkit2gtk-4.1`（deb 已声明依赖，AppImage 需自备）；AppImage 还需要 `libfuse2`（Ubuntu 22.04+ 默认不装）。这是体积收益的代价，下载页需写明。
 
 ### 工程
+- **修复**：文档里出现未配对的连续反引号串（例如正文里写 ```js）时，后面的行内代码与 `$…$` 行内公式会被错误渲染。根因是 comrak 遇到未配对反引号串后不再配对后续行内代码，与 1.x 的 markdown-it 行为不同；新增 `infra::markdown::inline_code` 预处理（按 markdown-it 语义配对，未配对串换成哨兵、渲染后还原），语料 127/127 逐字节通过。
+- **1.x 已彻底移除**：`src/main/**`、`src/preload/**`、`electron.vite.config.ts`、`electron-builder.yml`、`tsconfig.node.json`、`scripts/win-prebuild.mjs`、`scripts/archive-release.mjs` 与 1.x 专用测试脚本全部删除；依赖中移除 `electron`、`electron-builder`、`electron-vite`、`cross-env`、`better-sqlite3`（`package-lock.json` 同步重生成）；markdown 金标准语料的生成依赖 1.x 实现的冻结副本（`scripts/markdown-oracle/`），不再依赖 `src/main`。1.x 的设计与计划文档归档到 `doc/archive/1.x/`。
 - 新增本仓首个 CI：`.github/workflows/ci.yml`（Rust fmt/clippy/test/绑定漂移 + 渲染层 `tsc` + 壳层 `cargo check`）与 `release.yml`（tag `v*` 三平台出包）。
 
 ## v1.2.13（2026-11-21，荒启网页端改版适配与两处反馈修复）

@@ -1,20 +1,16 @@
 node_modules/
-dist/
 out/
 
-# CDP 调试辅助（本地浏览器二进制 + 脚本缓存）
-.devtools/
 *.log
 .DS_Store
 *.tsbuildinfo
 .env.local
 .env.*.local
 
-# Electron 单实例锁残留（npm run dev 生成）
-Singleton*
-reasonix.toml
+# 本地 agent 工具链缓存
+.corepack/
 .reasonix/
-.win-prebuild-bak/
+reasonix.toml
 
 # 第三方服务端参考实现（RuleApi，荒启服务端同源）：源码 + 编译产物全部忽略
 /vendor/
@@ -27,10 +23,10 @@ reasonix.toml
 
 # 荒启 API 接口配置（本地持有，不入库；模板见 api.config.example.json）
 api.config.json
-# 本地测试模式 API 配置（baseUrl 指向本地 RuleApi，见 src/main/testmode.ts）
+# 本地测试模式 API 配置（baseUrl 指向本地 RuleApi；壳层用 --test / HQSF_TEST=1 切测试数据目录）
 api.config.test.json
 
-# Rust / Tauri（迁移中，见 doc/design/Tauri迁移计划.md）
+# Rust / Tauri（见 doc/design/Tauri迁移计划.md）
 /target/
 **/target/
 src-tauri/gen/
@@ -44,3 +40,6 @@ src-tauri/gen/
 
 # 壳层 agent 的临时解包目录
 /.shell-tmp/
+
+# 1.x 安装包归档（体积大，只在 Releases 发布）
+dist/
