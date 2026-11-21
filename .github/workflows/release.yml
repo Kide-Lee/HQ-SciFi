@@ -138,16 +138,47 @@ jobs:
       # （那边跑的是 --no-bundle 的裸二进制）。这里真跑一次 AppImage：
       # 同时验证 type2 runtime / FUSE 挂载 / 打包后的资源路径都对。
       - name: 冒烟（AppImage，Xvfb）
+        id: appimage_smoke
         if: matrix.platform == 'ubuntu-22.04'
+        continue-on-error: true
         shell: bash
         run: |
-          set -u
-          APPIMAGE=$(ls src-tauri/target/release/bundle/appimage/*.AppImage | head -1)
+          set -uo pipefail
+          mkdir -p "$RUNNER_TEMP/meta"
+          APPIMAGE=$(ls src-tauri/target/release/bundle/appimage/*.AppImage | head -1 | tee "$RUNNER_TEMP/meta/appimage-path.txt")
           chmod +x "$APPIMAGE"
           export HOME="$RUNNER_TEMP/appimage-home"
           mkdir -p "$HOME"
           xvfb-run -a -s "-screen 0 1280x800x24" \
-            dbus-run-session -- bash scripts/smoke-tauri.sh "$APPIMAGE"
+            dbus-run-session -- bash scripts/smoke-tauri.sh "$APPIMAGE" 2>&1 \
+            | tee "$RUNNER_TEMP/meta/appimage-smoke.log"
+
+      # 失败时把冒烟日志推到一个分支：Actions 日志接口要 admin，只有 git 协议稳定可读。
+      - name: 回写 AppImage 冒烟日志
+        if: always() && matrix.platform == 'ubuntu-22.04' && steps.appimage_smoke.outcome != 'skipped'
+        run: |
+          mkdir -p "$RUNNER_TEMP/release-logs" && cd "$RUNNER_TEMP/release-logs"
+          git init -q && git checkout -q -b release-logs
+          git config user.name "ci"
+          git config user.email "ci@users.noreply.github.com"
+          {
+            echo "# AppImage 冒烟"
+            echo
+            echo "- commit: $GITHUB_SHA"
+            echo "- outcome: ${{ steps.appimage_smoke.outcome }}"
+            echo "- run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/meta/appimage-smoke.log" 2>/dev/null || echo "(无日志)"
+            echo '```'
+          } > README.md
+          git add README.md
+          git commit -qm "release: appimage smoke ${{ steps.appimage_smoke.outcome }} for $GITHUB_SHA"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" release-logs
+
+      - name: 冒烟失败则整包失败
+        if: steps.appimage_smoke.outcome == 'failure'
+        run: exit 1
 
       # 先用 glob 抓 bundle 目录（不依赖手写矩阵路径），产物缺失时这一步就会红。
       - uses: actions/upload-artifact@v4
@@ -177,6 +208,7 @@ jobs:
           path: |
             ${{ runner.temp }}/meta/sizes.txt
             ${{ runner.temp }}/meta/verify.txt
+            ${{ runner.temp }}/meta/appimage-smoke.log
           if-no-files-found: warn
 
   # 正式流程才建 Release；`build-only` 分支与 dry_run 只留 artifacts（保留 14 天）。
