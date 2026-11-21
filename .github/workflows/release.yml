@@ -75,10 +75,11 @@ jobs:
       - name: 安装前端依赖
         run: npm ci
 
-      # `electron-vite build` 同时产出 `out/renderer`（Tauri 的 frontendDist）与
-      # `out/main`/`out/preload`（1.x Electron 遗留，打包不用，但构建脚本是同一个）。
+      # 渲染层用**纯 Vite**构建（`vite.web.config.ts`），不再依赖 electron-vite：
+      # 产物在 `out/web`，即 `src-tauri/tauri.conf.json` 的 `frontendDist`。
+      # 这样 1.x Electron 主进程（out/main、out/preload）与 Tauri 出包彻底解耦。
       - name: 构建渲染层（Tauri 的 frontendDist）
-        run: npm run build
+        run: npm run build:web
 
       - name: 准备 api.config.json（CI 兜底）
         shell: bash

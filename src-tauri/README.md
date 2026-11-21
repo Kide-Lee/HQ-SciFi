@@ -180,7 +180,7 @@ TODO(verify)：迁移计划 §1.5 写测试目录为 `com.huangqisf.client-test`
 
 ```bash
 # 1) 准备前端产物（1.x 仍是 electron-vite 构建，v2 阶段会换成 vite）
-npm run build                 # → out/renderer/index.html（tauri.conf.json 的 frontendDist）
+npm run build:web             # → out/web/index.html（tauri.conf.json 的 frontendDist）
 
 # 2) 准备打包资源（api.config.json 不入库，必须本地有）
 node src-tauri/scripts/prepare-resources.mjs
@@ -278,7 +278,7 @@ Tauri 侧由 `setup` 末尾的 `spawn_startup_tasks(app.handle().clone())` 复�
 1. `cargo check --manifest-path src-tauri/Cargo.toml --all-targets` 能否过（重点：生成的 85 条命令的
    `State<'_, AppState>` 生命周期、`WholePayload` 的 `CommandArg` impl、`generate_handler!` 里
    `crate::dispatch::__hqsf_toggle_devtools` 路径展开）。
-2. `tauri::generate_context!()` 编译期嵌入 `../out/renderer`（CI 先 `npm run build`）。
+2. `tauri::generate_context!()` 编译期嵌入 `../out/web`（CI 先 `npm run build:web`）。
 3. `register_asynchronous_uri_scheme_protocol` 的 handler 签名与 `UriSchemeResponder` 的 `Send` 移动
    （已按 docs.rs 2.12 核对：`Fn(UriSchemeContext, Request<Vec<u8>>, UriSchemeResponder)`）。
 4. `app.path().config_dir()` 在 Linux 上是否等于 Electron 的 `app.getPath('appData')`（迁移源目录命中率）。

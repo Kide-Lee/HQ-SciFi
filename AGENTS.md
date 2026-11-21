@@ -26,7 +26,8 @@ cargo run -q -p hqsf-bindings -- --check   # 校验绑定漂移（CI 门禁）
 ### 前端 / 壳层
 
 - `npm run typecheck` — 渲染层（`tsconfig.web.json`）+ Electron 遗留主进程（`tsconfig.node.json`）
-- `npm run build` — electron-vite 构建到 `out/`（`out/renderer` 即 Tauri 的 `frontendDist`）
+- `npm run build` — electron-vite 构建到 `out/`（1.x Electron 用）
+- `npm run build:web` — **纯 Vite** 构建渲染层到 `out/web`（Tauri 的 `frontendDist`；不碰 1.x 主进程）
 - `node scripts/gen-markdown-corpus.mjs` — 重生成 markdown 金标准语料（直接 import 1.x 真实现，幂等）
 - `npm run dev` / `npm run dev:test` — Electron 开发模式（迁移期回滚路径；`HQSF_TEST=1` 隔离数据目录）
 - `npm run build:linux` / `build:win` / `build:mac` — **1.x Electron 出包**，迁移期保留；Tauri 出包见 `.github/workflows/release.yml`（tag `v*` 触发三平台）
