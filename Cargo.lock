@@ -395,7 +395,7 @@ dependencies = [
 
 [[package]]
 name = "hqsf-bindings"
-version = "2.0.0"
+version = "2.0.14"
 dependencies = [
  "hqsf-core",
  "serde",
@@ -408,7 +408,7 @@ dependencies = [
 
 [[package]]
 name = "hqsf-core"
-version = "2.0.0"
+version = "2.0.14"
 dependencies = [
  "comrak",
  "fancy-regex",

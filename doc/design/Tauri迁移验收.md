@@ -166,7 +166,7 @@ node_modules/.bin/tsc --noEmit -p tsconfig.node.json
 | 1 | **中文输入法 + contenteditable**（Milkdown/ProseMirror/CodeMirror） | 高 | 需 WebKitGTK 图形环境 | Linux 真机手测：拼音/五笔候选窗、长文本、撤销栈 |
 | 2 | **媒体播放**（正文三个 iframe：music.163.com / i.y.qq.com / player.bilibili.com） | 高 | 需 GStreamer `gst-libav` | Linux deb 安装后放 H.264 视频；Windows 走 WebView2 |
 | 3 | ~~**壳层编译**~~ ✅ 已通过 | — | 无 pkg-config / libwebkit2gtk-4.1-dev | CI `shell` job `cargo check --all-targets` 于 run 44879836235（`990af64`）通过；见 §4.4 |
-| 4 | 三平台出包与体积指标 | 中 | 交叉编译不可行 | `release.yml` 首次真跑，记录 §6.3 量化指标 |
+| 4 | ~~三平台出包与体积指标~~ ✅ 已通过 | — | 交叉编译不可行 | `release.yml` 已跑通四类产物并记录体积（§4.5） |
 | 5 | 真机数据迁移（含 146 帧 WAL 的真实库） | 中 | 需在真机 appData 上跑 | 装包后首次启动，核对 read_cache 18 行与文章数 |
 | 6 | keyring 在 Linux（Secret Service）/ Windows（DPAPI）的行为 | 中 | 同上 | 登录→重启→会话恢复 |
 | 7 | `executableName` 变化（1.x `huangqi-scifi` → Tauri `hq-scifi`） | 中 | 需真机 | 确认快捷方式/升级路径；必要时在 `tauri.conf.json` 显式指定 |
@@ -174,6 +174,7 @@ node_modules/.bin/tsc --noEmit -p tsconfig.node.json
 | 9 | Ctrl+F12 devtools（`__TAURI_INTERNALS__.invoke` 非公开 API） | 低 | 需 GUI | release 包用 `devtools` feature 版验证 |
 | 10 | 中文排序拼音序 | 低 | 需 ICU | 与产品确认是否接受字典序 |
 | 11 | **无边框窗口拖拽**（`-webkit-app-region` 在 WebKit 无效） | 中 | 需 GUI | Windows/Linux 装包后拖顶栏、拖左栏空白、双击最大化；见 §4.3 |
+| 12 | ~~**应用能否启动 / 建窗 / 初始化本地库**~~ ✅ 已通过 | — | 无 WebKitGTK | CI `smoke` job 在 Xvfb 里真跑起来：窗口标题命中、进程存活、`hqsf.db` 落盘（§4.6） |
 
 ---
 
@@ -259,7 +260,7 @@ node_modules/.bin/tsc --noEmit -p tsconfig.node.json
 
 实测体积（run 44887380550，commit `f763510`）：
 
-| 产物 | Tauri 2.0.0 | Electron 1.2.13 | 变化 |
+| 产物 | Tauri 2.0.14 | Electron 1.2.13 | 变化 |
 | --- | --- | --- | --- |
 | Linux deb | **14 MB** | 94.8 MB | −85% |
 | Windows NSIS | **7.8 MB** | 90.8 MB | −91% |
@@ -274,12 +275,41 @@ node_modules/.bin/tsc --noEmit -p tsconfig.node.json
 
 状态：**四类产物全部构建成功并上传**（run 44887380550，commit `f763510`；首次四平台全绿为 run 44886779679）：Linux deb/AppImage、Windows NSIS、macOS arm64 与 x64 dmg。macOS 的 x64 由 arm64 runner 用 `cargo tauri build --target x86_64-apple-darwin` 交叉产出（`macos-13` 这类 Intel runner 已排不到队，改为交叉编译更稳）。**仍未验证**：安装/首次启动/签名/公证/自动更新源。
 
+## 4.6 启动冒烟：应用在干净 Linux runner 上真的起来了（CI）
+
+新增 CI job `smoke`（`scripts/smoke-tauri.sh`）：装 `xvfb` + `dbus-x11` + `xdotool`，`cargo tauri build --no-bundle` 出可执行文件，再 `xvfb-run … dbus-run-session -- bash scripts/smoke-tauri.sh` 真正启动。
+
+判定三条（全部满足才绿）：进程 30 秒内不退出、X11 里能按标题「黄芪饮片」找到窗口、数据目录里出现 `hqsf.db`。
+
+首跑即通过（run 44888241049，commit `b866af6`）：
+
+```
+window_found=1
+app_alive=1
+--- 本地库 ---
+.../.local/share/hqsf-test/hqsf.db
+.../.local/share/hqsf-test/hqsf.db-wal
+.../.local/share/hqsf-test/hqsf.db-shm
+```
+
+`app.log` 里唯一一条告警恰好是**预期行为**：
+
+```
+[hqsf] 启动会话校验：读取本地会话失败，跳过：系统钥匙串不可用（读取凭据 hqsf.session 失败）：
+Platform secure storage failure: DBus error: The name org.freedesktop.secrets was not provided ...
+```
+
+即：无 Secret Service 的容器里 keyring 不可用 → 会话校验**降级跳过而不是崩溃**（这正是 §3 里说的「钥匙串不可用直接失败但只影响会话」的设计）。
+
+这一步能证明的：GTK/WebView 初始化、窗口创建、`CoreCtx` 装配、`Db::open`、启动编排（单实例/迁移/设置重放/后台任务）在干净环境里都走通了。
+这一步仍证明不了的：中文输入法（IME 与 contenteditable 的真实交互）、H.264/AAC 解码、真实 Secret Service、拖拽手感——这些必须在装了包的 GUI 真机上做（§4 第 1/2/6/11 项）。
+
 ---
 
 ## 5. 回滚与共存
 
 - **回滚**：迁移只**复制**不删除 Electron 数据（`migrate_legacy_data` 只读源、写 staging、rename 落位到新目录），旧 `~/.config/hqsf-client/` 保持原样，1.2.13 仍可直接运行。
-- **共存**：Tauri 2.0.0 使用独立 appId 数据目录；首次启动检测到旧数据即迁移，`--force` 可重跑（源指纹变化才允许）。
+- **共存**：Tauri 2.0.14 使用独立 appId 数据目录；首次启动检测到旧数据即迁移，`--force` 可重跑（源指纹变化才允许）。
 - **双轨期**：`src/bridge` 保留 Electron 分支（`protocol.ts` 按 `window.hqsf` 是否存在分派），`npm run dev`（Electron）在迁移窗口期内仍可用。
 
 ---
@@ -290,5 +320,5 @@ node_modules/.bin/tsc --noEmit -p tsconfig.node.json
 2. ✅ **CI 首次真跑**：`shell` job 的 `cargo check --all-targets` 已于 `990af64` 通过（`State<'_, AppState>`、`WholePayload: CommandArg`、`generate_context!`、异步协议 handler、capabilities 都在真实编译里过了）；失败与修复过程见 §4.1.1 与 §4.4。
 3. ✅ **三平台打包**：`release.yml` 经 `build-only` 分支验证（run 44884693708，commit `3251c68`），Linux deb 14 MB / AppImage 87 MB、Windows NSIS 7.8 MB、macOS dmg 11 MB，产物已上传（见 §4.5）；Intel macOS 已加入矩阵。
 4. ⏳ 装包与真机验证（§4 列表：IME、媒体编解码、keyring、真实 WAL 库迁移、自定义 CSS、devtools、无边框拖拽、拼音排序、`executableName`），并记录 §6.3 量化指标。
-5. ⏳ 发布：`v2.0.0` tag → draft release → 对外；发布前必须在构建机提供真实 `api.config.json`（当前 `release.yml` 用 example 兜底，装出来会连示例地址）。
+5. ⏳ 发布：`v2.0.14` tag → draft release → 对外；发布前必须在构建机提供真实 `api.config.json`（当前 `release.yml` 用 example 兜底，装出来会连示例地址）。
 6. ⏳ 收尾清理：真机验证通过后删除 `src/main`/`src/preload`（1.x Electron 主进程）、`better-sqlite3` 依赖与 `electron-builder.yml`、`scripts/win-prebuild.mjs`。
