@@ -135,10 +135,10 @@ jobs:
 
       - run: npm ci
 
-      # `tauri::generate_context!()` 在编译期把 `frontendDist`（`../out/renderer`）嵌进二进制，
+      # `tauri::generate_context!()` 在编译期把 `frontendDist`（`../out/web`）嵌进二进制，
       # 目录不存在会直接编译失败；因此这里先产出前端产物（资源文件上一步已生成）
       - name: 前端产物（编译期被嵌入）
-        run: npm run build
+        run: npm run build:web
 
       # 只做类型/借用检查，不出包。
       # 输出同时 tee 到文件：失败时下一步把编译错误推到 `ci-logs` 分支，便于在无 admin 权限的
@@ -214,7 +214,7 @@ jobs:
         run: npm ci
 
       - name: 构建渲染层
-        run: npm run build
+        run: npm run build:web
 
       - name: 准备 api.config.json（CI 兜底）
         shell: bash

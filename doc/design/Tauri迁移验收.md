@@ -37,7 +37,7 @@
 
 ### 1.2 壳层（本机不可编译，代码已就位）
 
-`src-tauri/`：`tauri.conf.json`（1200×800 / min 900×600 / `decorations:false` / `frontendDist:"../out/renderer"`）、`capabilities/default.json`（仅 `core:default` + `core:window:allow-start-dragging`）、`src/lib.rs`（启动编排 / 单实例 / `hqsf-img` 协议 / 窗口回调）、`src/dispatch.rs`、`src/runtime/*`（端口真实实现）、`scripts/gen-tauri-commands.mjs`（85 命令 dispatch 生成 + `--verify`）。
+`src-tauri/`：`tauri.conf.json`（1200×800 / min 900×600 / `decorations:false` / `frontendDist:"../out/web"`）、`capabilities/default.json`（仅 `core:default` + `core:window:allow-start-dragging`）、`src/lib.rs`（启动编排 / 单实例 / `hqsf-img` 协议 / 窗口回调）、`src/dispatch.rs`、`src/runtime/*`（端口真实实现）、`scripts/gen-tauri-commands.mjs`（85 命令 dispatch 生成 + `--verify`）。
 
 ### 1.3 TS 传输门面（渲染层业务零改动）
 
