@@ -239,6 +239,40 @@ node_modules/.bin/tsc --noEmit -p tsconfig.node.json
 
 `ci-status` 分支（汇总 job）与 `ci-logs` 分支（壳层 cargo 输出）的用途：本机沙箱只有 `api.github.com` 可达且有 60 次/小时匿名限额、Actions 日志接口需要 admin，所以 CI 把「三个 job 结论」推到 `ci-status`（commit message 即 `core=… tsc=… shell=…`）、把「cargo 输出尾部」推到 `ci-logs`，本地 `git ls-remote origin ci-status` / `git fetch --force origin ci-logs` 即可判断，不烧 API 限额。
 
+## 4.5 三平台打包（P5）：流水线与实测体积
+
+`release.yml` 现在承担出包，`ci.yml` 只做门禁。三条触发路径：
+
+| 触发 | 行为 | 用途 |
+| --- | --- | --- |
+| push tag `v*` | 三平台构建 + 创建 **draft** Release | 正式发布 |
+| push 分支 `build-only` | 只构建 + 上传 artifacts（14 天），不建 Release、不打 tag | 打包验证（本次用） |
+| 手动 `workflow_dispatch` | `version` 必填；`dry_run=true` 时同 build-only | 指定版本重跑 |
+
+关键实现选择：
+
+- **用 `cargo install tauri-cli` + `cargo tauri build`，不用 `tauri-apps/tauri-action`**：本仓没有 `@tauri-apps/cli` 依赖，加它必须同步改 `package-lock.json`（本机无 npm，`npm ci` 会因不一致直接失败）；cargo 版 CLI 不碰前端依赖图。
+- 构建前必须补两个 gitignored 生成物（与 §4.1.1 同一类坑）：`gen-tauri-commands.mjs --write` 与 `prepare-resources.mjs`——前者缺 `commands_generated.rs` 直接编译失败，后者缺 `resources/*` 会让 `bundle.resources` 在编译期报 `doesn't exist`。
+- `api.config.json` 不入库：CI 用 `api.config.example.json` 兜底并 `::warning::`；**正式发布必须在构建机提供真实配置**，否则装出来的客户端连示例地址。
+- 产物先 `upload-artifact`、再统计体积：首轮（`d05c3f2`）三平台**打包本身全部成功**，却被我写在后面的 `du` 统计步骤判成失败（步骤顺序问题），所以统计改成 `continue-on-error`。
+- 结论回写 `release-status` 分支（含各平台产物大小）：Actions 日志接口要 admin、`raw.githubusercontent.com` 不可达，只有 git 协议稳定可读。
+
+实测体积（run 44884693708，commit `3251c68`，单平台除 macOS 均为原生 runner）：
+
+| 产物 | Tauri 2.0.0 | Electron 1.2.13 | 变化 |
+| --- | --- | --- | --- |
+| Linux deb | **14 MB** | 94.8 MB | −85% |
+| Windows NSIS | **7.8 MB** | 90.8 MB | −91% |
+| macOS dmg (arm64) | **11 MB** | 115.4 MB | −90% |
+| Linux AppImage | 87 MB | 124.2 MB | −30% |
+
+两点必须说清楚，避免把体积收益说过头：
+
+1. **AppImage 只小了 30%**：Tauri 的 AppImage 仍是自包含 rootfs（二进制 + 资源 + KaTeX/turndown 等），而 Electron 那 124 MB 里大头也是它自带的 Chromium。真正的量级差主要体现在 deb/NSIS/dmg 这类「只装应用本体」的格式上。
+2. **Linux 不再自包含渲染引擎**：deb/AppImage 依赖系统 `libwebkit2gtk-4.1`，与 1.x「拷过去就能跑」不同；这是体积收益的代价，需在下载页写明依赖。
+
+状态：三平台构建 + 产物上传 + 状态回写已全绿；Intel macOS（`macos-13`）已加入矩阵，下一轮验证。**仍未验证**：安装/首次启动/签名/公证/自动更新源。
+
 ---
 
 ## 5. 回滚与共存
@@ -253,6 +287,7 @@ node_modules/.bin/tsc --noEmit -p tsconfig.node.json
 
 1. ✅ 壳层集成（dispatch / 协议 / 迁移 / 设置重放）——代码级完成。
 2. ✅ **CI 首次真跑**：`shell` job 的 `cargo check --all-targets` 已于 `990af64` 通过（`State<'_, AppState>`、`WholePayload: CommandArg`、`generate_context!`、异步协议 handler、capabilities 都在真实编译里过了）；失败与修复过程见 §4.1.1 与 §4.4。
-3. ⏳ 三平台真机验证（§4 列表），记录 §6.3 量化指标。
-4. ⏳ 发布：`v2.0.0` tag → draft release → 对外；发布前必须在构建机提供真实 `api.config.json`（当前 `release.yml` 用 example 兜底，装出来会连示例地址）。
-5. ⏳ 收尾清理：真机验证通过后删除 `src/main`/`src/preload`（1.x Electron 主进程）、`better-sqlite3` 依赖与 `electron-builder.yml`、`scripts/win-prebuild.mjs`。
+3. ✅ **三平台打包**：`release.yml` 经 `build-only` 分支验证（run 44884693708，commit `3251c68`），Linux deb 14 MB / AppImage 87 MB、Windows NSIS 7.8 MB、macOS dmg 11 MB，产物已上传（见 §4.5）；Intel macOS 已加入矩阵。
+4. ⏳ 装包与真机验证（§4 列表：IME、媒体编解码、keyring、真实 WAL 库迁移、自定义 CSS、devtools、无边框拖拽、拼音排序、`executableName`），并记录 §6.3 量化指标。
+5. ⏳ 发布：`v2.0.0` tag → draft release → 对外；发布前必须在构建机提供真实 `api.config.json`（当前 `release.yml` 用 example 兜底，装出来会连示例地址）。
+6. ⏳ 收尾清理：真机验证通过后删除 `src/main`/`src/preload`（1.x Electron 主进程）、`better-sqlite3` 依赖与 `electron-builder.yml`、`scripts/win-prebuild.mjs`。

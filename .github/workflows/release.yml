@@ -51,9 +51,13 @@ jobs:
           - platform: windows-latest
             args: "--bundles nsis"
             artifact: windows
+          # macos-latest 现在是 arm64：Intel Mac 需要单独一条（与 1.x 的 x64/arm64 两个 dmg 对齐）。
           - platform: macos-latest
             args: "--bundles dmg"
-            artifact: macos
+            artifact: macos-arm64
+          - platform: macos-13
+            args: "--bundles dmg"
+            artifact: macos-x64
 
     runs-on: ${{ matrix.platform }}
 
