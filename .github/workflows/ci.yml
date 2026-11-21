@@ -23,6 +23,12 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
 
+# 壳层 job 在编译失败时会把 `cargo check` 输出推到 `ci-logs` 分支（见下方「诊断」步骤），
+# 供没有仓库 admin 权限的调用方（含本机 agent）读取——GitHub 的 job logs API 需要 admin，
+# 而 CI 自己带 `GITHUB_TOKEN`。除此之外 CI 只读仓库。
+permissions:
+  contents: write
+
 jobs:
   core:
     name: 内核（fmt / clippy / test / 绑定漂移）
@@ -110,7 +116,41 @@ jobs:
         run: npm run build
 
       # 只做类型/借用检查，不出包。
+      # 输出同时 tee 到文件：失败时下一步把编译错误推到 `ci-logs` 分支，便于在无 admin 权限的
+      # 环境下读到完整错误（本机沙箱没有 WebKitGTK，无法本地复现壳层编译）。
       - name: cargo check
-        run: cargo check --manifest-path src-tauri/Cargo.toml --all-targets
+        id: shell_check
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          cargo check --manifest-path src-tauri/Cargo.toml --all-targets 2>&1 | tee "$RUNNER_TEMP/check.log"
+
+      - name: 诊断（仅失败时：把编译错误推到 ci-logs 分支）
+        if: steps.shell_check.outcome == 'failure'
+        run: |
+          mkdir -p "$RUNNER_TEMP/diag"
+          {
+            echo "# ci 壳层编译错误"
+            echo
+            echo "- commit: $GITHUB_SHA"
+            echo "- run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/check.log"
+            echo '```'
+          } > "$RUNNER_TEMP/diag/README.md"
+          cd "$RUNNER_TEMP/diag"
+          git init -q
+          git checkout -q -b ci-logs
+          git config user.name "ci"
+          git config user.email "ci@users.noreply.github.com"
+          git add -A
+          git commit -qm "ci: shell check errors for $GITHUB_SHA"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci-logs
+
+      # 把失败状态传递下去（continue-on-error 只是为了让「诊断」步骤有机会跑）。
+      - name: 失败传递
+        if: steps.shell_check.outcome == 'failure'
+        run: exit 1
 
   # 三平台出包在 release.yml（tag 触发），CI 不跑，省时间。
