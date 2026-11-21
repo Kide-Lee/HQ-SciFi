@@ -68,10 +68,7 @@
         "section": "utils"
       },
       "appimage": {
-        "bundleMediaFramework": false,
-        "files": {
-          "/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitGPUProcess": "resources/webkit/WebKitGPUProcess"
-        }
+        "bundleMediaFramework": false
       }
     },
     "windows": {

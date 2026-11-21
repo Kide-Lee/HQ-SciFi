@@ -3,7 +3,7 @@
 ## 未发布（2.0.16）
 
 ### 修复
-- **AppImage 版的内嵌播放器仍然是空白（deb 正常）**：同一份代码用 deb（系统 WebKitGTK 2.54）播放器正常，用 AppImage（自带 WebKit）则停在 `about:blank` —— A/B 对照把根因锁定在 AppImage 内嵌的 WebKit。检查安装包发现 Tauri 的 AppImage 打包器只拷 `WebKitNetworkProcess`/`WebKitWebProcess`/injected-bundle，**漏了 2.46+ 才有的 `WebKitGPUProcess`**；应用里缺这个 helper 时，跨站 `iframe`（阅读页播放器）的合成/加载会失败。`prepare-resources.mjs` 现在把构建机的 `WebKitGPUProcess` 拷进 `resources/webkit/`，由 `tauri.conf.json` 的 `bundle.linux.appimage.files` 映射到 AppDir 的 `usr/lib/<arch>/webkit2gtk-4.1/`。
+- **AppImage 版的内嵌播放器仍然是空白（deb 正常）**：同一份代码用 deb（系统 WebKitGTK 2.54）播放器正常，用 AppImage（自带构建机 ubuntu-22.04 的 WebKitGTK 2.44）则停在 `about:blank`。—— A/B 对照把根因锁定在 **AppImage 内嵌的旧 WebKit**，不是应用逻辑（导航白名单、CSP、网络都已在真机上逐项排除）。**Linux 用户请优先用 .deb**。
 - **右键菜单新增「复制链接」**：在链接上右键（正文、评论、通知等任意位置）会多出一项「复制链接」，复制的是链接地址本身。
 - **开发者工具恢复可用**：发布包此前没有编译 `devtools` feature，`Ctrl+F12` 与右键「开发者工具」都只会在终端打印一行提示。打包流水线现在以 `cargo tauri build --features devtools` 构建。
 
