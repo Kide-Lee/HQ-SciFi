@@ -273,11 +273,12 @@ jobs:
           fi
           printf '上传 %d 个安装包：\n' "${#files[@]}" >> "$LOG"
           printf '  %s\n' "${files[@]}" >> "$LOG"
-          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release 已存在，改为覆盖上传产物" >> "$LOG"
-            gh release upload "$RELEASE_TAG" "${files[@]}" --clobber >> "$LOG" 2>&1 || exit 1
+            gh release upload "$RELEASE_TAG" "${files[@]}" --clobber --repo "$GITHUB_REPOSITORY" >> "$LOG" 2>&1 || exit 1
           else
             gh release create "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
               --draft --title "黄芪饮片 $RELEASE_TAG" \
               --notes "见 doc/CHANGELOG.md" \
               "${files[@]}" >> "$LOG" 2>&1 || exit 1
