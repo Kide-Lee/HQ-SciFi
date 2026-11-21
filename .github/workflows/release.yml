@@ -187,7 +187,8 @@ jobs:
             echo
             echo "## 产物大小"
             echo
-            for f in meta/*/sizes.txt; do
+            # 注意：这里已 cd 到 $RUNNER_TEMP/status，artifacts 解在工作区根。
+            for f in "$GITHUB_WORKSPACE"/meta/*/sizes.txt; do
               [ -f "$f" ] || continue
               echo "### $(basename "$(dirname "$f")")"
               echo '```'
