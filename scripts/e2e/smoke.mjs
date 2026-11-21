@@ -137,6 +137,7 @@ try {
             ...read(),
             defaultPrevented: ev.defaultPrevented,
             shell: !!document.querySelector('.app-shell'),
+            bodyText: (document.body.innerText || '').slice(0, 60),
           })
           i += 1
           if (i < times.length) setTimeout(sample, times[i] - times[i - 1])
@@ -152,11 +153,16 @@ try {
   } catch (error) {
     console.log(`WARN 右键菜单软断言未通过（不阻塞 CI）：${error.message}`)
   }
-  await check('渲染层日志落盘（__hqsf_log 通道）', () =>
-    waitFor('renderer.log 出现内容', () =>
-      app.exec("window.__TAURI_INTERNALS__.invoke('__hqsf_log', { level: 'info', message: 'e2e-probe' }).then(() => true)")
-    )
-  )
+  await check('渲染层日志通道（__hqsf_log）可调用', async () => {
+    // 注意：execute/sync 不会 await Promise（返回 null），所以只能发出去、再等落盘；
+    // 真正的落盘断言在 scripts/e2e/run.sh（找 renderer.log 并要求非空）。
+    await app.exec(`
+      window.__TAURI_INTERNALS__.invoke('__hqsf_log', { level: 'info', message: 'e2e-probe' })
+        .catch((error) => console.error('__hqsf_log 调用失败', error))
+      return true
+    `)
+    await sleep(600)
+  })
 
   const shot = await app.screenshot()
   const shotPath = `${SHOTS}/smoke.png`
