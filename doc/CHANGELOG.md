@@ -1,6 +1,6 @@
 # 更新日志
 
-## v2.0.17（未发布）
+## v2.0.15（2026-11-21，媒体播放器 / 右键菜单 / 图片修复）
 
 ### 修复
 - **AppImage 版的内嵌播放器空白（deb 正常）已修**：根因是 Tauri 的 AppImage 打包会把构建机（ubuntu-22.04）的 WebKitGTK 2.44 内嵌进包内，那一版不渲染阅读页的跨站 `iframe`（播放器停在 `about:blank`）；deb 用系统 WebKitGTK 2.54 则正常。现在 **AppImage 不再内嵌 WebKit**，改由 `scripts/build-appimage.sh` 组装一个最小 AppDir（可执行文件 + 三个资源 + 图标/desktop/AppRun），运行时使用系统 `libwebkit2gtk-4.1`。副作用：AppImage 从 87 MB 降到 **13.1 MB**（实测），但**需要系统装有 `libwebkit2gtk-4.1` 与 `libfuse2`**（与 deb 相同的运行时要求）。
@@ -9,8 +9,6 @@
 
 ### 排障
 - 渲染层的 `console.*` 与未捕获异常现在会写到 `<数据目录>/logs/renderer.log`（1 MB 滚动一份 `renderer.log.1`），方便反馈问题时直接附日志。
-
-## v2.0.15（2026-11-21，媒体播放器 / 右键菜单 / 图片修复）
 
 ### 修复
 - **阅读正文里的音乐/视频播放器显示为一块空白**：壳层导航策略对「应用自身 origin 之外」一律拒绝并交系统浏览器，而 wry 的 `decide-policy` 回调不区分主框架与子框架，因此 `iframe` 的首次导航也被拒绝（同时会把播放页弹到系统浏览器）。现在对三个播放器端点（`music.163.com/outchain/player`、`i.y.qq.com/n2/m/outchain/player`、`player.bilibili.com/player.html`）开极窄白名单（内核 `domain::embed`，只放行播放器页面本身，播放器里点出来的普通页面仍然走外部浏览器）。

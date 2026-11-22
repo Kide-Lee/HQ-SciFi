@@ -1,0 +1,88 @@
+name: 清理多余 Release
+
+# 一次性/低频维护用：删除指定 tag 的 Release 与 tag 本身（例如发版方式调整后留下的多余版本）。
+# 触发方式：推送 `cleanup/<逗号分隔的 tag>` 分支，例如
+#   git push origin HEAD:refs/heads/cleanup/v2.0.16,v2.0.17
+# 结论回写到 `cleanup-logs` 分支（本机读不到 Actions 日志）。
+on:
+  push:
+    branches:
+      - "cleanup/*"
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    env:
+      TAGS: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 解析要删除的 tag
+        id: parse
+        shell: bash
+        run: |
+          list="${TAGS#cleanup/}"
+          echo "待删除：$list"
+          echo "list=$list" >> "$GITHUB_OUTPUT"
+          if [ -z "$list" ]; then
+            echo "::error::分支名里没有 tag 列表（应为 cleanup/v1,v2）"
+            exit 1
+          fi
+
+      - name: 删除 Release 与 tag
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -o pipefail
+          LOG="$RUNNER_TEMP/cleanup.log"
+          {
+            echo "现有 Release："
+            gh release list --limit 100 || true
+            echo
+            echo "现有 tag："
+            git tag --list | tail -30
+            echo
+          } > "$LOG"
+
+          IFS=',' read -ra TAGS <<< "${{ steps.parse.outputs.list }}"
+          for tag in "${TAGS[@]}"; do
+            tag="$(echo "$tag" | xargs)"
+            [ -z "$tag" ] && continue
+            echo "== 删除 $tag" | tee -a "$LOG"
+            gh release delete "$tag" --yes --cleanup-tag 2>&1 | tee -a "$LOG" || echo "(Release 不存在，跳过)" | tee -a "$LOG"
+            git push origin ":refs/tags/$tag" 2>&1 | tee -a "$LOG" || echo "(tag 不存在，跳过)" | tee -a "$LOG"
+          done
+
+          echo | tee -a "$LOG"
+          echo "删除后的 Release 列表：" | tee -a "$LOG"
+          gh release list --limit 100 | tee -a "$LOG" || true
+
+      - name: 回写结论
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/out"
+          {
+            echo "# Release 清理"
+            echo
+            echo "- 分支: \`${{ github.ref_name }}\`"
+            echo "- 待删: \`${{ steps.parse.outputs.list }}\`"
+            echo "- run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/cleanup.log" 2>/dev/null || echo "(无日志)"
+            echo '```'
+          } > "$RUNNER_TEMP/out/README.md"
+          cd "$RUNNER_TEMP/out"
+          git init -q -b cleanup-logs
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -q -m "cleanup: ${{ github.ref_name }}"
+          git push --force "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" cleanup-logs

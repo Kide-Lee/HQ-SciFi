@@ -43,3 +43,6 @@ src-tauri/gen/
 
 # 1.x 安装包归档（体积大，只在 Releases 发布）
 dist/
+
+# 本地临时目录（不入库）
+.dsh-tmp/
