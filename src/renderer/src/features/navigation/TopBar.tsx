@@ -55,6 +55,7 @@ export function TopBar(): React.JSX.Element {
   const title = usePageTitle()
   const section = useUiStore((s) => s.section)
   const listContext = useUiStore((s) => s.listContext)
+  const closeList = useUiStore((s) => s.closeList)
   const librarySearchActive = useUiStore((s) => s.librarySearchActive)
   const setLibrarySearchActive = useUiStore((s) => s.setLibrarySearchActive)
   const readingCid = useReaderStore((s) => s.readingCid)
@@ -123,6 +124,21 @@ export function TopBar(): React.JSX.Element {
   const notificationButton = totalUnread > 0
   const messagesActive = settingsActive && panelTab === 'messages'
 
+  // 返回按钮：按页面层级只保留一个「返回」，顺序与 usePageTitle 的优先级一致。
+  // listContext 覆盖推荐「精选 / AI模型」、活动详情、连载合集等所有列表页；
+  // 阅读态优先回列表（此时 listContext 仍在，不能再显示两个返回）。
+  const backAction = userPageUid
+    ? closeUserPage
+    : readingCid
+      ? closeArticle
+      : section === 'writing' && currentPath
+        ? closeEditor
+        : listContext
+          ? closeList
+          : section === 'library' && librarySearchActive
+            ? () => setLibrarySearchActive(false)
+            : null
+
   // 离开文章页/编辑器后收起残留的文章栏，避免回到文章页时无故重新弹出
   useEffect(() => {
     if (articleAvailable) return
@@ -166,28 +182,8 @@ export function TopBar(): React.JSX.Element {
             )}
           </button>
         )}
-        {section === 'library' && !listContext && librarySearchActive && (
-          <button
-            className="topbar-back-btn"
-            onClick={() => setLibrarySearchActive(false)}
-            title="返回作品库首页"
-          >
-            <Undo2 size={14} />
-          </button>
-        )}
-        {userPageUid && (
-          <button className="topbar-back-btn" onClick={closeUserPage} title="返回">
-            <Undo2 size={14} />
-          </button>
-        )}
-        {readingCid && !userPageUid && (
-          <button className="topbar-back-btn" onClick={closeArticle} title="返回">
-            <Undo2 size={14} />
-          </button>
-        )}
-        {/* v0.0.6：编辑页与文章页统一「返回」按钮（仅图标）——写作编辑态关闭当前文档 */}
-        {section === 'writing' && currentPath && (
-          <button className="topbar-back-btn" onClick={closeEditor} title="返回">
+        {backAction && (
+          <button className="topbar-back-btn" onClick={backAction} title="返回">
             <Undo2 size={14} />
           </button>
         )}

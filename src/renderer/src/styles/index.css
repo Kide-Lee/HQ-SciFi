@@ -53,9 +53,11 @@ body {
 .topbar {
   height: 36px;
   flex-shrink: 0;
-  /* 三列 grid：左（返回按钮）｜中（标题居中）｜右（窗口控件） */
+  /* 三列 grid：左（返回按钮）｜中（标题）｜右（窗口控件）。
+     左右两列按内容宽度，标题在「去掉左右按钮组后的剩余空间」里居中；
+     原先用 1fr auto 1fr 是相对整条顶栏居中，左右按钮宽度不等时会偏。 */
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   background: var(--bg);
   /* 整条顶栏可拖拽窗口；控件区显式 no-drag（v0.0.3 去掉下边框） */
@@ -6417,6 +6419,11 @@ body {
 .home-feed-avatar-wrap {
   flex-shrink: 0;
   border-radius: 50%;
+  /* WebKitGTK（AppImage 用的系统 WebKit 2.54）上，信息流卡片的圆角头像在页面
+     重新布局/窗口缩放后偶尔整块画成纯黑，鼠标移上去（opacity 变化）才恢复。
+     让头像容器始终持有独立合成层，避免图片重绘落到失效的父层上。
+     真机 A/B：加这一行前后，开关 devtools 触发重排可稳定复现/消除。 */
+  will-change: opacity;
 }
 
 .home-feed-avatar-wrap:hover {
