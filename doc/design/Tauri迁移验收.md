@@ -404,7 +404,9 @@ Platform secure storage failure: DBus error: The name org.freedesktop.secrets wa
 - **一次失败尝试（已回滚）**：曾按「缺 GPU 进程」假设在 `tauri.conf.json` 的 `bundle.linux.appimage.files` 里映射构建机的 `WebKitGPUProcess`，结果该文件在 ubuntu-22.04 上不存在 → `copy_custom_files` 失败 → **v2.0.16 整轮 build=failure**。已删除该映射与 `prepare-resources.mjs` 的拷贝逻辑。
 - **修法（2.0.17，用户裁定走第②条）**：AppImage 改用**系统 WebKit**。`release.yml` 的 Linux 分支只跑 `cargo tauri build --bundles deb`（Tauri 不再出 AppImage），随后 `scripts/build-appimage.sh` 自己拼一个最小 AppDir：`usr/bin/huangqi-scifi` + `usr/lib/hq-scifi/{api.config.json,agreement.md,changelog.md}`（Tauri 的 `resource_dir_from` 在 Linux 上按 `exe_dir/../lib/<package_info.name>` 解析，所以资源必须放这里）+ 256px 图标 + `.desktop` + `AppRun`，**不含任何 `.so`**；再用 appimagetool（`--appimage-extract-and-run`，不依赖 FUSE）打成 `src-tauri/target/release/bundle/appimage/hq-scifi_<version>_amd64.AppImage`，路径与自检/上传流程保持一致。
 - **防回退门禁**：`scripts/verify-bundles.mjs` 现在会解包 AppImage 检查——必须有 `usr/bin/<binaryName>` 与 `usr/lib/<productName>/{三个资源}`，且**一旦出现 `libwebkit2gtk` / `libjavascriptcoregtk` / `webkit2gtk-4.1` 就判失败**；体积门槛同时从 20 MB 下调到 5 MB（不再内嵌运行时）。
-- **代价**：AppImage 从 87 MB 降到约 15–20 MB，但也**依赖系统 `libwebkit2gtk-4.1`**（外加运行 AppImage 必需的 `libfuse2`），不再是「拷过去就能跑」。
+- **代价**：AppImage 从 87 MB 降到 **13.1 MB**，但也**依赖系统 `libwebkit2gtk-4.1`**（外加运行 AppImage 必需的 `libfuse2`），不再是「拷过去就能跑」。
+- **实测**（`v2.0.17` → commit `ce980bb`，build-only run 44969790526 / tag run 44971576639）：四平台 build=success；Linux `AppImage 12.5MB`、`deb 13.1MB`，自检输出「AppImage 未内嵌 WebKit（运行时用系统 libwebkit2gtk-4.1）」；本地解包复核 `usr/bin/huangqi-scifi` + `usr/lib/hq-scifi/{api.config.json,agreement.md,changelog.md}` 均在、无任何 `libwebkit*`/`webkit2gtk-4.1`；`ci-status` for `ce980bb` = `core/tsc/shell/smoke/e2e` 全绿。发布：draft → `publish/v2.0.17` → `tag=v2.0.17 draft=false 资产数=5`，本地留档 `dist/releases/2.0.17/`（含 `SHA256SUMS`）。
+- **一个踩坑**：`appimagetool` 会拒绝 desktop 文件里未注册的主分类（`Categories=Network;Office;Productivity;` → `contains an unregistered value "Productivity"`），Linux 出包整轮失败；现只保留 `Categories=Network;`。
 
 ## 4.8 端到端自动化（tauri-driver）
 

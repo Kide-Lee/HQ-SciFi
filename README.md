@@ -41,6 +41,8 @@
 
 文件名形如 `hq-scifi_<版本>_<平台>.<扩展名>`，实际下载以 [Releases](https://github.com/Kide-Lee/HQ-SciFi/releases) 页为准。**2.0 起渲染引擎改用系统 WebView（WebKitGTK / WebView2 / WKWebView），安装包体积从 ~90 MB 降到 7–14 MB；Linux 不再自带渲染引擎，需系统装有 `libwebkit2gtk-4.1`。**
 
+> **v2.0.17**：**AppImage 改用系统 WebKit**——Tauri 的 AppImage 打包会把构建机的 WebKitGTK 2.44 内嵌进包内，那一版不渲染阅读页的跨站 iframe（播放器空白）；现在 AppImage 不再内嵌 WebKit（体积 87 MB → 13 MB），但与 deb 一样需要系统装有 `libwebkit2gtk-4.1`（另需 `libfuse2`）。同时：右键菜单新增「复制链接」、发布包启用 devtools、渲染层日志落盘、e2e/HMR 调试链路。
+
 > **v2.0.15**：修复 v2.0.14 的三处 WebView 迁移遗留——阅读正文的音乐/视频播放器显示为空白（子框架导航被壳层安全策略误拦，且会把播放页弹到系统浏览器）、推荐页轮播封面与用户头像不显示（远端地址未走图片缓存协议）、空白处右键弹出英文原生菜单（现统一为应用内菜单）。
 
 > **v2.0.14**：**迁移到 Tauri 2 + 全 Rust 后端**——渲染引擎改用系统 WebView，安装包体积大幅下降（deb 14 MB / NSIS 7.5 MB / dmg 11–12 MB / AppImage 87 MB）；后端从 Electron 主进程的 TypeScript 整体重写为 Rust（85 条 IPC 命令一一对应，markdown 渲染与 1.x 逐字节对等），本地库改用 rusqlite；Electron、electron-vite、electron-builder、better-sqlite3 及相关代码与配置**已从仓库彻底移除**。用户可见变化：**升级后首次需重新登录**（旧 token 由 Electron safeStorage 加密，Tauri 无法解密）；首次启动自动迁移本地数据（只复制不删除，旧配置目录保留可回滚）；删除文件仍进系统回收站；文件排序改为字典序（不再按拼音）。
