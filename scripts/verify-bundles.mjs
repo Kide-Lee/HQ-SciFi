@@ -9,7 +9,8 @@
 // 约定：发现不一致 → 打印原因并 exit 1（让 CI 红在这一步，而不是等用户装上）。
 
 import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dirname, '..')
@@ -153,10 +154,44 @@ function checkLinux() {
   for (const appimage of appimages) {
     note(`AppImage: ${appimage.replace(ROOT + '/', '')} ${sizeOf(appimage)}`)
     if ((statSync(appimage).mode & 0o111) === 0) fail(`AppImage 没有可执行权限：${appimage}`)
-    // AppImage 是自包含 rootfs，理应比 deb 大得多；太小通常意味着打进了空壳。
-    if (statSync(appimage).size < 20 * 1024 * 1024) {
-      fail(`AppImage 只有 ${sizeOf(appimage)}，疑似没有打进 WebKit 运行时`)
+    // 2.0.16 起 AppImage 改用系统 WebKit（体积 ~15-20MB）；再大得离谱说明又把 WebKit 打进去了。
+    if (statSync(appimage).size < 5 * 1024 * 1024) {
+      fail(`AppImage 只有 ${sizeOf(appimage)}，疑似打进了空壳`)
     }
+    verifyAppImageContents(appimage)
+  }
+}
+
+// AppImage 内容：必须有可执行文件与三个资源，且**不得**内嵌 WebKit。
+// 内嵌 WebKit 会让阅读页的跨站 iframe（音乐/视频播放器）停在 about:blank——2.0.15 的真机 bug。
+function verifyAppImageContents(appimage) {
+  const work = mkdtempSync(join(tmpdir(), 'hqsf-appimage-'))
+  try {
+    sh(appimage, ['--appimage-extract'], { cwd: work })
+    const root = join(work, 'squashfs-root')
+    if (!existsSync(root)) {
+      note('AppImage 解包失败，跳过内容检查')
+      return
+    }
+    const files = walk(root)
+    if (!existsSync(join(root, 'usr', 'bin', binaryName))) {
+      fail(`AppImage 内没有 usr/bin/${binaryName}`)
+    }
+    for (const resource of RESOURCES) {
+      if (!existsSync(join(root, 'usr', 'lib', productName, resource))) {
+        fail(`AppImage 内没有资源 ${resource}（应在 usr/lib/${productName}/）`)
+      }
+    }
+    const bundled = files.filter((file) => /libwebkit2gtk|libjavascriptcoregtk|webkit2gtk-4\.1/.test(file))
+    if (bundled.length > 0) {
+      fail(`AppImage 内嵌了 WebKit（${bundled.length} 个文件），应改用系统 WebKit：${bundled[0]}`)
+    } else {
+      note('AppImage 未内嵌 WebKit（运行时用系统 libwebkit2gtk-4.1）')
+    }
+  } catch (error) {
+    note(`AppImage 内容检查跳过：${error.message}`)
+  } finally {
+    rmSync(work, { recursive: true, force: true })
   }
 }
 
