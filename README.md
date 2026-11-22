@@ -36,7 +36,7 @@
 | 平台 | 包 |
 | --- | --- |
 | Windows 10/11（x64） | NSIS 安装包 `.exe`（依赖系统 WebView2，Win11 自带） |
-| Linux（x64） | `.deb`（Debian 12+/Ubuntu 22.04+，需 `libwebkit2gtk-4.1`）或 `.AppImage`（需 `libfuse2`） |
+| Linux（x64） | `.deb`（Debian 12+/Ubuntu 22.04+，需 `libwebkit2gtk-4.1`）或 `.AppImage`（需 `libwebkit2gtk-4.1` + `libfuse2`） |
 | macOS（11+） | `.dmg`（Apple Silicon / Intel 各一个，未签名时右键「打开」） |
 
 文件名形如 `hq-scifi_<版本>_<平台>.<扩展名>`，实际下载以 [Releases](https://github.com/Kide-Lee/HQ-SciFi/releases) 页为准。**2.0 起渲染引擎改用系统 WebView（WebKitGTK / WebView2 / WKWebView），安装包体积从 ~90 MB 降到 7–14 MB；Linux 不再自带渲染引擎，需系统装有 `libwebkit2gtk-4.1`。**

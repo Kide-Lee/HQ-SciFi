@@ -271,7 +271,7 @@ node_modules/.bin/tsc --noEmit -p tsconfig.node.json
 
 产物自检（`scripts/verify-bundles.mjs`，每个平台构建后立刻跑，run 44889638130 起生效）：
 
-- Linux：deb 的 `Version` 前缀与 `tauri.conf.json` 一致、`Depends` 必须含 `webkit2gtk-4.1` 且不得出现 `4.0`、deb 内含三个打包资源与 `/bin/<mainBinaryName ?? productName>`（现为 `/bin/huangqi-scifi`）、AppImage 有可执行位且不小于 20 MB（太小说明没打进运行时）。
+- Linux：deb 的 `Version` 前缀与 `tauri.conf.json` 一致、`Depends` 必须含 `webkit2gtk-4.1` 且不得出现 `4.0`、deb 内含三个打包资源与 `/bin/<mainBinaryName ?? productName>`（现为 `/bin/huangqi-scifi`）、AppImage 有可执行位且不小于 5 MB，并解包校验「有可执行文件与三个资源、且**不含** WebKit 运行时」（2.0.17 起 AppImage 用系统 WebKit）。
 - Windows：NSIS 安装包的 `ProductVersion` 必须是当前版本（读 `VersionInfo`）。
 - macOS：挂载 dmg → 读 `.app/Contents/Info.plist` 的 `CFBundleIdentifier`（必须 `com.huangqisf.client`）与 `CFBundleShortVersionString`，并检查 `Contents/Resources` 下三个资源 → 卸载。
 - 打 tag 时额外断言 `RELEASE_TAG` 与 `version` 一致，专门防「改了 Cargo.toml 忘了改 tauri.conf.json」这种版本漂移；本机跑（无产物时应报「没有找到 .deb 产物」）已验证脚本行为。
@@ -402,8 +402,9 @@ Platform secure storage failure: DBus error: The name org.freedesktop.secrets wa
 - **证据链**（运行时探针，2.0.15 现场）：应用内 `fetch` 三个播放域名均 ok（网络/TLS 通）；`securitypolicyviolation` 无 `frame-src` 违规（对照组 `example.com` 会违规）；iframe 元素 `src`/尺寸/可见性正确但 `contentDocument.URL === 'about:blank'`；`srcdoc` 子框架能正常渲染；白名单外的子框架 URL 会被拉起系统浏览器（证明 `decide-policy` 对子框架生效）。
 - **打包器只拷三个 helper**：`tauri-bundler 2.10.6` 的 `bundle/linux/appimage/linuxdeploy.rs` 只拷 `WebKitNetworkProcess`、`WebKitWebProcess`、`injected-bundle/libwebkit2gtkinjectedbundle.so`。**但这条不是根因**：ubuntu 22.04 的 `libwebkit2gtk-4.1-0`（2.44）本来就没有 `WebKitGPUProcess`（24.04 的 2.48 也没有，`packages.ubuntu.com` 的 filelist 可查），所以 AppImage 里的 WebKit 与它自身需要的 helper 是自洽的。
 - **一次失败尝试（已回滚）**：曾按「缺 GPU 进程」假设在 `tauri.conf.json` 的 `bundle.linux.appimage.files` 里映射构建机的 `WebKitGPUProcess`，结果该文件在 ubuntu-22.04 上不存在 → `copy_custom_files` 失败 → **v2.0.16 整轮 build=failure**。已删除该映射与 `prepare-resources.mjs` 的拷贝逻辑。
-- **当前结论**：AppImage 内嵌的是 2.44 这代 WebKit，真机上不渲染跨站 iframe；Linux 用户应使用 deb（系统 WebKit 2.54，实测正常）。彻底修 AppImage 只有两条路：①构建基础镜像升级（抬高 glibc 下限）；②让 AppImage 不内嵌 WebKit、改用系统库（需要脱离 Tauri 现成打包流程）。
-- **待验证**：需要用 2.0.16 的 AppImage 在真机复测（deb 侧已确认正常）。
+- **修法（2.0.17，用户裁定走第②条）**：AppImage 改用**系统 WebKit**。`release.yml` 的 Linux 分支只跑 `cargo tauri build --bundles deb`（Tauri 不再出 AppImage），随后 `scripts/build-appimage.sh` 自己拼一个最小 AppDir：`usr/bin/huangqi-scifi` + `usr/lib/hq-scifi/{api.config.json,agreement.md,changelog.md}`（Tauri 的 `resource_dir_from` 在 Linux 上按 `exe_dir/../lib/<package_info.name>` 解析，所以资源必须放这里）+ 256px 图标 + `.desktop` + `AppRun`，**不含任何 `.so`**；再用 appimagetool（`--appimage-extract-and-run`，不依赖 FUSE）打成 `src-tauri/target/release/bundle/appimage/hq-scifi_<version>_amd64.AppImage`，路径与自检/上传流程保持一致。
+- **防回退门禁**：`scripts/verify-bundles.mjs` 现在会解包 AppImage 检查——必须有 `usr/bin/<binaryName>` 与 `usr/lib/<productName>/{三个资源}`，且**一旦出现 `libwebkit2gtk` / `libjavascriptcoregtk` / `webkit2gtk-4.1` 就判失败**；体积门槛同时从 20 MB 下调到 5 MB（不再内嵌运行时）。
+- **代价**：AppImage 从 87 MB 降到约 15–20 MB，但也**依赖系统 `libwebkit2gtk-4.1`**（外加运行 AppImage 必需的 `libfuse2`），不再是「拷过去就能跑」。
 
 ## 4.8 端到端自动化（tauri-driver）
 
