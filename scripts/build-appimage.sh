@@ -79,7 +79,7 @@ Terminal=false
 Categories=Network;Office;Productivity;
 StartupWMClass=huangqi-scifi
 EOF
-ln -sf "$BINARY_NAME.desktop" "$APPDIR/usr/share/applications/$BINARY_NAME.desktop"
+install -m 0644 "$APPDIR/$BINARY_NAME.desktop" "$APPDIR/usr/share/applications/$BINARY_NAME.desktop"
 
 cat > "$APPDIR/AppRun" <<'EOF'
 #!/bin/sh
