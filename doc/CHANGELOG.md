@@ -3,7 +3,7 @@
 ## v2.0.17（未发布）
 
 ### 修复
-- **AppImage 版的内嵌播放器空白（deb 正常）已修**：根因是 Tauri 的 AppImage 打包会把构建机（ubuntu-22.04）的 WebKitGTK 2.44 内嵌进包内，那一版不渲染阅读页的跨站 `iframe`（播放器停在 `about:blank`）；deb 用系统 WebKitGTK 2.54 则正常。现在 **AppImage 不再内嵌 WebKit**，改由 `scripts/build-appimage.sh` 组装一个最小 AppDir（可执行文件 + 三个资源 + 图标/desktop/AppRun），运行时使用系统 `libwebkit2gtk-4.1`。副作用：AppImage 体积从 87 MB 降到约 15–20 MB，但**需要系统装有 `libwebkit2gtk-4.1` 与 `libfuse2`**（与 deb 相同的运行时要求）。
+- **AppImage 版的内嵌播放器空白（deb 正常）已修**：根因是 Tauri 的 AppImage 打包会把构建机（ubuntu-22.04）的 WebKitGTK 2.44 内嵌进包内，那一版不渲染阅读页的跨站 `iframe`（播放器停在 `about:blank`）；deb 用系统 WebKitGTK 2.54 则正常。现在 **AppImage 不再内嵌 WebKit**，改由 `scripts/build-appimage.sh` 组装一个最小 AppDir（可执行文件 + 三个资源 + 图标/desktop/AppRun），运行时使用系统 `libwebkit2gtk-4.1`。副作用：AppImage 从 87 MB 降到 **13.1 MB**（实测），但**需要系统装有 `libwebkit2gtk-4.1` 与 `libfuse2`**（与 deb 相同的运行时要求）。
 - **右键菜单新增「复制链接」**：在链接上右键（正文、评论、通知等任意位置）会多出一项「复制链接」，复制的是链接地址本身。
 - **开发者工具恢复可用**：发布包此前没有编译 `devtools` feature，`Ctrl+F12` 与右键「开发者工具」都只会在终端打印一行提示。打包流水线现在以 `cargo tauri build --features devtools` 构建。
 
