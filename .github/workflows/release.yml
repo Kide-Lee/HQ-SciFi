@@ -24,7 +24,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "要发布的版本号（不带 v，例如 2.0.17）"
+        description: "要发布的版本号（不带 v，例如 2.0.15）"
         required: true
       dry_run:
         description: "只构建、不创建 Release"
@@ -333,6 +333,9 @@ jobs:
               gh release delete "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --yes >> "$LOG" 2>&1 || exit 1
             else
               echo "Release 已发布，改为覆盖上传产物（不删除，避免影响线上）" >> "$LOG"
+              # 重发同一版本号时，正文/标题也要跟着更新（否则仍显示上一轮的日志）。
+              gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+                --title "$RELEASE_TAG" --notes-file "$RUNNER_TEMP/release-notes.md" >> "$LOG" 2>&1 || true
               gh release upload "$RELEASE_TAG" "${files[@]}" --clobber --repo "$GITHUB_REPOSITORY" >> "$LOG" 2>&1 || exit 1
               created=1
             fi
