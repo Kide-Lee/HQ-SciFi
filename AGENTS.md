@@ -6,9 +6,7 @@
 ## Project
 
 - **技术栈**：**Tauri 2.12 + 后端 100% Rust**（`crates/hqsf-core`）+ React 19 + TypeScript + Vite 7 + Zustand 5；本地库 `rusqlite`（SQLite，bundled）；编辑器 Milkdown v7/ProseMirror + CodeMirror 6；markdown 渲染为 Rust `comrak` + QuickJS 内嵌 KaTeX/turndown（与 1.x 逐字节对等）；图标 lucide-react。
-- **1.x Electron 代码已彻底移除**（`src/main/**`、`src/preload/**`、electron-vite、electron-builder、better-sqlite3 及全部相关依赖与配置）。仓库只有一条产品线：Tauri。
 - 入口：Tauri 壳 `src-tauri/src/lib.rs`（`run()`）；渲染层入口 `src/renderer/src/main.tsx`；桥接层 `src/bridge/`（暴露与 1.x 同形的 `window.hqsf`）。
-- 迁移文档：`doc/design/Tauri迁移计划.md`（计划与决策）、`Tauri命令契约.md`（85 通道冻结契约）、`Rust实现约定.md`（内核编码约定与文件所有权）、`Tauri迁移验收.md`（验证记录与未验证项）、`真机验证清单.md`（装包后逐项核对的检查清单）。
 
 ## Commands
 
