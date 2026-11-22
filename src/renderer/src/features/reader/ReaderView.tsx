@@ -494,7 +494,7 @@ export function ReaderView(): React.JSX.Element {
             dangerouslySetInnerHTML={bodyHtml}
           />
           {/* v0.0.3：互动悬浮按钮组（投币/点赞/收藏/分享 + 置顶，右下角）；返回列表已移到顶栏 */}
-          <ReaderInteractions detail={detail} />
+          <ReaderInteractions key={detail.cid} detail={detail} />
         </div>
         {/* v0.0.6：右栏常驻渲染（通用 RightPanel）；v0.0.7 可拖动分隔条已内置（展开时显示） */}
         <RightPanel tabs={tabs} activeTab={panelTab} onTabChange={setPanelTab} open={panelOpen} />

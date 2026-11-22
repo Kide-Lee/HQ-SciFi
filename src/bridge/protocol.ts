@@ -37,9 +37,29 @@ function usesHttpProtocolUrl(): boolean {
  * - Tauri + Windows/Android：`http://hqsf-img.localhost/fetch?url=…`
  * - Tauri + macOS/Linux：`hqsf-img://localhost/fetch?url=…`
  */
+const IMAGE_CACHE_EPOCH_KEY = 'hqsf-img-cache-epoch'
+
+/** 图片缓存代次：清除缓存 / 换图后递增，让 WebView 丢弃旧 URL 的字节缓存。 */
+function imageCacheEpoch(): string {
+  try {
+    return localStorage.getItem(IMAGE_CACHE_EPOCH_KEY) ?? '0'
+  } catch {
+    return '0'
+  }
+}
+
+/** 设置里的「清除缓存」成功后调用：下一次渲染的图片 URL 带新代次。 */
+export function bumpImageCacheEpoch(): void {
+  try {
+    localStorage.setItem(IMAGE_CACHE_EPOCH_KEY, String(Date.now()))
+  } catch {
+    // 隐私模式 / 无 localStorage：退化为不缓存 URL 版本，不影响功能
+  }
+}
+
 export function imageCacheUrl(url: string): string {
   if (!/^https?:\/\//i.test(url)) return url
-  const query = `?url=${encodeURIComponent(url)}`
+  const query = `?url=${encodeURIComponent(url)}&v=${imageCacheEpoch()}`
   if (!hasTauriRuntime()) return `hqsf-img://fetch${query}`
   const origin = usesHttpProtocolUrl() ? 'http://hqsf-img.localhost' : 'hqsf-img://localhost'
   return `${origin}/fetch${query}`

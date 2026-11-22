@@ -20,6 +20,18 @@ import { SplitEditor } from './SplitEditor'
 import { useContextMenu } from '../../components/menu/ContextMenu'
 import { buildEditorContextMenu } from './editorContextMenu'
 
+/** 按绝对路径在树中找节点（含文件） */
+function findNodeByPath(nodes: LocalNode[], path: string): LocalNode | null {
+  for (const n of nodes) {
+    if (n.path === path) return n
+    if (n.isDir && n.children) {
+      const found = findNodeByPath(n.children, path)
+      if (found) return found
+    }
+  }
+  return null
+}
+
 /** v0.0.6：统计树中 md 文档总数（递归） */
 function countAllDocs(nodes: LocalNode[]): number {
   return nodes.reduce(
@@ -39,6 +51,7 @@ export function EditorPane(): React.JSX.Element {
   const update = useEditorStore((s) => s.update)
   const save = useEditorStore((s) => s.save)
   const createDraft = useEditorStore((s) => s.createDraft)
+  const createUntitledDraft = useEditorStore((s) => s.createUntitledDraft)
   const openDoc = useEditorStore((s) => s.open)
   const refreshLocal = useDocsStore((s) => s.refreshLocal)
   const localTree = useDocsStore((s) => s.localTree)
@@ -47,8 +60,7 @@ export function EditorPane(): React.JSX.Element {
   const clearDocError = useDocsStore((s) => s.clearError)
   const lastPull = useDocsStore((s) => s.lastPull)
 
-  const [showNew, setShowNew] = useState(false)
-  const [newTitle, setNewTitle] = useState('')
+  const [titleDraft, setTitleDraft] = useState('')
   // v0.0.7：编辑模式——可视化（milkdown+工具栏）/ 源码模式 SV（源码+右栏整篇渲染）
   // v0.0.6：mode 提升到 editor store（顶栏「展开右栏」按钮需感知模式以判断预览 tab）
   const mode = useEditorStore((s) => s.mode)
@@ -176,19 +188,54 @@ export function EditorPane(): React.JSX.Element {
     showToast('已完成重命名/移动')
   }
 
-  async function handleCreateDraft(): Promise<void> {
-    const title = newTitle.trim()
-    if (!title) return
-    // v0.0.6：在当前浏览目录内新建（dirNode.rel 相对存档根）
-    const dirRel = currentDir ? (dirNode?.rel ?? '') : ''
-    const path = await createDraft(title, dirRel)
+  /** #5：新建草稿直接进编辑器，标题在正文开头输入 */
+  async function startUntitledDraft(): Promise<void> {
+    const path = await createUntitledDraft()
     if (path) {
-      setShowNew(false)
-      setNewTitle('')
-      showToast('已新建本地草稿')
-      // 新文件已落盘：刷新本地目录树，让侧栏「本地存档」即时出现该草稿
+      setTitleDraft('')
       await refreshLocal()
     }
+  }
+
+  const untitled = !!currentPath && /(^|\/)未命名草稿(?: \(\d+\))?\.md$/i.test(currentPath)
+  const isMobile = typeof document !== 'undefined' && document.documentElement.classList.contains('hqsf-mobile')
+  const titleSyncRef = useRef('')
+
+  // 标题框显示当前文件名；换了文档才同步，避免输入过程中被树刷新覆盖。
+  useEffect(() => {
+    if (!currentPath) {
+      titleSyncRef.current = ''
+      setTitleDraft('')
+      return
+    }
+    if (titleSyncRef.current === currentPath) return
+    const node = findNodeByPath(localTree, currentPath)
+    if (node) {
+      titleSyncRef.current = currentPath
+      setTitleDraft(node.name.replace(/\.md$/i, ''))
+    }
+  }, [currentPath, localTree])
+
+  /** 标题即文件名：输入后回车/失焦重命名；重命名后标题框保持显示新标题。 */
+  async function commitTitle(): Promise<void> {
+    const value = titleDraft.trim()
+    if (!currentPath || !value) return
+    const node = findNodeByPath(localTree, currentPath)
+    if (!node) return
+    const base = node.name.replace(/\.md$/i, '')
+    if (value === base) return
+    const dir = node.rel.split('/').slice(0, -1).join('/')
+    const newRel = `${dir ? `${dir}/` : ''}${value.replace(/[\\/]/g, ' ')}.md`
+    if (node.rel === newRel) return
+    const res = await window.hqsf.renameLocalNode(node.rel, newRel)
+    if (!res.ok) {
+      showToast(`命名失败：${res.error}`)
+      return
+    }
+    await refreshLocal()
+    await openDoc(res.data.to)
+    setTitleDraft(value)
+    titleSyncRef.current = res.data.to
   }
 
   /** v0.0.6：新建文件夹（当前浏览目录下），成功后刷新树 */
@@ -364,26 +411,9 @@ export function EditorPane(): React.JSX.Element {
   ]
 
   return (
-    <div className="editor-pane">
+    <div className={`editor-pane${currentPath ? ' has-title' : ''}${untitled ? ' untitled' : ''}`}>
       {pullErrors.length > 0 && (
         <ErrorBanner title={`同步失败 ${pullErrors.length} 处`} details={pullErrors} />
-      )}
-
-      {showNew && (
-        <div className="new-draft-bar">
-          <input
-            placeholder="新草稿标题"
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') void handleCreateDraft()
-            }}
-            autoFocus
-          />
-          <button className="toolbar-btn" onClick={() => void handleCreateDraft()} disabled={!newTitle.trim()}>
-            创建
-          </button>
-        </div>
       )}
 
       {(error || docError) && (
@@ -405,6 +435,28 @@ export function EditorPane(): React.JSX.Element {
             if (items) showMenu(e, items)
           }}
         >
+          {currentPath && isMobile && (
+            <div className="editor-title-prompt">
+              <input
+                className="editor-title-input"
+                value={titleDraft}
+                placeholder="请输入标题"
+                autoFocus={untitled}
+                onChange={(e) => setTitleDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    void commitTitle()
+                    ;(e.target as HTMLInputElement).blur()
+                  }
+                }}
+                onBlur={() => void commitTitle()}
+              />
+            </div>
+          )}
+          {currentPath && isMobile && content.trim() === '' && (
+            <div className="editor-body-placeholder">请输入正文</div>
+          )}
           {currentPath ? (
             mode === 'wysiwyg' ? (
               <MilkdownEditor
@@ -503,7 +555,7 @@ export function EditorPane(): React.JSX.Element {
                 </button>
                 <button
                   className="ghost-btn editor-local-icon-btn"
-                  onClick={() => setShowNew(true)}
+                  onClick={() => void startUntitledDraft()}
                   title="新建草稿"
                 >
                   <FilePlus size={15} />
@@ -585,37 +637,39 @@ export function EditorPane(): React.JSX.Element {
                           </div>
                         </div>
                       </button>
-                      <button
-                        className={`editor-local-card-del${confirmDelete === node.path ? ' confirming' : ''}`}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setRenameNode(node)
-                        }}
-                        title="重命名这篇草稿"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        className={`editor-local-card-del${confirmDelete === node.path ? ' confirming' : ''}`}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setMoveNode(node)
-                        }}
-                        title="移动这篇草稿"
-                      >
-                        <FolderInput size={14} />
-                      </button>
-                      <button
-                        className={`editor-local-card-del${confirmDelete === node.path ? ' confirming' : ''}`}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          void handleDelete(node)
-                        }}
-                        title={confirmDelete === node.path ? '再次点击确认删除' : '删除这篇草稿'}
-                      >
-                        <Trash2 size={14} />
-                        {confirmDelete === node.path && <span>确认删除？</span>}
-                      </button>
+                      <div className="editor-local-card-actions">
+                        <button
+                          className="editor-local-card-del"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setRenameNode(node)
+                          }}
+                          title="重命名这篇草稿"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          className="editor-local-card-del"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setMoveNode(node)
+                          }}
+                          title="移动这篇草稿"
+                        >
+                          <FolderInput size={14} />
+                        </button>
+                        <button
+                          className={`editor-local-card-del${confirmDelete === node.path ? ' confirming' : ''}`}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            void handleDelete(node)
+                          }}
+                          title={confirmDelete === node.path ? '再次点击确认删除' : '删除这篇草稿'}
+                        >
+                          <Trash2 size={14} />
+                          {confirmDelete === node.path && <span>确认删除？</span>}
+                        </button>
+                      </div>
                     </div>
                   )
                 )}

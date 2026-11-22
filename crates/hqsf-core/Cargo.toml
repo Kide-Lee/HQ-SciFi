@@ -24,3 +24,7 @@ sha2 = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3"
+# Android 没有 rquickjs-sys 预生成的 binding；用 bindgen 在构建时按 NDK 生成。
+# 桌面仍使用上游冻结的 binding（逐字节稳定的金标准语料不依赖生成器版本）。
+[target.'cfg(target_os = "android")'.dependencies]
+rquickjs = { workspace = true, features = ["bindgen"] }

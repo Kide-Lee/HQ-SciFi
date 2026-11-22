@@ -7,10 +7,14 @@ import { FirstRunAgreement } from './components/FirstRunAgreement'
 import { UpdateBanner } from './components/UpdateBanner'
 import { PrivateChatModal } from './components/PrivateChatModal'
 import { ContextMenuHost } from './components/menu/ContextMenu'
+import { MobileShell } from './features/navigation/MobileShell'
 import { useAuthStore } from './stores/auth'
 import { useUiStore } from './stores/ui'
 import { useNotificationStore } from './stores/notifications'
 import { AGREEMENT_KEY } from './lib/agreement'
+
+/** Android WebView 的 UA 含 Android；桌面 WebKitGTK 不含。手机端走独立壳，平板宽屏暂沿用桌面壳。 */
+const MOBILE_UA = /Android/i.test(navigator.userAgent)
 
 export default function App(): React.JSX.Element {
   const restoring = useAuthStore((s) => s.restoring)
@@ -90,6 +94,17 @@ export default function App(): React.JSX.Element {
 
   // v0.0.6：取消「必须登录才能看到内容」——未登录直接进入主界面（本地写作/浏览阅读均可），
   // 登录改为覆盖层模态（用户卡「点击登录」唤起）；session 仅用于展示账号与启用登录态操作
+  if (MOBILE_UA) {
+    return (
+      <>
+        <MobileShell />
+        {loginOpen && <LoginView />}
+        <PrivateChatModal />
+        <ContextMenuHost />
+      </>
+    )
+  }
+
   return (
     <>
       <div className="app-shell">

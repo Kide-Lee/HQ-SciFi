@@ -157,7 +157,7 @@ export function Sidebar(): React.JSX.Element {
   const openDoc = useEditorStore((s) => s.open)
   const currentPath = useEditorStore((s) => s.currentPath)
   const currentDir = useEditorStore((s) => s.currentDir)
-  const createDraft = useEditorStore((s) => s.createDraft)
+  const createUntitledDraft = useEditorStore((s) => s.createUntitledDraft)
   const openArticle = useReaderStore((s) => s.openArticle)
   const closeArticle = useReaderStore((s) => s.closeArticle)
   const readingCid = useReaderStore((s) => s.readingCid)
@@ -519,13 +519,11 @@ export function Sidebar(): React.JSX.Element {
     })
   }
 
-  /** v0.0.6：tree-toolbar「新建草稿」——弹窗输入标题，在当前浏览目录内创建并打开编辑器 */
-  const [newDraftOpen, setNewDraftOpen] = useState(false)
-  async function handleNewDraft(title: string): Promise<void> {
-    if (!title.trim()) return
+  /** 新建草稿：直接进编辑器，标题在正文开头输入（不再先弹标题框） */
+  async function handleNewDraft(): Promise<void> {
     const dirNode = currentDir ? findDirNode(localTree, currentDir) : null
     const dirRel = currentDir ? (dirNode?.rel ?? '') : ''
-    const path = await createDraft(title.trim(), dirRel)
+    const path = await createUntitledDraft(dirRel)
     if (path) await refreshLocal() // 新文件已落盘：刷新本地目录树，让侧栏「本地存档」即时出现该草稿
   }
 
@@ -734,7 +732,7 @@ export function Sidebar(): React.JSX.Element {
               {/* v0.0.6：tree-toolbar 三个无边框图标按钮（新建草稿/打开目录/同步），flex 分散布局 */}
               <button
                 className="tree-tool-btn"
-                onClick={() => setNewDraftOpen(true)}
+                onClick={() => void handleNewDraft()}
                 title="新建本地草稿"
               >
                 <FilePlus size={14} />
@@ -956,18 +954,6 @@ export function Sidebar(): React.JSX.Element {
         </>
         )}
       </div>
-
-      {/* v0.0.8：新建草稿弹窗（替代 window.prompt，Electron 渲染进程不支持） */}
-      <PromptModal
-        open={newDraftOpen}
-        title="新建草稿"
-        placeholder="新草稿标题"
-        onClose={() => setNewDraftOpen(false)}
-        onConfirm={(title) => {
-          setNewDraftOpen(false)
-          void handleNewDraft(title)
-        }}
-      />
 
       {/* v1.1.12：本地存档树右键菜单由全局 ContextMenuHost 渲染（见 handleTreeContextMenu） */}
       {renameMenu && (

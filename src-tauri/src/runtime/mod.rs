@@ -18,6 +18,7 @@ pub mod files;
 pub mod http;
 pub mod paths;
 pub mod platform;
+pub mod resources;
 pub mod secrets;
 
 /// 主线程 id（启动时由 [`mark_main_thread`] 记录）。

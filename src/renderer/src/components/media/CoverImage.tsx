@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useCachedImage } from '../../lib/useCachedImage'
 import { ImageOff } from 'lucide-react'
 
 /**
@@ -16,6 +17,7 @@ export function CoverImage({
   alt?: string
 }): React.JSX.Element {
   const [failed, setFailed] = useState(false)
+  const cachedSrc = useCachedImage(src)
   if (!src || failed) {
     return (
       <div className={`cover-fallback ${className ?? ''}`} role="img" aria-label={alt ?? ''}>
@@ -26,7 +28,7 @@ export function CoverImage({
   return (
     <img
       className={className}
-      src={src}
+      src={cachedSrc}
       alt={alt ?? ''}
       loading="lazy"
       referrerPolicy="no-referrer"

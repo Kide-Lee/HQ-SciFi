@@ -7,7 +7,7 @@ import { UserPanel } from './UserPanel'
 import { useSettingsStore } from '../../stores/settings'
 import { useUiStore } from '../../stores/ui'
 
-type SettingsTab = 'system' | 'interface' | 'user'
+export type SettingsTab = 'system' | 'interface' | 'user'
 
 const SETTINGS_TABS: Array<{ key: SettingsTab; label: string }> = [
   { key: 'system', label: '系统' },
@@ -26,9 +26,24 @@ interface AgreementView {
  * 面板内再分 系统 / 界面 / 用户 三个子分页（样式与消息面板的分类 tab 一致），
  * 内容复用 SystemPanel / InterfacePanel / UserPanel。
  */
-export function SettingsPanel(): React.JSX.Element {
+export function SettingsPanel({
+  mobile = false,
+  tab: controlledTab,
+  onTabChange,
+  hideSubtabs = false
+}: {
+  mobile?: boolean
+  tab?: SettingsTab
+  onTabChange?: (tab: SettingsTab) => void
+  hideSubtabs?: boolean
+} = {}): React.JSX.Element {
   const closePanel = useUiStore((s) => s.closePanel)
-  const [tab, setTab] = useState<SettingsTab>('system')
+  const [localTab, setLocalTab] = useState<SettingsTab>('system')
+  const tab = controlledTab ?? localTab
+  const setTab = (next: SettingsTab): void => {
+    onTabChange?.(next)
+    if (controlledTab === undefined) setLocalTab(next)
+  }
   const [changelogOpen, setChangelogOpen] = useState(false)
   const [agreement, setAgreement] = useState<AgreementView | null>(null)
   const [agreementLoading, setAgreementLoading] = useState(false)
@@ -55,7 +70,7 @@ export function SettingsPanel(): React.JSX.Element {
 
   return (
     <div className="settings-panel-wrap">
-      <div className="settings-subtabs">
+      {!hideSubtabs && <div className="settings-subtabs">
         {SETTINGS_TABS.map((t) => (
           <button
             key={t.key}
@@ -65,13 +80,14 @@ export function SettingsPanel(): React.JSX.Element {
             {t.label}
           </button>
         ))}
-      </div>
+      </div>}
       <div className="settings-panel-scroll">
         {agreementLoading && agreement == null ? (
           <div className="settings-hint">正在加载协议 …</div>
         ) : null}
         {tab === 'system' && (
           <SystemPanel
+            mobile={mobile}
             onOpenChangelog={() => setChangelogOpen(true)}
             onOpenOwnAgreement={() => void openOwnAgreement()}
             onClose={closePanel}

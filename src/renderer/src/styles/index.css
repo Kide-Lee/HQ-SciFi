@@ -1511,10 +1511,19 @@ body {
 }
 
 /* 删除按钮：默认纯图标（无胶囊边框），hover 变红底胶囊；二次确认态红底白字 */
-.editor-local-card-del {
+.editor-local-card-actions {
   position: absolute;
   top: 8px;
   right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--bg-card) 82%, transparent);
+  backdrop-filter: blur(4px);
+}
+.editor-local-card-del {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -3298,12 +3307,12 @@ body {
 .article-card-cover {
   width: 140px;
   min-width: 140px;
-  /* v0.0.3：固定高度（原 max-height 随图变化导致卡片高度不一） */
-  height: 120px;
+  /* 手机/桌面统一：封面贴满卡片的上、下、左边 */
+  height: auto;
   overflow: hidden;
   background: #f0f1f5;
-  align-self: center;
-  margin: 0 0 0 0;
+  align-self: stretch;
+  margin: 0;
 }
 
 .article-card-cover img {
@@ -3859,6 +3868,7 @@ body {
   width: 72px;
   height: 72px;
   flex-shrink: 0;
+  align-self: center;
   border-radius: 8px;
   object-fit: cover;
   background: #eceef2;
@@ -7151,4 +7161,29 @@ input[type='radio'] {
 }
 .history-item .article-card-stats {
   flex-wrap: wrap;
+}
+
+/* 新建草稿：标题在正文开头输入（文件名即标题） */
+.editor-title-prompt {
+  padding: 18px 24px 0;
+}
+.editor-title-input {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.4;
+  padding: 0 0 8px;
+  outline: none;
+}
+.editor-title-input::placeholder {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.editor-title-input:focus {
+  border-bottom-color: var(--border);
 }

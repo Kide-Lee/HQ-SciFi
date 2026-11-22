@@ -309,6 +309,7 @@ export function formatTs(ts: number): string {
 
 /** 字数格式化：12345 → 1.2 万 */
 export function formatSize(n: number): string {
+  if (n === 0) return '0'
   if (!n) return ''
   if (n >= 10000) return `${(n / 10000).toFixed(1)} 万`
   return String(n)

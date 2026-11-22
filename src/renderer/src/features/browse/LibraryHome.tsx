@@ -30,7 +30,15 @@ const EMPTY_RESULTS: SearchResults = { articles: [], comments: [], reviews: [], 
  * v0.0.9：作品库首页改版为「荒启 + 全局搜索」。
  * 搜索范围：文章 / 评论 / 评审 / 用户，与官方 H5 搜索页保持一致。
  */
-export function LibraryHome(): React.JSX.Element {
+export function LibraryHome({
+  hideHero = false,
+  initialQuery = '',
+  autoSearch = false
+}: {
+  hideHero?: boolean
+  initialQuery?: string
+  autoSearch?: boolean
+}): React.JSX.Element {
   const openArticle = useReaderStore((s) => s.openArticle)
   const readingCid = useReaderStore((s) => s.readingCid)
   const reviewTaskByCid = useReaderStore((s) => s.reviewTaskByCid)
@@ -39,7 +47,7 @@ export function LibraryHome(): React.JSX.Element {
   const librarySearchActive = useUiStore((s) => s.librarySearchActive)
   const setLibrarySearchActive = useUiStore((s) => s.setLibrarySearchActive)
 
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(initialQuery)
   const [searched, setSearched] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -74,6 +82,14 @@ export function LibraryHome(): React.JSX.Element {
       setError(null)
     }
   }, [librarySearchActive, searched])
+
+  useEffect(() => {
+    if (!autoSearch || !initialQuery.trim()) return
+    setQuery(initialQuery)
+    void doSearch(initialQuery)
+    // 只跟随外部提交的查询词变化
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoSearch, initialQuery])
 
   async function doSearch(raw?: string): Promise<void> {
     const keyword = (raw ?? query).trim()
@@ -167,8 +183,9 @@ export function LibraryHome(): React.JSX.Element {
   }
 
   return (
-    <div className="library-search-page">
-      {/* 搜索区：荒启图标 + 搜索框 */}
+    <div className={`library-search-page${hideHero ? ' mobile-search-results' : ''}`}>
+      {/* 搜索区：荒启图标 + 搜索框（手机端由顶栏接管，隐藏此区） */}
+      {!hideHero && (
       <div className={`library-search-hero${searched ? ' compact' : ''}`}>
         <img
           className="library-search-logo"
@@ -226,6 +243,7 @@ export function LibraryHome(): React.JSX.Element {
           </div>
         </form>
       </div>
+      )}
 
       {error && <ErrorBanner title="搜索失败" message={error} />}
 

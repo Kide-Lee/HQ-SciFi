@@ -105,7 +105,7 @@ export function FirstRunAgreement({ onAccepted }: { onAccepted: () => void }): R
         </div>
       )}
       <div className="agreement-modal">
-        <h2>黄芪饮片桌面客户端用户协议</h2>
+        <h2>黄芪饮片客户端用户协议</h2>
 
         {state === 'loading' && <div className="agreement-body agreement-hint">正在加载用户协议 …</div>}
 

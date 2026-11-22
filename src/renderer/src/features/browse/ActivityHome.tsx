@@ -152,12 +152,7 @@ export function ActivityHome(): React.JSX.Element {
                             .map((seg, i, arr) => (
                               <span key={i}>
                                 {seg.replace(/\n/g, '').trim()}
-                                {i < arr.length - 1 ? (
-                                  <>
-                                    ；
-                                    <br />
-                                  </>
-                                ) : null}
+                                {i < arr.length - 1 ? '；' : ''}
                               </span>
                             ))}
                         </div>

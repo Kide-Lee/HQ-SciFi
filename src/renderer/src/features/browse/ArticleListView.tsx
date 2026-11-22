@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp } from 'lucide-react'
 import { ARTICLE_ORDERS, useReaderStore } from '../../stores/reader'
 import { useUiStore } from '../../stores/ui'
 import { isReviewDisabledArticle, isReviewDisabledCategoryTitle } from '../../lib/category'
+import { useCachedImage } from '../../lib/useCachedImage'
 import { cachedImageUrl, formatSize, formatTs, scoreColor, userAvatarUrl, userDisplayName } from '../../lib/sanitize'
 import { ErrorBanner } from '../../components/ErrorBanner'
 import { CoverImage } from '../../components/CoverImage'
@@ -289,6 +290,7 @@ export function ArticleCard({
   // 作者头像（authorInfo.avatar；仅 http(s) 走缓存协议）
   const avatarUrlRaw = userAvatarUrl(author)
   const avatar = avatarUrlRaw ? cachedImageUrl(avatarUrlRaw) : undefined
+  const avatarSrc = useCachedImage(avatar)
   // 封面：images[0] 优先（官方列表字段），cover 兜底；仅 http(s) 图片进缓存协议
   const coverRaw = (article.images && article.images[0]) || article.cover
   const cover = coverRaw && /^https?:\/\//i.test(coverRaw) ? cachedImageUrl(coverRaw) : undefined
@@ -349,27 +351,31 @@ export function ArticleCard({
             }
           >
             {avatar ? (
-              <img className="author-avatar" src={avatar} alt="" loading="lazy" referrerPolicy="no-referrer" />
+              <img className="author-avatar" src={avatarSrc} alt="" loading="lazy" referrerPolicy="no-referrer" />
             ) : null}
-            {authorName}
+            <span className="article-card-author-name">{authorName.slice(0, 3)}</span>
           </span>
           {/* 统计组：靠右对齐，跨卡片右缘对齐；计数项（阅读/赞/评论）始终显示，0 也占位 */}
           <span className="article-card-stats">
-            {/* v0.0.2：卡片标记字数（formatSize 千分位） */}
-            {article.size ? <span>{formatSize(article.size)} 字</span> : null}
-            <span>{article.views} 阅读</span>
-            <span>{article.likes} 赞</span>
-            <span>{article.commentsNum} 评论</span>
-            {/* 评分栏位始终保留（无评分显示灰色占位），按红→紫色相着色；hideScore 或分类禁用评审时整体隐藏 */}
-            {!hideScoreValue && !reviewDisabled && (
-              <span
-                className={`card-score ${hasScore ? '' : 'no-score'}`}
-                style={hasScore && scoreColorValue ? { color: scoreColorValue } : undefined}
-              >
-                {hasScore ? `${article.score} 分` : '-.- 分'}
-              </span>
-            )}
-            {article.created ? <span>{formatTs(article.created)}</span> : null}
+            {/* 移动端拆成上下两组，让两行宽度接近；桌面端 display:contents 不影响原布局 */}
+            <span className="article-card-stat-row">
+              <span>{formatSize(article.size ?? 0)} 字</span>
+              <span>{article.views} 阅读</span>
+              <span>{article.likes} 赞</span>
+            </span>
+            <span className="article-card-stat-row">
+              <span>{article.commentsNum} 评论</span>
+              {/* 评分栏位始终保留（无评分显示灰色占位），按红→紫色相着色；hideScore 或分类禁用评审时整体隐藏 */}
+              {!hideScoreValue && !reviewDisabled && (
+                <span
+                  className={`card-score ${hasScore ? '' : 'no-score'}`}
+                  style={hasScore && scoreColorValue ? { color: scoreColorValue } : undefined}
+                >
+                  {hasScore ? `${article.score} 分` : '-. 分'}
+                </span>
+              )}
+              {article.created ? <span>{formatTs(article.created)}</span> : null}
+            </span>
           </span>
         </div>
       </div>

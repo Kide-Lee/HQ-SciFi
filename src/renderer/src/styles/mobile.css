@@ -1,0 +1,1762 @@
+/* ===== Android 手机壳（仅 /Android/ UA 启用；桌面与平板宽屏沿用桌面三栏） ===== */
+:root {
+  --mobile-topbar-h: 52px;
+  --mobile-nav-h: 58px;
+}
+
+.mobile-app {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--font-size);
+}
+
+.mobile-topbar {
+  flex: 0 0 auto;
+  height: calc(var(--mobile-topbar-h) + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) 10px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  position: relative;
+  z-index: 20;
+}
+
+.mobile-brand {
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: 0.5px;
+  color: var(--accent);
+}
+
+.mobile-title {
+  flex: 1;
+  text-align: center;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.mobile-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mobile-topbar-deco {
+  color: var(--text-muted);
+  margin-right: 6px;
+}
+
+.mobile-icon-btn {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  border-radius: 50%;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.mobile-icon-btn:active {
+  background: var(--accent-soft);
+}
+
+.mobile-home-tabs,
+.mobile-writing-tabs {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  overflow-x: auto;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  scrollbar-width: none;
+}
+
+.mobile-home-tabs::-webkit-scrollbar,
+.mobile-writing-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.mobile-home-tab {
+  flex: 0 0 auto;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.mobile-home-tab.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.mobile-tab-search {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.mobile-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(var(--mobile-nav-h) + env(safe-area-inset-bottom) + 8px);
+}
+
+.mobile-reader-content {
+  padding-bottom: calc(72px + env(safe-area-inset-bottom));
+}
+
+.mobile-reader-content .reader-layout {
+  display: block;
+  height: auto;
+  min-height: 100%;
+}
+
+.mobile-reader-content .reader-main {
+  padding: 0 14px 24px;
+}
+
+.mobile-reader-content .reader-title {
+  font-size: 22px;
+  line-height: 1.35;
+}
+
+.mobile-reader-content .reader-body {
+  font-size: 16px;
+  line-height: 1.85;
+}
+
+/* 右栏在手机上改成全屏抽屉（目录/评论/评审/搜索） */
+.mobile-app .reader-divider {
+  display: none;
+}
+
+.mobile-app .reader-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 100% !important;
+  z-index: 80;
+  background: var(--bg-card);
+  box-shadow: -8px 0 30px rgba(0, 0, 0, 0.18);
+}
+
+.mobile-app .reader-panel.collapsed {
+  display: none;
+}
+
+.mobile-panel-close {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 8px);
+  right: 10px;
+  z-index: 90;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.mobile-subpage-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-weight: 600;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.mobile-home-tabs + .mobile-content .home-view,
+.mobile-content .home-view,
+.mobile-content .home-feed-editor {
+  padding: 12px 12px 24px;
+}
+
+.mobile-content .library-search-page {
+  padding: 16px 12px 24px;
+}
+
+.mobile-content .library-search-hero {
+  padding-top: 24px;
+}
+
+.mobile-content .article-list,
+.mobile-content .list-content {
+  padding: 0 12px 24px;
+}
+
+.mobile-content .user-view {
+  padding-bottom: 16px;
+}
+
+.mobile-content .settings-panel-wrap {
+  height: auto;
+  min-height: 100%;
+}
+
+.mobile-content .settings-panel-scroll {
+  overflow: visible;
+}
+
+.mobile-content .notification-panel,
+.mobile-content .history-panel {
+  height: auto;
+  min-height: 100%;
+}
+
+.mobile-content .editor-pane {
+  height: calc(100dvh - var(--mobile-topbar-h) - var(--mobile-nav-h) - 46px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+}
+
+/* 编辑器在窄屏只保留主编辑区；文件树/预览按需通过页面内按钮切换 */
+.mobile-content .editor-body {
+  display: block;
+}
+
+.mobile-content .editor-main {
+  width: 100%;
+  min-width: 0;
+}
+
+.mobile-content .editor-side {
+  display: none;
+}
+
+.mobile-content .editor-local-home {
+  padding: 8px 0 24px;
+}
+
+.mobile-content .md-toolbar {
+  overflow-x: auto;
+  flex-wrap: nowrap;
+}
+
+/* 底部五导航：写作居中凸起 */
+.mobile-bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  height: calc(var(--mobile-nav-h) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  align-items: center;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border);
+}
+
+.mobile-nav-btn {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.mobile-nav-btn.active {
+  color: var(--accent);
+}
+
+.mobile-nav-write {
+  width: 54px;
+  height: 54px;
+  margin: -24px auto 0;
+  border: 4px solid var(--bg-card);
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 16px rgba(74, 108, 247, 0.35);
+}
+
+.mobile-nav-write.active {
+  background: #3452d8;
+}
+
+/* 未登录的「我的」 */
+.mobile-guest {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 20px 24px;
+}
+
+.mobile-guest-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-guest-title {
+  margin: 14px 0;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.mobile-primary-btn {
+  padding: 10px 32px;
+  border: 0;
+  border-radius: 22px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.mobile-list-row {
+  width: 100%;
+  margin-top: 14px;
+  padding: 14px 14px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--bg-card);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  text-align: left;
+}
+
+.mobile-row-arrow {
+  margin-left: auto;
+  transform: rotate(180deg);
+  color: var(--text-muted);
+}
+
+.mobile-guest-hint {
+  margin-top: 18px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* 写作：云端四态列表 */
+.mobile-writing-state {
+  padding: 10px 12px 24px;
+}
+
+.mobile-writing-card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  margin-bottom: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card);
+  text-align: left;
+}
+
+.mobile-writing-card-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.mobile-writing-card-meta,
+.mobile-empty {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.mobile-empty {
+  padding: 36px 0;
+  text-align: center;
+}
+
+/* 阅读历史抽屉 */
+.mobile-sheet-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.42);
+  display: flex;
+  align-items: flex-end;
+}
+
+.mobile-sheet {
+  width: 100%;
+  max-height: 82dvh;
+  overflow-y: auto;
+  background: var(--bg-card);
+  border-radius: 16px 16px 0 0;
+  padding: 8px 12px calc(16px + env(safe-area-inset-bottom));
+}
+
+.mobile-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  padding: 4px 0 8px;
+}
+
+/* 通用：让桌面视图在手机宽度内换行而不是横向溢出 */
+.mobile-app img,
+.mobile-app video {
+  max-width: 100%;
+}
+
+.mobile-app .reader-body iframe {
+  max-width: 100%;
+}
+
+.mobile-app .article-card,
+.mobile-app .feed-card {
+  max-width: 100%;
+}
+
+/* 顶栏占位：让居中标题在左右元素不对称时仍居中 */
+.mobile-topbar-spacer {
+  width: 36px;
+  flex: 0 0 auto;
+}
+
+/* 写作页：本地存档列表左右留白（桌面 side 隐藏后由这里补） */
+.mobile-content .editor-local-home {
+  padding: 8px 12px 24px;
+}
+
+/* 底部消息红点 */
+.mobile-nav-icon {
+  position: relative;
+  display: inline-flex;
+}
+
+.mobile-nav-badge {
+  position: absolute;
+  top: -4px;
+  left: 14px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--danger, #e5484d);
+  color: #fff;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+  font-weight: 600;
+}
+
+/* 文章页底部操作条：把桌面右下角的悬浮互动组改成常驻底栏 */
+.mobile-reader-app .reader-float-actions {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  float: none;
+  margin: 0;
+  padding: 6px 10px calc(6px + env(safe-area-inset-bottom));
+  flex-direction: row;
+  justify-content: space-around;
+  align-items: center;
+  gap: 0;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border);
+  z-index: 40;
+}
+
+.mobile-reader-app .reader-float-actions .reader-float-btns {
+  flex-direction: row;
+  gap: 12px;
+  visibility: visible;
+  pointer-events: auto;
+  transform: none;
+}
+
+.mobile-reader-app .reader-float-actions .reader-float-btns .reader-float-btn {
+  opacity: 1;
+  transform: none;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  width: 44px;
+  height: 44px;
+}
+
+.mobile-reader-app .reader-float-toggle {
+  display: none;
+}
+
+.mobile-reader-app .reader-float-notice {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(70px + env(safe-area-inset-bottom));
+  z-index: 95;
+}
+
+/* 编辑器全屏：隐藏写作页签/底部导航；工具栏置底（键盘 adjustResize 后仍在键盘上方） */
+.mobile-editor-content {
+  padding-bottom: 0 !important;
+}
+
+.mobile-editor-content .editor-pane {
+  height: 100%;
+}
+
+.mobile-editor-content .md-editor-wrap {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-editor-content .editor-toolbar-strip {
+  order: 2;
+  flex: 0 0 auto;
+}
+
+.mobile-editor-content .milkdown-theme-nord {
+  order: 1;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.mobile-editor-content .editor-local-home {
+  height: auto;
+}
+
+/* 首页品牌行压缩，把高度让给内容 */
+.mobile-home-topbar {
+  height: calc(46px + env(safe-area-inset-top));
+}
+
+/* 编辑栏固定在底部（Android adjustResize 时随视口抬到键盘上方） */
+.mobile-editor-content .editor-toolbar-strip {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 60;
+  height: calc(50px + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0 8px env(safe-area-inset-bottom);
+  background: var(--bg-card);
+  border-top: 1px solid var(--border);
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.mobile-editor-content .editor-toolbar-strip .et-row {
+  padding: 4px 6px;
+  border: 0;
+  background: transparent;
+  flex-wrap: nowrap;
+}
+
+.mobile-editor-content .milkdown-theme-nord,
+.mobile-editor-content .cm-host {
+  padding-bottom: calc(72px + env(safe-area-inset-bottom));
+}
+
+/* 编辑区铺满顶栏与底部工具栏之间，避免 milkdown 容器高度计算不一致 */
+.mobile-editor-content .md-editor-wrap {
+  position: fixed;
+  top: calc(var(--mobile-topbar-h) + env(safe-area-inset-top));
+  left: 0;
+  right: 0;
+  bottom: calc(50px + env(safe-area-inset-bottom));
+  height: auto;
+}
+
+.mobile-editor-content .md-editor-host {
+  height: 100%;
+  padding: 12px 14px 24px;
+}
+
+/* 空文档时 ProseMirror 只有一行高，点正文空白处无法聚焦：撑满编辑区 */
+.mobile-editor-content .md-editor-host [data-milkdown-root] {
+  height: 100%;
+}
+
+.mobile-editor-content .md-editor-host .ProseMirror {
+  min-height: 100%;
+}
+
+/* 百分比 min-height 在 milkdown 的多层 wrapper 下不生效，直接按视口给高度 */
+.mobile-editor-content .md-editor-host .ProseMirror {
+  min-height: calc(100dvh - 170px) !important;
+}
+
+/* 手机端登录/协议是覆盖层，不应出现桌面无边框窗口的最小化/全屏/关闭按钮 */
+html.hqsf-mobile .login-window-controls {
+  display: none !important;
+}
+
+html.hqsf-mobile .window-drag-bar {
+  display: none !important;
+}
+
+/* 作品库二级分类：比一级页签更紧凑，横向滚动 */
+.mobile-library-tabs {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px 8px;
+  overflow-x: auto;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+}
+
+.mobile-library-tabs .mobile-home-tab {
+  flex: 0 0 auto;
+  padding: 5px 12px;
+  font-size: 13px;
+}
+
+.mobile-library-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.mobile-dialog {
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
+}
+
+.mobile-dialog-input {
+  margin: 4px 14px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+}
+
+.mobile-dialog-actions {
+  padding: 0 14px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* 作品库列表：手机端不留桌面 760px 居中留白，内容贴边但不裁切 */
+.mobile-library-list {
+  padding: 6px 10px 0;
+}
+
+.mobile-library-list .article-list-view {
+  max-width: none;
+}
+
+.mobile-library-list .list-toolbar {
+  padding: 8px 2px;
+  background: var(--bg);
+}
+
+/* 手机端文章卡：封面缩小，给标题/摘要/统计留出宽度 */
+html.hqsf-mobile .article-card-cover {
+  width: 104px;
+  min-width: 104px;
+  height: 96px;
+}
+
+html.hqsf-mobile .article-card {
+  min-height: 0;
+}
+
+html.hqsf-mobile .article-card-body {
+  min-width: 0;
+  padding: 8px 10px;
+}
+
+html.hqsf-mobile .article-card-stats {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+
+/* 搜索是独立页：隐藏首页品牌行/页签后，由搜索头自己补状态栏安全区 */
+.mobile-search-head {
+  padding-top: calc(env(safe-area-inset-top) + 8px);
+  background: var(--bg-card);
+}
+
+/* 我的/他人主页：桌面用户页的 tab 由 MobileShell 补，内容区不再嵌套滚动 */
+.mobile-user-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+.mobile-app .user-view {
+  max-width: none;
+  padding: 8px 12px 24px;
+  overflow: visible;
+}
+
+.mobile-app .user-banner {
+  padding: 16px 12px 12px;
+}
+
+.mobile-app .user-head-actions {
+  width: 100%;
+}
+
+/* 手机端二级列表（活动/连载/分类/搜索）统一留白，避免标题贴边被裁 */
+html.hqsf-mobile .mobile-subpage {
+  padding: 0 10px;
+}
+
+html.hqsf-mobile .mobile-subpage .article-list-view {
+  max-width: none;
+}
+
+html.hqsf-mobile .mobile-subpage .list-toolbar {
+  padding: 8px 2px;
+}
+
+/* ===== 2026-11-22 整改：统一顶栏 / 下划线页签 / 搜索 / 文章抽屉 / 编辑器 ===== */
+
+/* 所有手机顶栏同高、同边框；页签下划线压在顶栏下边框上 */
+.mobile-topbar {
+  height: calc(var(--mobile-topbar-h) + env(safe-area-inset-top));
+  border-bottom: 1px solid var(--border);
+}
+.mobile-tabs-topbar {
+  gap: 0;
+  padding-right: 2px;
+}
+.mobile-tabs-inline {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  padding: 0 4px;
+  gap: 0;
+  border-bottom: 0;
+  background: transparent;
+}
+.mobile-tabs-inline .mobile-home-tab {
+  height: 100%;
+  padding: 0 11px;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 14px;
+  position: relative;
+}
+.mobile-tabs-inline .mobile-home-tab.active {
+  background: transparent;
+  color: var(--text);
+  font-weight: 600;
+}
+.mobile-tabs-inline .mobile-home-tab.active::after {
+  content: '';
+  position: absolute;
+  left: 11px;
+  right: 11px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--accent);
+}
+.mobile-tabs-inline .mobile-home-tab:active {
+  color: var(--accent);
+}
+
+/* 搜索态顶栏 */
+.mobile-search-topbar {
+  gap: 6px;
+  padding-left: 6px;
+}
+.mobile-search-box {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 18px;
+  background: var(--bg-hover);
+  color: var(--text-muted);
+}
+.mobile-search-box input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+}
+.mobile-search-submit {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 6px;
+}
+.mobile-search-submit:disabled {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+/* 搜索未提交：快捷入口 + 推荐 / 精选 */
+.mobile-search-landing {
+  padding: 10px 0 24px;
+}
+.mobile-search-shortcuts {
+  display: flex;
+  gap: 8px;
+  padding: 2px 12px 6px;
+}
+.mobile-search-shortcut {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 13px;
+}
+.mobile-search-shortcut:disabled {
+  opacity: 0.6;
+}
+.mobile-section-title {
+  margin: 16px 12px 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.mobile-search-landing .home-view,
+.mobile-search-landing .recommend-home {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+.mobile-search-landing .article-list-view {
+  padding: 0 10px;
+}
+.mobile-search-results-content {
+  padding-bottom: calc(var(--mobile-nav-h) + env(safe-area-inset-bottom)) !important;
+}
+html.hqsf-mobile .library-search-page.mobile-search-results {
+  padding: 0 10px;
+}
+html.hqsf-mobile .library-search-page.mobile-search-results .library-search-results {
+  padding-top: 10px;
+}
+
+/* 文章页顶栏：无返回、正文背景、标题左对齐 */
+.mobile-reader-topbar {
+  background: var(--bg);
+  border-bottom: 0;
+  padding-left: 14px;
+  gap: 8px;
+}
+.mobile-reader-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mobile-reader-content {
+  padding-bottom: calc(18px + env(safe-area-inset-bottom));
+}
+
+/* 恢复桌面互动逻辑：置顶 + 展开后才出现四个按钮，不做底栏 */
+.mobile-reader-app .reader-float-actions {
+  position: fixed;
+  right: 12px;
+  bottom: calc(22px + env(safe-area-inset-bottom));
+  left: auto;
+  float: right;
+  margin: 0 -2px 0 8px;
+  padding: 0;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  border-top: 0;
+  z-index: 8;
+}
+.mobile-reader-app .reader-float-actions .reader-float-btns {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+}
+.mobile-reader-app .reader-float-actions .reader-float-btns .reader-float-btn {
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(20, 24, 32, 0.12);
+  background: var(--bg-card);
+  width: 42px;
+  height: 42px;
+}
+.mobile-reader-app .reader-float-toggle {
+  display: flex;
+}
+.mobile-reader-app .reader-float-notice {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  z-index: 95;
+}
+
+/* 我的：未登录直接登录页，底栏仍在 */
+.mobile-login-content {
+  position: relative;
+  padding-bottom: calc(var(--mobile-nav-h) + env(safe-area-inset-bottom)) !important;
+  overflow: hidden;
+}
+html.hqsf-mobile .mobile-login-content .login-wrap,
+html.hqsf-mobile .mobile-login-content .login-wrap[data-theme='dark'] {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  align-items: flex-start;
+  background: var(--bg);
+  padding: 0;
+}
+html.hqsf-mobile .mobile-login-content .login-card {
+  width: 100%;
+  min-height: 100%;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: calc(env(safe-area-inset-top) + 28px) 22px calc(env(safe-area-inset-bottom) + 24px);
+  box-sizing: border-box;
+}
+html.hqsf-mobile .mobile-login-content .window-drag-bar,
+html.hqsf-mobile .mobile-login-content .login-window-controls,
+html.hqsf-mobile .mobile-login-content .login-close {
+  display: none;
+}
+
+/* 首启协议全屏，不露底色 */
+html.hqsf-mobile .firstrun-wrap {
+  position: fixed;
+  inset: 0;
+  height: auto;
+  padding: 0;
+  align-items: stretch;
+  background: var(--bg);
+}
+html.hqsf-mobile .firstrun-wrap .agreement-modal {
+  width: 100%;
+  max-height: none;
+  height: 100%;
+  border-radius: 0;
+  box-shadow: none;
+  padding: calc(env(safe-area-inset-top) + 16px) 18px calc(env(safe-area-inset-bottom) + 12px);
+  box-sizing: border-box;
+}
+html.hqsf-mobile .firstrun-wrap .window-drag-bar,
+html.hqsf-mobile .firstrun-wrap .login-window-controls {
+  display: none;
+}
+
+/* 我的：退出按钮靠右，不换行 */
+html.hqsf-mobile .mobile-app .user-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+html.hqsf-mobile .mobile-app .user-head-actions {
+  width: auto;
+  margin-left: auto;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+}
+
+/* 底部导航：写作按钮去白边；我的登录后头像 */
+.mobile-nav-write {
+  border: 0;
+  box-shadow: 0 6px 16px rgba(74, 108, 247, 0.35);
+}
+.mobile-nav-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+.mobile-nav-btn.active .mobile-nav-avatar {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* 编辑器：顶栏操作组、无标题/返回、工具栏无滚动条 */
+.mobile-writing-topbar {
+  padding-left: 4px;
+  padding-right: 4px;
+}
+.mobile-editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  min-width: 0;
+}
+.mobile-editor-actions + .mobile-editor-actions {
+  margin-left: auto;
+}
+.mobile-editor-actions .mobile-icon-btn {
+  width: 34px;
+  height: 34px;
+}
+html.hqsf-mobile .editor-toolbar-strip {
+  scrollbar-width: none;
+}
+html.hqsf-mobile .editor-toolbar-strip::-webkit-scrollbar,
+html.hqsf-mobile .editor-toolbar-strip .md-toolbar::-webkit-scrollbar {
+  display: none;
+}
+html.hqsf-mobile .editor-toolbar-strip .md-toolbar {
+  scrollbar-width: none;
+}
+/* 下部工具栏移除：保存/同步/发布/违禁词组与撤销/重做组 */
+html.hqsf-mobile .editor-toolbar-strip .et-actions .md-toolbar > .md-toolbar-group:first-child,
+html.hqsf-mobile .editor-toolbar-strip .et-actions .md-toolbar > .md-toolbar-group:last-child {
+  display: none;
+}
+
+/* 全屏页面统一隐藏滚动条，避免左右间距差 */
+html.hqsf-mobile .mobile-content,
+html.hqsf-mobile .mobile-content * {
+  scrollbar-width: none;
+}
+html.hqsf-mobile .mobile-content::-webkit-scrollbar,
+html.hqsf-mobile .mobile-content *::-webkit-scrollbar {
+  display: none;
+}
+
+/* 文章页：标题只在顶栏显示，正文不再重复 */
+html.hqsf-mobile .mobile-reader-app .reader-header .reader-title {
+  display: none;
+}
+html.hqsf-mobile .mobile-reader-app .reader-header {
+  padding-top: 4px;
+}
+html.hqsf-mobile .mobile-reader-app .reader-header-actions {
+  display: none;
+}
+
+/* 文章栏抽屉从右滑出 */
+html.hqsf-mobile .mobile-app .reader-panel {
+  width: min(88vw, 420px) !important;
+  padding-top: env(safe-area-inset-top);
+  animation: mobile-drawer-in 0.22s ease-out;
+}
+html.hqsf-mobile .mobile-app .reader-panel .panel-tabs {
+  padding-right: 54px;
+}
+@keyframes mobile-drawer-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* 手机文章卡封面同样贴满上/下/左 */
+html.hqsf-mobile .article-card-cover {
+  width: 104px;
+  min-width: 104px;
+  height: auto;
+  align-self: stretch;
+}
+
+/* 编辑器标题栏：固定在顶栏下方，输入/重命名后保持显示，不消失 */
+html.hqsf-mobile .editor-pane.has-title .editor-title-prompt {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: calc(var(--mobile-topbar-h) + env(safe-area-inset-top));
+  z-index: 35;
+  height: 62px;
+  padding: 6px 18px;
+  box-sizing: border-box;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+}
+html.hqsf-mobile .editor-pane .editor-title-input {
+  width: 100%;
+  height: 100%;
+  font-size: 22px;
+  font-weight: 600;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+}
+html.hqsf-mobile .editor-pane .editor-title-input::placeholder {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+html.hqsf-mobile .editor-pane.has-title .md-editor-wrap {
+  top: calc(var(--mobile-topbar-h) + env(safe-area-inset-top) + 62px) !important;
+}
+html.hqsf-mobile .editor-body-placeholder {
+  position: fixed;
+  left: 20px;
+  right: 20px;
+  top: calc(var(--mobile-topbar-h) + env(safe-area-inset-top) + 76px);
+  z-index: 34;
+  color: var(--text-muted);
+  font-size: 15px;
+  pointer-events: none;
+}
+
+/* ── 16 条整改：顶栏滑动指示条 / 翻页动画 / 搜索浮层 / 消息设置统一 / 实心图标 ── */
+html.hqsf-mobile .mobile-tabbar {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+html.hqsf-mobile .mobile-tabbar::-webkit-scrollbar {
+  display: none;
+}
+html.hqsf-mobile .mobile-tabbar .mobile-home-tab {
+  flex: 1 0 auto;
+  min-width: 0;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+html.hqsf-mobile .mobile-tabbar .mobile-home-tab.active::after {
+  display: none;
+}
+html.hqsf-mobile .mobile-tab-indicator {
+  position: absolute;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--accent);
+  pointer-events: none;
+  transition: left 0.22s cubic-bezier(0.22, 0.61, 0.36, 1), width 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
+  will-change: left, width;
+}
+html.hqsf-mobile .mobile-tab-badge {
+  position: absolute;
+  top: 8px;
+  margin-left: 4px;
+}
+
+/* 写作页 5 个状态页签 + 3 个操作按钮，压缩页签两侧留白避免“已发布”被切 */
+html.hqsf-mobile .mobile-writing-topbar .mobile-home-tab {
+  padding: 0 4px;
+  font-size: 13px;
+}
+html.hqsf-mobile .mobile-writing-topbar .mobile-topbar-actions .mobile-icon-btn {
+  width: 30px;
+}
+
+html.hqsf-mobile .mobile-content {
+  transition: transform 0.18s ease;
+}
+@keyframes mobile-page-next {
+  from {
+    opacity: 0.35;
+    transform: translateX(16%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes mobile-page-prev {
+  from {
+    opacity: 0.35;
+    transform: translateX(-16%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+html.hqsf-mobile .mobile-page-next {
+  animation: mobile-page-next 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+html.hqsf-mobile .mobile-page-prev {
+  animation: mobile-page-prev 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* 搜索：顶栏内输入框，页签隐藏；下方快捷按钮居中；点空白关闭 */
+html.hqsf-mobile .mobile-search-topbar {
+  gap: 4px;
+}
+html.hqsf-mobile .mobile-search-box-live {
+  flex: 1 1 auto;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 18px;
+  background: var(--bg-hover);
+}
+html.hqsf-mobile .mobile-search-box-live input {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  font-size: 15px;
+}
+html.hqsf-mobile .mobile-search-submit-icon {
+  flex: 0 0 auto;
+}
+html.hqsf-mobile .mobile-search-overlay {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: calc(var(--mobile-topbar-h) + env(safe-area-inset-top));
+  bottom: 0;
+  z-index: 45;
+  background: transparent;
+}
+html.hqsf-mobile .mobile-search-quick {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 18px 16px;
+}
+html.hqsf-mobile .mobile-search-quick .mobile-search-shortcut {
+  min-width: 110px;
+  justify-content: center;
+}
+
+/* 消息/设置：顶栏 tabs 后内容不再重复标题/分组 tab */
+html.hqsf-mobile .mobile-app .notification-panel {
+  padding-top: 2px;
+}
+html.hqsf-mobile .mobile-app .settings-panel-wrap {
+  padding-top: 2px;
+}
+
+/* 文章栏：收起按钮与页签同排；关闭用位移动画；点遮罩关闭 */
+html.hqsf-mobile .mobile-app .reader-panel .panel-tabs {
+  padding-right: 4px;
+}
+html.hqsf-mobile .reader-panel-collapse {
+  flex: 0 0 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+}
+html.hqsf-mobile .mobile-app .reader-panel {
+  animation: none;
+  transition: transform 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+html.hqsf-mobile .mobile-app .reader-panel.collapsed {
+  display: flex;
+  transform: translateX(100%);
+  pointer-events: none;
+  /* 关闭动画结束后彻底隐藏，避免 WebView 把旧位置的合成层留在屏幕上 */
+  visibility: hidden;
+  transition:
+    transform 0.22s cubic-bezier(0.22, 0.61, 0.36, 1),
+    visibility 0s linear 0.22s;
+}
+html.hqsf-mobile .mobile-panel-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 75;
+  border: 0;
+  background: rgba(0, 0, 0, 0.18);
+  animation: mobile-mask-in 0.2s ease-out;
+}
+@keyframes mobile-mask-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+html.hqsf-mobile .mobile-icon-btn.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* 我的：登录页垂直居中 */
+html.hqsf-mobile .mobile-login-content .login-wrap,
+html.hqsf-mobile .mobile-login-content .login-wrap[data-theme='dark'] {
+  align-items: center;
+  justify-content: center;
+  padding: calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px);
+}
+html.hqsf-mobile .mobile-login-content .login-card {
+  min-height: 0;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.16);
+}
+
+/* 活动详情首卡封面垂直居中 */
+html.hqsf-mobile .activity-info-cover,
+html.hqsf-mobile .activity-detail-cover {
+  align-self: center !important;
+  margin-top: 0 !important;
+}
+
+/* 文章卡：信息区最多两行；窄屏作者名换行到头像下 */
+html.hqsf-mobile .article-card-meta {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+html.hqsf-mobile .article-card-stats {
+  /* 统计信息最多两行，多出来的裁掉；作者块不占这 2 行额度 */
+  max-height: calc(1.45em * 2 + 2px);
+  overflow: hidden;
+  flex-wrap: wrap;
+}
+
+/* 移动端设置面板由顶栏页签承担，内容里的 h2 会与页签重复 */
+html.hqsf-mobile .mobile-app .settings-panel > h2 {
+  display: none;
+}
+html.hqsf-mobile .article-card-author {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+@media (max-width: 380px) {
+  html.hqsf-mobile .article-card-author {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+}
+
+/* ===== 2026-11-22 第二轮：21 条整改 ===== */
+
+/* 顶栏图标统一为桌面端风格：小图标、弱色、方形触控区、无边框 */
+html.hqsf-mobile .mobile-icon-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  color: var(--text-muted);
+  touch-action: manipulation;
+}
+html.hqsf-mobile .mobile-icon-btn svg {
+  width: 18px;
+  height: 18px;
+}
+html.hqsf-mobile .mobile-icon-btn:active {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+html.hqsf-mobile .mobile-icon-btn.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* 搜索框内联「时空乱流」：输入框 → 乱流 → 搜索图标 */
+html.hqsf-mobile .mobile-search-inline-shortcut {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 2px 0 6px;
+  white-space: nowrap;
+  touch-action: manipulation;
+}
+html.hqsf-mobile .mobile-search-inline-shortcut:disabled {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+html.hqsf-mobile .mobile-search-box-live input {
+  min-width: 0;
+}
+
+/* 编辑器顶栏与正文同背景，标题下无分割线 */
+html.hqsf-mobile .mobile-writing-topbar.mobile-editor-topbar {
+  background: var(--bg);
+  border-bottom: 0;
+}
+html.hqsf-mobile .editor-pane.has-title .editor-title-prompt {
+  background: var(--bg);
+  border-bottom: 0;
+  box-shadow: none;
+}
+html.hqsf-mobile .editor-pane .editor-title-prompt {
+  border-bottom: 0;
+}
+html.hqsf-mobile .editor-title-prompt {
+  border-bottom: 0;
+}
+
+/* 文章卡：作者块与统计区左右并列；统计仍最多两行；窄屏只把名字移到头像下 */
+html.hqsf-mobile .article-card-meta {
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  overflow: hidden;
+  gap: 4px 8px;
+}
+html.hqsf-mobile .article-card-author {
+  flex: 0 0 auto;
+  max-width: 44%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+html.hqsf-mobile .article-card-stats {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-left: auto;
+  justify-content: flex-end;
+  overflow: hidden;
+  flex-wrap: wrap;
+}
+@media (max-width: 380px) {
+  html.hqsf-mobile .article-card-author {
+    max-width: 36%;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 2px;
+  }
+  html.hqsf-mobile .article-card-author .author-avatar {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+/* 活动卡：名称、描述每一行都只占一行，超出省略 */
+html.hqsf-mobile .activity-card-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+html.hqsf-mobile .activity-card-desc span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+html.hqsf-mobile .activity-card-stats-row {
+  white-space: nowrap;
+}
+
+/* 文章页评分/评审按钮恢复显示，横排更接近桌面 */
+html.hqsf-mobile .mobile-reader-app .reader-header-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+html.hqsf-mobile .mobile-reader-app .reader-score-big b {
+  font-size: 28px;
+}
+html.hqsf-mobile .mobile-reader-app .reader-header {
+  align-items: flex-start;
+}
+html.hqsf-mobile .mobile-reader-app .reader-float-actions {
+  z-index: 40;
+}
+html.hqsf-mobile .mobile-reader-app .reader-float-actions:not(.expanded) .reader-float-btns {
+  visibility: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(10px);
+}
+html.hqsf-mobile .mobile-reader-app .reader-main {
+  padding-bottom: 110px;
+}
+
+/* 设置：内容区卡片化，和桌面端一致 */
+html.hqsf-mobile .settings-panel-scroll {
+  background: var(--bg-card);
+  padding: 12px;
+}
+html.hqsf-mobile .settings-panel {
+  gap: 12px;
+}
+html.hqsf-mobile .settings-section {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+/* 底部设置：实心齿轮保留中间的孔 */
+html.hqsf-mobile .mobile-nav-gear {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+html.hqsf-mobile .mobile-nav-gear-hole {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 50%;
+  background: var(--bg-card);
+  pointer-events: none;
+}
+
+/* 面板从顶栏下方展开，避免盖住文章标题/搜索按钮；页签类名与 RightPanel 实际一致 */
+html.hqsf-mobile .mobile-app .reader-panel {
+  top: calc(var(--mobile-topbar-h) + env(safe-area-inset-top));
+  padding-top: 0;
+}
+html.hqsf-mobile .mobile-panel-mask {
+  top: calc(var(--mobile-topbar-h) + env(safe-area-inset-top));
+}
+html.hqsf-mobile .mobile-app .reader-panel .reader-panel-tabs {
+  padding-right: 4px;
+}
+html.hqsf-mobile .mobile-app .reader-panel .reader-panel-collapse {
+  flex: 0 0 46px;
+  min-width: 46px;
+  color: var(--text-muted);
+}
+html.hqsf-mobile .mobile-reader-app .reader-header-actions:empty {
+  display: none;
+}
+html.hqsf-mobile .article-card-meta {
+  align-items: center;
+}
+
+/* 文章卡昵称最多显示三个字，超出直接裁掉（不显示省略号） */
+html.hqsf-mobile .article-card-author-name {
+  display: inline-block;
+  max-width: 3em;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: clip;
+  vertical-align: bottom;
+}
+
+/* ===== 2026-11-22 第三轮：8 条整改 ===== */
+
+/* 搜索页：「时空乱流」作为独立按钮，位于搜索框与搜索图标之间 */
+html.hqsf-mobile .mobile-search-shortcut {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 2px;
+  white-space: nowrap;
+  touch-action: manipulation;
+}
+html.hqsf-mobile .mobile-search-shortcut:disabled {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+html.hqsf-mobile .mobile-search-topbar {
+  gap: 6px;
+}
+
+/* 文章卡：限制统计区宽度，把评论数挤到第二行（最多仍两行） */
+html.hqsf-mobile .article-card-stats {
+  max-width: 54%;
+}
+
+/* 编辑器占位与正文首行严格对齐：host padding 12px / 14px */
+html.hqsf-mobile .editor-body-placeholder {
+  left: 14px;
+  right: 14px;
+  top: calc(var(--mobile-topbar-h) + env(safe-area-inset-top) + 74px);
+  font-size: 15px;
+  line-height: 1.9;
+}
+
+/* 编辑器工具栏略缩窄，按钮在条内垂直居中 */
+html.hqsf-mobile .mobile-editor-content .editor-toolbar-strip {
+  height: calc(46px + env(safe-area-inset-bottom));
+  padding: 0 6px env(safe-area-inset-bottom);
+  display: flex;
+  align-items: center;
+}
+html.hqsf-mobile .mobile-editor-content .editor-toolbar-strip .et-row {
+  height: 100%;
+  min-height: 0;
+  padding: 0 4px;
+  align-items: center;
+}
+html.hqsf-mobile .mobile-editor-content .md-editor-wrap {
+  bottom: calc(46px + env(safe-area-inset-bottom)) !important;
+}
+
+/* 文章页评分/评审：与桌面一致，右侧上下排列（评分在上、按钮在下） */
+html.hqsf-mobile .mobile-reader-app .reader-header {
+  align-items: flex-start;
+}
+html.hqsf-mobile .mobile-reader-app .reader-header-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+html.hqsf-mobile .mobile-reader-app .reader-score-big b {
+  font-size: 24px;
+}
+html.hqsf-mobile .mobile-reader-app .review-toggle {
+  padding: 4px 10px;
+}
+
+/* 文章栏展开时覆盖整屏高度（含顶栏），不再给顶栏留空 */
+html.hqsf-mobile .mobile-app .reader-panel {
+  top: 0;
+  bottom: 0;
+  height: 100dvh;
+  padding-top: env(safe-area-inset-top);
+  z-index: 100;
+}
+html.hqsf-mobile .mobile-panel-mask {
+  top: 0;
+  z-index: 99;
+}
+
+/* 「时空乱流」独立胶囊按钮：与搜索框同高同圆角 */
+html.hqsf-mobile .mobile-search-shortcut {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 18px;
+  background: var(--bg-hover);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+html.hqsf-mobile .mobile-search-shortcut:disabled {
+  opacity: 0.6;
+}
+
+/* 工具栏再收窄一点，按钮在条内视觉居中 */
+html.hqsf-mobile .mobile-editor-content .editor-toolbar-strip {
+  height: calc(42px + env(safe-area-inset-bottom));
+}
+html.hqsf-mobile .mobile-editor-content .md-editor-wrap {
+  bottom: calc(42px + env(safe-area-inset-bottom)) !important;
+}
+
+/* 文章卡信息区：固定 3 列两行，让上下两行宽度接近；日期保留在第二行 */
+html.hqsf-mobile .article-card-author {
+  max-width: 31%;
+}
+html.hqsf-mobile .article-card-stats {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  justify-content: end;
+  align-items: center;
+  column-gap: 7px;
+  row-gap: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: none;
+  max-height: none;
+  margin-left: auto;
+  overflow: visible;
+}
+@media (max-width: 380px) {
+  html.hqsf-mobile .article-card-author {
+    max-width: 33%;
+  }
+}
+
+/* 文章卡信息区：两行结构，每行内容宽度自适应并右对齐（不再用固定 3 列网格） */
+html.hqsf-mobile .article-card-stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2px;
+  max-width: none;
+  max-height: none;
+  margin-left: auto;
+  overflow: visible;
+}
+html.hqsf-mobile .article-card-stat-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  white-space: nowrap;
+}
+@media (min-width: 0px) {
+  .article-card-stat-row {
+    display: contents;
+  }
+}
+html.hqsf-mobile .article-card-stats {
+  display: flex;
+  grid-template-columns: none;
+}
+
+/* 编辑器底部格式栏：压缩按钮/分组间距，全部工具在 360dp 内可见且垂直居中 */
+html.hqsf-mobile .mobile-editor-content .editor-toolbar-strip .md-toolbar {
+  gap: 0;
+}
+html.hqsf-mobile .mobile-editor-content .editor-toolbar-strip .md-toolbar-btn {
+  width: 24px;
+  height: 24px;
+}
+html.hqsf-mobile .mobile-editor-content .editor-toolbar-strip .md-toolbar-group + .md-toolbar-group {
+  margin-left: 3px;
+  padding-left: 3px;
+}
+
+/* 文章页评分/评审整块相对左侧作者信息与分类标签垂直居中 */
+html.hqsf-mobile .reader-header {
+  align-items: center;
+}
+html.hqsf-mobile .reader-header-actions {
+  align-self: center;
+}

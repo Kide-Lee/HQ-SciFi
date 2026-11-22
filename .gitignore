@@ -46,3 +46,10 @@ dist/
 
 # 本地临时目录（不入库）
 .dsh-tmp/
+/.android-sdk/
+/.adb-home/
+/.jdk/
+
+# Android 交叉检查的独立 target
+/src-tauri/target-android-check/
+/.android-keystore/

@@ -47,6 +47,8 @@ interface EditorState {
   save: () => Promise<void>
   /** 新建本地草稿并打开，返回文件路径 */
   createDraft: (title: string, dirRel?: string) => Promise<string | null>
+  /** 新建「未命名草稿」并直接打开（重名自动追加序号）；标题在编辑器内输入 */
+  createUntitledDraft: (dirRel?: string) => Promise<string | null>
   close: () => Promise<void>
   /** v0.0.6：切换写作首页浏览目录 */
   setCurrentDir: (dir: string) => void
@@ -176,6 +178,35 @@ export const useEditorStore = create<EditorState>((set, get) => {
         return res.data
       }
       set({ busy: false, error: res.error })
+      return null
+    },
+
+    createUntitledDraft: async (dirRel = '') => {
+      set({ busy: true, error: null })
+      for (let i = 0; i < 50; i += 1) {
+        const title = '未命名草稿'
+        const res = await window.hqsf.createLocalDraft(title, '', dirRel)
+        if (res.ok) {
+          set({
+            currentPath: res.data,
+            content: '',
+            meta: {},
+            mode: 'wysiwyg',
+            toc: extractToc(''),
+            dirty: false,
+            synced: false,
+            busy: false
+          })
+          useUiStore.getState().setSelectedId(res.data)
+          return res.data
+        }
+        // 仅重名时继续尝试下一个序号；其他错误直接返回
+        if (!/已存在|exist/i.test(res.error)) {
+          set({ busy: false, error: res.error })
+          return null
+        }
+      }
+      set({ busy: false, error: '新建草稿失败：未命名草稿过多' })
       return null
     },
 

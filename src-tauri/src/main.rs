@@ -14,9 +14,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    if let Err(error) = hq_scifi_lib::run() {
-        // 不能用 `unwrap`/`expect`：走统一的错误输出 + 非零退出码。
-        eprintln!("[hqsf] 应用启动失败：{error:#}");
-        std::process::exit(1);
-    }
+    // `run()` 内部已统一处理错误输出与退出码（Android 入口也复用同一函数）。
+    hq_scifi_lib::run();
 }

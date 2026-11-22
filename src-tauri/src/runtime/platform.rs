@@ -31,7 +31,9 @@ use hqsf_core::ports::{
     Clipboard, Dialog, Launcher, MessageBoxKind, MessageBoxOptions, MessageKind, Platform,
     WindowOps,
 };
-use tauri::{AppHandle, Manager, WebviewWindow};
+use tauri::{AppHandle, Manager};
+#[cfg(desktop)]
+use tauri::WebviewWindow;
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_dialog::{
     DialogExt, MessageDialogButtons, MessageDialogKind, MessageDialogResult,
@@ -146,9 +148,18 @@ impl Dialog for TauriDialog {
             builder = builder.set_directory(dir.to_path_buf());
         }
         // blocking_*：不得在 main thread 调用（命令层是 async worker，满足）。
-        match builder.blocking_pick_folder() {
-            Some(file) => Ok(Some(file_path_to_pathbuf(file)?)),
-            None => Ok(None),
+        // Android 的存储访问走 SAF，v2.1.16 暂不支持选择目录。
+        #[cfg(desktop)]
+        {
+            match builder.blocking_pick_folder() {
+                Some(file) => Ok(Some(file_path_to_pathbuf(file)?)),
+                None => Ok(None),
+            }
+        }
+        #[cfg(mobile)]
+        {
+            let _ = builder;
+            Err(CoreError::app("Android 暂不支持选择文件夹"))
         }
     }
 
@@ -305,8 +316,22 @@ impl Launcher for TauriLauncher {
     }
 
     fn trash(&self, path: &Path) -> CoreResult<()> {
-        // 1.x shell.trashItem：移入回收站（可恢复），不能退化成永久删除。
-        trash::delete(path).map_err(|e| CoreError::app(format!("移入回收站失败：{e}")))
+        #[cfg(desktop)]
+        {
+            // 1.x shell.trashItem：移入回收站（可恢复），不能退化成永久删除。
+            return trash::delete(path).map_err(|e| CoreError::app(format!("移入回收站失败：{e}")));
+        }
+        #[cfg(mobile)]
+        {
+            // Android 没有桌面意义的系统回收站；删除草稿/文档时直接删除文件。
+            // 与桌面「移入回收站」的差异在移动端产品上可接受（写作页删除本就有二次确认）。
+            let result = if path.is_dir() {
+                std::fs::remove_dir_all(path)
+            } else {
+                std::fs::remove_file(path)
+            };
+            result.map_err(|e| CoreError::app(format!("删除失败：{e}")))
+        }
     }
 }
 
@@ -331,6 +356,7 @@ impl TauriWindowOps {
     }
 
     /// 取主窗口；窗口已销毁时返回 CoreError（1.x 里对应 `BrowserWindow` 为 null）。
+    #[cfg(desktop)]
     fn window(&self) -> CoreResult<WebviewWindow> {
         self.app
             .get_webview_window(MAIN_WINDOW_LABEL)
@@ -351,6 +377,11 @@ fn js_string_literal(value: &str) -> CoreResult<String> {
 
 impl WindowOps for TauriWindowOps {
     fn minimize(&self) {
+        #[cfg(mobile)]
+        {
+            return;
+        }
+        #[cfg(desktop)]
         match self.window() {
             Ok(window) => {
                 if let Err(e) = window.minimize() {
@@ -362,31 +393,43 @@ impl WindowOps for TauriWindowOps {
     }
 
     fn toggle_maximize(&self) -> hqsf_core::CoreResult<bool> {
+        #[cfg(mobile)]
+        {
+            return Ok(false);
+        }
         // 1.x：`isMaximized() ? unmaximize() : maximize()`，返回切换后的值。
         //
         // 与 1.x 的差异：Electron 的 `isMaximized()` 是同步缓存，而我们这边 GTK/Win32
         // 的最大化是**异步**落到窗口系统的，切换后立刻 `is_maximized()` 可能仍是旧值。
         // 所以这里返回「期望态」（当前状态取反），窗口真正变化时另由 `Resized` 回调
         // 比较 `is_maximized()` 发 `hqsf:window-maximized-changed` 事件。
-        match self.window() {
-            Ok(window) => {
-                let current = window.is_maximized().unwrap_or(false);
-                let result = if current {
-                    window.unmaximize()
-                } else {
-                    window.maximize()
-                };
-                if let Err(e) = result {
-                    eprintln!("[hqsf] 切换最大化失败：{e}");
-                    return Err(hqsf_core::CoreError::app(format!("切换最大化失败：{e}")));
+        #[cfg(desktop)]
+        {
+            match self.window() {
+                Ok(window) => {
+                    let current = window.is_maximized().unwrap_or(false);
+                    let result = if current {
+                        window.unmaximize()
+                    } else {
+                        window.maximize()
+                    };
+                    if let Err(e) = result {
+                        eprintln!("[hqsf] 切换最大化失败：{e}");
+                        return Err(hqsf_core::CoreError::app(format!("切换最大化失败：{e}")));
+                    }
+                    Ok(!current)
                 }
-                Ok(!current)
+                Err(e) => Err(hqsf_core::CoreError::app(format!("切换最大化失败：{e}"))),
             }
-            Err(e) => Err(hqsf_core::CoreError::app(format!("切换最大化失败：{e}"))),
         }
     }
 
     fn close(&self) {
+        #[cfg(mobile)]
+        {
+            return;
+        }
+        #[cfg(desktop)]
         match self.window() {
             Ok(window) => {
                 if let Err(e) = window.close() {
@@ -398,6 +441,11 @@ impl WindowOps for TauriWindowOps {
     }
 
     fn is_maximized(&self) -> bool {
+        #[cfg(mobile)]
+        {
+            return false;
+        }
+        #[cfg(desktop)]
         match self.window() {
             Ok(window) => window.is_maximized().unwrap_or(false),
             Err(_) => false,
@@ -407,7 +455,7 @@ impl WindowOps for TauriWindowOps {
     fn toggle_devtools(&self) {
         // 1.x `before-input-event` 里 Ctrl+F12 切换 devtools。Tauri 只有命令式 API，
         // 且 open_devtools/is_devtools_open 只在 debug 构建或启用 `devtools` feature 时存在。
-        #[cfg(any(debug_assertions, feature = "devtools"))]
+        #[cfg(all(desktop, any(debug_assertions, feature = "devtools")))]
         {
             match self.window() {
                 Ok(window) => {
@@ -430,12 +478,22 @@ impl WindowOps for TauriWindowOps {
 
     fn set_zoom(&self, factor: f64) -> CoreResult<()> {
         // 1.x：`webContents.setZoomFactor(zoomFactor)`；范围由内核 settings 规范化为 [0.8, 1.5]。
-        let window = self.window()?;
-        window
-            .set_zoom(factor)
-            .map_err(|e| CoreError::app(format!("设置缩放失败：{e}")))
+        #[cfg(desktop)]
+        {
+            let window = self.window()?;
+            return window
+                .set_zoom(factor)
+                .map_err(|e| CoreError::app(format!("设置缩放失败：{e}")));
+        }
+        #[cfg(mobile)]
+        {
+            // Android WebView 的缩放由系统/WebView 管理；v2.1.16 不支持应用内全局缩放。
+            let _ = factor;
+            Ok(())
+        }
     }
 
+    #[cfg(desktop)]
     fn insert_css(&self, css: &str) -> CoreResult<String> {
         let window = self.window()?;
 
@@ -484,6 +542,7 @@ impl WindowOps for TauriWindowOps {
         Ok(key)
     }
 
+    #[cfg(desktop)]
     fn remove_css(&self, key: &str) {
         // 只认我们自己注入的节点；其他 key 忽略（1.x removeInsertedCSS 传未知 key 同样无副作用）。
         if key != CUSTOM_CSS_KEY {
@@ -502,12 +561,27 @@ impl WindowOps for TauriWindowOps {
         }
     }
 
+    #[cfg(desktop)]
     fn execute_js(&self, js: &str) -> CoreResult<()> {
         // 1.x：`webContents.executeJavaScript(code)`（设置里的高级选项，用户自负风险）。
         let window = self.window()?;
         window
             .eval(js)
             .map_err(|e| CoreError::app(format!("执行自定义 JS 失败：{e}")))
+    }
+
+    #[cfg(mobile)]
+    fn insert_css(&self, _css: &str) -> CoreResult<String> {
+        // 移动端没有桌面「设置 → 界面 → 自定义 CSS」的注入路径；返回空 key 让调用方无副作用。
+        Ok(String::new())
+    }
+
+    #[cfg(mobile)]
+    fn remove_css(&self, _key: &str) {}
+
+    #[cfg(mobile)]
+    fn execute_js(&self, _js: &str) -> CoreResult<()> {
+        Err(CoreError::app("Android 暂不支持执行自定义 JS"))
     }
 }
 

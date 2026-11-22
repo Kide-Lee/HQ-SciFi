@@ -52,18 +52,19 @@ use hqsf_core::CoreCtx;
 use hqsf_core::commands::system::HostInfo;
 use hqsf_core::infra::db::Db;
 use hqsf_core::infra::media;
+#[cfg(desktop)]
 use hqsf_core::infra::migrate::{self, MigrateOptions, MigrationStatus};
 use hqsf_core::infra::session;
 use hqsf_core::infra::updater::{UpdateStateStore, auto_check_enabled};
-use hqsf_core::ports::Platform;
+use hqsf_core::ports::{Platform, SecretStore};
 use hqsf_core::services::updater::check_for_github_update;
 use hqsf_core::services::{auth, settings};
 use tauri::http::{Request, Response, StatusCode};
+use tauri::{AppHandle, Emitter, Manager, UriSchemeContext, Wry};
+#[cfg(desktop)]
 use tauri::webview::{NewWindowResponse, PageLoadEvent};
-use tauri::{
-    AppHandle, Emitter, Manager, UriSchemeContext, WebviewWindow, WebviewWindowBuilder,
-    WindowEvent, Wry,
-};
+#[cfg(desktop)]
+use tauri::{WebviewWindow, WebviewWindowBuilder, WindowEvent};
 
 use crate::runtime::clock::SystemClock;
 use crate::runtime::events::TauriEvents;
@@ -71,7 +72,10 @@ use crate::runtime::files::OsFileStore;
 use crate::runtime::http::ReqwestHttp;
 use crate::runtime::paths;
 use crate::runtime::platform::{MAIN_WINDOW_LABEL, build_platform};
+#[cfg(desktop)]
 use crate::runtime::secrets::KeyringSecrets;
+#[cfg(mobile)]
+use crate::runtime::secrets::FileSecrets;
 
 /// 自定义图片协议名（1.x 同名：`src/main/infra/media/imgcache.ts`）。
 pub const IMAGE_PROTOCOL: &str = "hqsf-img";
@@ -152,6 +156,7 @@ fn host_platform_name() -> &'static str {
     match std::env::consts::OS {
         "windows" => "windows",
         "macos" => "macos",
+        "android" => "android",
         _ => "linux",
     }
 }
@@ -277,25 +282,31 @@ fn build_core(app: &AppHandle) -> anyhow::Result<CoreCtx> {
     // 来源是旧 Electron 的 userData（`~/.config/hqsf-client`），只读、永不删除，可随时回滚。
     // 语义：NoSource（新用户）/AlreadyMigrated（幂等）/DryRun 静默跳过；Migrated 记一行日志；
     // 失败按启动失败处理（`setup` 会写 `PendingStartupError` 并弹框，不 panic、不静默继续建空库）。
-    let legacy_dir =
-        paths::legacy_data_dir(app, test_mode).map_err(|e| anyhow!("解析旧版数据目录失败：{e}"))?;
-    match migrate::migrate_legacy_data(&legacy_dir, &app_paths.data_dir, &MigrateOptions::default())
+    #[cfg(desktop)]
     {
-        Ok(report) => match report.status {
-            MigrationStatus::Migrated => eprintln!(
-                "[hqsf] 已从旧版本数据目录迁移：{} → {}",
-                legacy_dir.display(),
-                app_paths.data_dir.display()
-            ),
-            MigrationStatus::AlreadyMigrated
-            | MigrationStatus::NoSource
-            | MigrationStatus::DryRun => {}
-        },
-        Err(error) => {
-            return Err(anyhow!(
-                "迁移旧版本数据（{}）失败：{error}",
-                legacy_dir.display()
-            ));
+        let legacy_dir = paths::legacy_data_dir(app, test_mode)
+            .map_err(|e| anyhow!("解析旧版数据目录失败：{e}"))?;
+        match migrate::migrate_legacy_data(
+            &legacy_dir,
+            &app_paths.data_dir,
+            &MigrateOptions::default(),
+        ) {
+            Ok(report) => match report.status {
+                MigrationStatus::Migrated => eprintln!(
+                    "[hqsf] 已从旧版本数据目录迁移：{} → {}",
+                    legacy_dir.display(),
+                    app_paths.data_dir.display()
+                ),
+                MigrationStatus::AlreadyMigrated
+                | MigrationStatus::NoSource
+                | MigrationStatus::DryRun => {}
+            },
+            Err(error) => {
+                return Err(anyhow!(
+                    "迁移旧版本数据（{}）失败：{error}",
+                    legacy_dir.display()
+                ));
+            }
         }
     }
 
@@ -304,9 +315,15 @@ fn build_core(app: &AppHandle) -> anyhow::Result<CoreCtx> {
 
     let platform: Platform = build_platform(app);
 
+    #[cfg(desktop)]
+    let secrets: Arc<dyn SecretStore> = Arc::new(KeyringSecrets::new());
+    #[cfg(mobile)]
+    let secrets: Arc<dyn SecretStore> =
+        Arc::new(FileSecrets::new(app_paths.data_dir.join("secrets.json")));
+
     Ok(CoreCtx::new(
         Arc::new(OsFileStore::new()),
-        Arc::new(KeyringSecrets::new()),
+        secrets,
         Arc::new(ReqwestHttp::new().map_err(|e| anyhow!("初始化 HTTP 客户端失败：{e}"))?),
         Arc::new(TauriEvents::new(app.clone())),
         Arc::new(SystemClock::new()),
@@ -456,8 +473,10 @@ fn handle_image_protocol(
             Ok((bytes, content_type)) => Response::builder()
                 .status(StatusCode::OK)
                 .header("content-type", content_type)
-                // 内核自己做了磁盘/内存缓存；webview 缓存会让「清除缓存」命令失效，故禁用。
-                .header("cache-control", "no-store")
+                // 内核自己做了磁盘/内存缓存；WebView 层默认也缓存图片字节，
+                // 避免每次重挂载都重新走一遍自定义协议（Android 上单图约 600ms）。
+                // 「清除缓存」会递增渲染层的 URL 版本号，旧 URL 自然失效。
+                .header("cache-control", "public, max-age=31536000, immutable")
                 // 自定义协议在 webview 里是独立 origin，`<img>`/canvas 需要 CORS 头。
                 .header("access-control-allow-origin", "*")
                 .body(bytes.to_vec())
@@ -507,6 +526,7 @@ fn extract_image_url(request: &Request<Vec<u8>>) -> Option<String> {
 }
 
 /// 创建主窗口（`tauri.conf.json` 里 `create:false`，参数来自配置 + 平台覆盖文件）。
+#[cfg(desktop)]
 fn create_main_window(app: &AppHandle) -> anyhow::Result<WebviewWindow> {
     // 已经有同名窗口（macOS Reopen 重建路径）时直接复用，Tauri 不允许同 label 建两个。
     if let Some(existing) = app.get_webview_window(MAIN_WINDOW_LABEL) {
@@ -605,70 +625,79 @@ fn create_main_window(app: &AppHandle) -> anyhow::Result<WebviewWindow> {
     Ok(window)
 }
 
-/// 应用入口（`main.rs` 只调这一个函数）。
-pub fn run() -> anyhow::Result<()> {
-    let mut builder = tauri::Builder::default();
-
-    // 单实例必须在所有插件之前注册（tauri-plugin-single-instance 文档要求）。
-    // 1.x：`app.requestSingleInstanceLock()` 失败直接 `app.quit()`；二次启动则聚焦已有窗口。
-    builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+/// 构建插件链：桌面多一个单实例插件，移动端没有单实例语义。
+#[cfg(desktop)]
+fn base_builder() -> tauri::Builder<Wry> {
+    tauri::Builder::default().plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
         if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
             let _ = window.unminimize();
             let _ = window.show();
             let _ = window.set_focus();
         }
-    }));
+    }))
+}
 
-    builder = builder
-        .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_clipboard_manager::init())
-        // 图片协议：注册名与 1.x 一致；平台 origin 差异见 handle_image_protocol 的注释。
-        // 用**异步**注册（responder 回调）：同步注册会在主线程阻塞抓图，Linux/GTK 上直接卡界面。
-        .register_asynchronous_uri_scheme_protocol(IMAGE_PROTOCOL, handle_image_protocol);
+#[cfg(mobile)]
+fn base_builder() -> tauri::Builder<Wry> {
+    tauri::Builder::default()
+}
 
-    // 85 条命令 + 内部命令由生成器产出（`src/commands_generated.rs`，gitignored）：
-    // 先生成再编译 —— `node src-tauri/scripts/gen-tauri-commands.mjs --write`。
-    builder = commands_generated::register(builder);
+/// 启动公共部分：建 `CoreCtx`、`AppState`；桌面再建窗口、起后台任务。
+///
+/// 移动端由 Tauri 的 Android 壳自动创建唯一的 WebView，不调用 `create_main_window`。
+fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    // 主线程 id 必须在任何命令/对话框之前记录：dialog / clipboard 的 blocking API 靠它
+    // 判断「现在能不能阻塞等待主线程」（见 `runtime::is_main_thread`）。
+    runtime::mark_main_thread();
+    // 启动失败用的错误槽：必须最先 manage，后面任何一步失败都能往里写。
+    app.manage(PendingStartupError::default());
 
-    builder = builder.setup(|app| {
-        // 主线程 id 必须在任何命令/对话框之前记录：dialog / clipboard 的 blocking API 靠它
-        // 判断「现在能不能阻塞等待主线程」（见 `runtime::is_main_thread`）。
-        runtime::mark_main_thread();
-        // 启动失败用的错误槽：必须最先 manage，后面任何一步失败都能往里写。
-        app.manage(PendingStartupError::default());
-
-        // 1.x bootstrap（`src/main/bootstrap/index.ts:40-85`）：建 ctx / 建窗口，失败
-        // `dialog.showErrorBox` + `app.exit(1)`。
-        //
-        // 差异（重要）：这里**不**在 setup 里返回 Err。tauri 一旦在 setup 返回 Err 就不会进入
-        // 事件循环，而对话框需要主线程跑起来才能显示 → 1.x 那个「错误框」在这里永远弹不出来，
-        // 进程只会静默退出。改为：记下错误、返回 Ok 进入事件循环，在 `RunEvent::Ready` 里
-        // 弹框（非阻塞），用户关掉后再 `exit(1)`。
-        let core = match build_core(app.handle()) {
-            Ok(core) => Arc::new(core),
-            Err(err) => {
-                eprintln!("[hqsf] 启动失败：{err:#}");
-                if let Some(pending) = app.try_state::<PendingStartupError>() {
-                    pending.set(format!("{err:#}"));
-                }
-                return Ok(());
+    // 1.x bootstrap（`src/main/bootstrap/index.ts:40-85`）：建 ctx / 建窗口，失败
+    // `dialog.showErrorBox` + `app.exit(1)`。
+    //
+    // 差异（重要）：这里**不**在 setup 里返回 Err。tauri 一旦在 setup 返回 Err 就不会进入
+    // 事件循环，而对话框需要主线程跑起来才能显示 → 1.x 那个「错误框」在这里永远弹不出来，
+    // 进程只会静默退出。改为：记下错误、返回 Ok 进入事件循环，在 `RunEvent::Ready` 里
+    // 弹框（非阻塞），用户关掉后再 `exit(1)`。
+    let core = match build_core(app.handle()) {
+        Ok(core) => Arc::new(core),
+        Err(err) => {
+            eprintln!("[hqsf] 启动失败：{err:#}");
+            if let Some(pending) = app.try_state::<PendingStartupError>() {
+                pending.set(format!("{err:#}"));
             }
-        };
+            return Ok(());
+        }
+    };
 
-        // 更新状态机：1.x 是模块级单例；内核不持全局状态，所以壳层建一份并注入。
-        // 版本号取运行中的包版本（`update-state` 的 `currentVersion` 字段来源）。
-        let updater = Arc::new(UpdateStateStore::new(
-            app.package_info().version.to_string(),
-        ));
+    // Android 没有终端可看 Rust panic；把 panic 落到应用私有目录，便于真机排障。
+    #[cfg(mobile)]
+    {
+        let data_dir = app.path().app_data_dir().ok();
+        std::panic::set_hook(Box::new(move |info| {
+            let msg = format!("{info}\n");
+            eprintln!("[hqsf] panic: {msg}");
+            if let Some(dir) = &data_dir {
+                let _ = std::fs::write(dir.join("panic.log"), &msg);
+            }
+        }));
+    }
 
-        app.manage(AppState {
-            core,
-            maximized: Arc::new(AtomicBool::new(false)),
-            startup: Mutex::new(StartupFlags::default()),
-            updater,
-        });
+    // 更新状态机：1.x 是模块级单例；内核不持全局状态，所以壳层建一份并注入。
+    // 版本号取运行中的包版本（`update-state` 的 `currentVersion` 字段来源）。
+    let updater = Arc::new(UpdateStateStore::new(
+        app.package_info().version.to_string(),
+    ));
 
+    app.manage(AppState {
+        core,
+        maximized: Arc::new(AtomicBool::new(false)),
+        startup: Mutex::new(StartupFlags::default()),
+        updater,
+    });
+
+    #[cfg(desktop)]
+    {
         if let Err(err) = create_main_window(app.handle()) {
             eprintln!("[hqsf] 创建窗口失败：{err:#}");
             if let Some(pending) = app.try_state::<PendingStartupError>() {
@@ -681,18 +710,31 @@ pub fn run() -> anyhow::Result<()> {
         // `startupTokenCheck()` 与 `scheduleAutoUpdateCheck()`。两者都**不阻塞**启动 ——
         // 各起一条独立后台线程，窗口该显示就显示，失败一律静默（离线可继续本地写作）。
         spawn_startup_tasks(app.handle().clone());
+    }
 
-        Ok(())
-    });
+    Ok(())
+}
+
+fn run_impl() -> anyhow::Result<()> {
+    let builder = base_builder()
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
+        // 图片协议：注册名与 1.x 一致；平台 origin 差异见 handle_image_protocol 的注释。
+        // 用**异步**注册（responder 回调）：同步注册会在主线程阻塞抓图，Linux/GTK 上直接卡界面。
+        .register_asynchronous_uri_scheme_protocol(IMAGE_PROTOCOL, handle_image_protocol);
+
+    // 85 条命令 + 内部命令由生成器产出（`src/commands_generated.rs`，gitignored）：
+    // 先生成再编译 —— `node src-tauri/scripts/gen-tauri-commands.mjs --write`。
+    let builder = commands_generated::register(builder);
 
     let app = builder
+        .setup(setup)
         .build(tauri::generate_context!())
         .map_err(|e| anyhow!("构建 Tauri 应用失败：{e}"))?;
 
-    // macOS：点 Dock 图标 → `RunEvent::Reopen`，把主窗口拉回前台（1.x `app.on('activate')`）。
-    // `RunEvent::Reopen` 只在 macOS/iOS 存在（tauri::app::RunEvent 的 cfg 分支），故整体 cfg 包住。
+    // 启动期致命错误：等事件循环真正跑起来（Ready）再弹框，关掉后 exit(1)。
     app.run(|app_handle, event| {
-        // 启动期致命错误：等事件循环真正跑起来（Ready）再弹框，关掉后 exit(1)。
         if matches!(event, tauri::RunEvent::Ready) {
             if let Some(pending) = app_handle.try_state::<PendingStartupError>() {
                 if let Some(message) = pending.take() {
@@ -728,6 +770,18 @@ pub fn run() -> anyhow::Result<()> {
     });
 
     Ok(())
+}
+
+/// 应用入口（桌面 `main.rs` 与 Android 的 `mobile_entry_point` 都调这一个函数）。
+///
+/// 返回 `()` 而不是 `Result`：`#[tauri::mobile_entry_point]` 生成的 JNI 入口要求无返回值；
+/// 桌面端也统一在这里落盘错误与退出码，避免两个平台各写一份。
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    if let Err(error) = run_impl() {
+        eprintln!("[hqsf] 应用启动失败：{error:#}");
+        std::process::exit(1);
+    }
 }
 
 /// 启动失败诊断：1.x 用同步的 `dialog.showErrorBox`，这里用**非阻塞**消息框 + 退出兜底。

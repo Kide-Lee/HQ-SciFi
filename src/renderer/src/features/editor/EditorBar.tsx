@@ -41,6 +41,31 @@ export function EditorBar({ formatSlot }: EditorBarProps): React.JSX.Element {
     setForbidMsg(null)
   }, [currentPath])
 
+  // 手机端顶栏复用桌面工具栏动作（保存/同步/发布/违禁词）
+  const actionsRef = useRef({
+    sync: (): void => {},
+    publish: (): void => {},
+    forbidden: (): void => {}
+  })
+  actionsRef.current = {
+    sync: () => void handleSyncDraft(),
+    publish: () => setShowPublish(true),
+    forbidden: () => void handleCheckForbidden()
+  }
+  useEffect(() => {
+    const onSync = (): void => actionsRef.current.sync()
+    const onPublish = (): void => actionsRef.current.publish()
+    const onForbidden = (): void => actionsRef.current.forbidden()
+    window.addEventListener('hqsf:editor-sync', onSync)
+    window.addEventListener('hqsf:editor-publish', onPublish)
+    window.addEventListener('hqsf:editor-forbidden', onForbidden)
+    return () => {
+      window.removeEventListener('hqsf:editor-sync', onSync)
+      window.removeEventListener('hqsf:editor-publish', onPublish)
+      window.removeEventListener('hqsf:editor-forbidden', onForbidden)
+    }
+  }, [])
+
   // v0.0.7+：工具栏折行后，每行开头的分组隐藏左侧分割线。
   // CSS 无法感知折行位置，用测量实现：分组左边缘与工具栏左边缘重合（含尚未去边距的 8px）
   // 即为行首 → 加 .line-start；ResizeObserver 跟随工具栏尺寸变化（窗口/右栏宽度变化）重算

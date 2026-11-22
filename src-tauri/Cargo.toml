@@ -10,7 +10,7 @@
 
 [package]
 name = "hq-scifi"
-version = "2.0.15"
+version = "2.1.16"
 description = "荒启科幻桌面客户端（Tauri 2 壳层：窗口 / 自定义协议 / 系统端口 / 命令 dispatch）"
 edition = "2024"
 rust-version = "1.90"
@@ -33,7 +33,6 @@ tauri-build = { version = "2", features = [] }
 # --- 壳层框架 ---
 # 2.12：`devtools` 不默认开启。debug 构建 Tauri 自带 inspector；release 想调试用 `--features devtools`。
 tauri = { version = "2.12", features = [] }
-tauri-plugin-single-instance = "2" # 实测 2.4.0
 tauri-plugin-opener = "2"          # 实测 2.5.0（open_external / open_path / reveal_in_item）
 tauri-plugin-dialog = "2"          # 实测 2.6.0（文件选择 / 消息框，替代 dialog.showOpenDialog/showMessageBox）
 tauri-plugin-clipboard-manager = "2" # 实测 2.3.0（无 read_html，见 src/runtime/platform.rs 的降级说明）
@@ -56,14 +55,24 @@ rusqlite = { version = "0.43", features = ["bundled"] }
 # 内核：端口 trait 与 CoreCtx 的唯一来源。
 hqsf-core = { path = "../crates/hqsf-core" }
 
-# 1.x `shell.trashItem`（回收站）在 tauri 里没有插件 API，用 trash crate（壳层依赖，不违反内核「禁新增 crate」）。
-trash = "5"
 
 # --- 系统钥匙串 ---
 # TODO(verify): 任务要求 keyring 4.x。但 keyring 4.0 是破坏性改版：`Entry` 迁到 `keyring-core`，
 #   且需要显式 `use_*_store()` 初始化 store；本机无法编译验证（缺 pkg-config/WebKitGTK），
 #   因此先用仍提供稳定 `Entry` API 的 3.6（语义与 4.x 相同）。CI 能编译后升级到 4.x 并重写
 #   src/runtime/secrets.rs 的 store 初始化。按目标平台拆 section，避免 apple/windows 专属 crate 被交叉拉入。
+[target.'cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))'.dependencies]
+# 桌面独有的壳层依赖：Android 上没有单实例/回收站语义。
+tauri-plugin-single-instance = "2" # 实测 2.4.0
+trash = "5"
+
+[target.'cfg(target_os = "android")'.dependencies]
+# reqwest 0.13 的 `rustls` feature 绑死 rustls-platform-verifier：Android 上必须走 JNI + Kotlin
+# 组件初始化，否则首次发请求就 panic。v2.1.16 先改用静态 Mozilla 根证书（webpki-roots），
+# 避免为 TLS 引入 Gradle 依赖；后续若要信任系统安装的根证书再换回平台验证器。
+rustls = { version = "0.23", default-features = false, features = ["aws_lc_rs", "std", "tls12"] }
+webpki-roots = "1"
+
 [target.'cfg(target_os = "linux")'.dependencies]
 # crypto-rust：避免依赖系统 OpenSSL；sync-secret-service 走 libdbus（构建需 pkg-config + libdbus-1-dev）。
 # 运行期没有 Secret Service（GNOME Keyring/KWallet）时 Entry 会返回 PlatformFailure，

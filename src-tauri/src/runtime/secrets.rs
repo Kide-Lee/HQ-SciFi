@@ -16,18 +16,23 @@
 //!     （Linux 无 Secret Service 守护进程是最常见的失败场景。）
 //!   - **不 panic**：keyring 的所有错误都翻译成 CoreError；`unwrap()` 在本文件不存在。
 
+use std::path::{Path, PathBuf};
+
 use hqsf_core::error::{CoreError, CoreResult};
 use hqsf_core::ports::SecretStore;
 
 /// 钥匙串 service 名 = tauri identifier，避免与其他应用冲突。
+#[cfg(desktop)]
 pub const KEY_SERVICE: &str = "com.huangqisf.client";
 
 /// 基于系统钥匙串的凭据端口。
+#[cfg(desktop)]
 #[derive(Debug, Clone)]
 pub struct KeyringSecrets {
     service: String,
 }
 
+#[cfg(desktop)]
 impl KeyringSecrets {
     pub fn new() -> Self {
         Self {
@@ -47,12 +52,14 @@ impl KeyringSecrets {
     }
 }
 
+#[cfg(desktop)]
 impl Default for KeyringSecrets {
     fn default() -> Self {
         Self::new()
     }
 }
 
+#[cfg(desktop)]
 impl SecretStore for KeyringSecrets {
     fn get(&self, key: &str) -> CoreResult<Option<String>> {
         // keyring 3.x 是同步 API（内部阻塞在 DBus/Keychain 上）。
@@ -84,5 +91,80 @@ impl SecretStore for KeyringSecrets {
             Err(keyring::Error::NoEntry) => Ok(()),
             Err(e) => Err(Self::map_err("删除凭据", key, e)),
         }
+    }
+}
+
+
+// ---------------------------------------------------------------------------
+// Android：应用私有目录内的凭据文件
+// ---------------------------------------------------------------------------
+//
+// Android 上 `keyring` crate 没有可用后端（没有 Secret Service / Keychain 等价物），
+// 而 Android Keystore 的 JNI 接入需要额外的 `jni` 依赖与 Java 侧密钥别名管理。
+// v2.1.16 先落一个**应用私有目录内**的实现：Android 的 app sandbox 已阻止其他应用读取
+// `/data/data/<pkg>/files`，且 `set_permissions(0o600)` 只允许本进程读写。
+//
+// 这是与桌面「系统钥匙串」的已知差异，不是最终形态：后续版本应替换为 Android Keystore
+// （生成 AES key，EncryptedFile / Tink 等价物），本轮先保证登录态可持久化、不阻塞功能闭环。
+#[cfg(mobile)]
+#[derive(Debug, Clone)]
+pub struct FileSecrets {
+    path: PathBuf,
+}
+
+#[cfg(mobile)]
+impl FileSecrets {
+    pub fn new(path: PathBuf) -> Self {
+        Self { path }
+    }
+
+    fn read_all(&self) -> CoreResult<std::collections::BTreeMap<String, String>> {
+        match std::fs::read(&self.path) {
+            Ok(bytes) => serde_json::from_slice(&bytes)
+                .map_err(|e| CoreError::app(format!("解析凭据文件失败：{e}"))),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                Ok(std::collections::BTreeMap::new())
+            }
+            Err(e) => Err(CoreError::app(format!("读取凭据文件失败：{e}"))),
+        }
+    }
+
+    fn write_all(&self, map: &std::collections::BTreeMap<String, String>) -> CoreResult<()> {
+        if let Some(parent) = self.path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| CoreError::app(format!("创建凭据目录失败：{e}")))?;
+        }
+        let bytes = serde_json::to_vec(map)
+            .map_err(|e| CoreError::app(format!("序列化凭据失败：{e}")))?;
+        let tmp = self.path.with_extension("json.tmp");
+        std::fs::write(&tmp, bytes)
+            .map_err(|e| CoreError::app(format!("写入凭据临时文件失败：{e}")))?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(0o600));
+        }
+        std::fs::rename(&tmp, &self.path)
+            .map_err(|e| CoreError::app(format!("替换凭据文件失败：{e}")))?;
+        Ok(())
+    }
+}
+
+#[cfg(mobile)]
+impl SecretStore for FileSecrets {
+    fn get(&self, key: &str) -> CoreResult<Option<String>> {
+        Ok(self.read_all()?.get(key).cloned())
+    }
+
+    fn set(&self, key: &str, value: &str) -> CoreResult<()> {
+        let mut map = self.read_all()?;
+        map.insert(key.to_string(), value.to_string());
+        self.write_all(&map)
+    }
+
+    fn delete(&self, key: &str) -> CoreResult<()> {
+        let mut map = self.read_all()?;
+        map.remove(key);
+        self.write_all(&map)
     }
 }

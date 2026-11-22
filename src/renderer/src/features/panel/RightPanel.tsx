@@ -5,6 +5,7 @@ import { SettingsPanel } from '../settings/SettingsPanel'
 import { HistoryPanel } from './HistoryPanel'
 import { useNotificationStore } from '../../stores/notifications'
 import { useUiStore } from '../../stores/ui'
+import { PanelRightClose } from 'lucide-react'
 
 /** v0.0.6：通用右栏 tab 定义（文章页与编辑器共用） */
 export interface RightTab<T extends string = string> {
@@ -107,6 +108,7 @@ export function RightPanel<T extends string>({
 
   const active = allTabs.some((t) => t.key === activeTab) ? activeTab : allTabs[0]?.key
   const current = active ? allTabs.find((t) => t.key === active) : undefined
+  const mobile = typeof document !== 'undefined' && document.documentElement.classList.contains('hqsf-mobile')
   // 文章模式下当前视图没有业务 tab（如作品库/推荐列表页）时不渲染面板
   if (!current) return null
   const single = allTabs.length === 1
@@ -121,7 +123,7 @@ export function RightPanel<T extends string>({
         className={`reader-panel${open ? '' : ' collapsed'}${dragging ? ' dragging' : ''}`}
         style={{ width: open ? `${splitRatio * 100}%` : 0 }}
       >
-        {!single && (
+        {(!single || mobile) && (
           <div className="reader-panel-tabs">
             {allTabs.map((t) => (
               <button
@@ -133,6 +135,16 @@ export function RightPanel<T extends string>({
                 {t.badge != null && t.badge > 0 ? ` ${t.badge}` : ''}
               </button>
             ))}
+            {mobile && (
+              <button
+                className="reader-panel-tab reader-panel-collapse"
+                onClick={() => useUiStore.getState().closePanel()}
+                title="收起文章栏"
+                aria-label="收起文章栏"
+              >
+                <PanelRightClose size={16} />
+              </button>
+            )}
           </div>
         )}
         {current.content}

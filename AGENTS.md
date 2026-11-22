@@ -96,3 +96,15 @@ node_modules/.bin/vite build --config vite.web.config.ts  # 渲染层构建（ou
 - **产物自检**：`node scripts/verify-bundles.mjs [--expect-version X]` 检查安装包内容——deb 的 Version/Depends（必须 webkit2gtk-4.1）/包内资源、NSIS 的 ProductVersion、dmg 的 CFBundleIdentifier/版本/资源；`release.yml` 每个平台构建后自动跑，打 tag 时还会校验 tag 号与 `tauri.conf.json` 的 `version` 一致。新增打包资源时同步改脚本里的 `RESOURCES`。
 - **API 配置来源**：运行期先读 `<data_dir>/api.config.json`（用户/运维可写，用于把安装包指向另一套后端），再读包内 `resource_dir/api.config.json`；CI 出包优先用仓库 secret **`HQSF_API_CONFIG_B64`**（本地 `api.config.json` 的 base64，`base64 -w0 api.config.json` 得到），没有才退回示例配置并告警。
 - **出包与打包验证**：细节与全部已知坑见 skill `.dsh/skills/release-packaging/`（`SKILL.md` + `scripts/read-status.sh`）。速记：`release.yml` 由 tag `v*`（正式、建 draft Release）、分支 `build-only`（只构建+上传产物，不打 tag）、手动 dispatch（`version` 必填、`dry_run`）触发；结论回写到 `ci-status` / `release-status` / `release-logs` / `ci-logs` / `smoke-logs` 分支，用 `bash .dsh/skills/release-packaging/scripts/read-status.sh` 读（勿烧 GitHub API 限额、`raw.githubusercontent.com` 本机不可达）。用 `cargo install tauri-cli` + `cargo tauri build`，不要引入 `@tauri-apps/cli`（会破坏 `npm ci` 的 lock 一致性）。CI 出包用 `api.config.example.json` 兜底，**正式发布必须提供真实 `api.config.json`**（secret `HQSF_API_CONFIG_B64`）。
+## Android（2.1.16 起）
+
+- 手机端是**同一渲染层的独立壳**：`MobileShell.tsx`（五个底部导航 + 页面栈），按 `navigator.userAgent` 在 `App.tsx` 切换；桌面三栏不受影响。
+- 后端内核不变，壳层按 `desktop`/`mobile` 双入口（`src-tauri/src/lib.rs`），平台差异集中在 `src-tauri/src/runtime/{paths,secrets,platform,http,resources}.rs`。
+- 工具链全部在仓库内（不入库）：`.android-sdk`、`.jdk`、`.cargo-home`、`.adb-home`；构建入口：
+  ```bash
+  bash scripts/build-android.sh            # debug；--release 出正式包
+  ```
+  脚本会先跑 `scripts/patch-android-gen.mjs`（`src-tauri/gen/android` 被 gitignore，init 后必须补丁：系统返回、IME inset、应用名、Gradle 镜像），再 vite build，再 `cargo tauri android build --apk --target aarch64`。
+- 真机：HONOR AGT-AN00（Android 15，arm64-v8a）；`adb install -r -d src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk`。
+- 已知取舍：Android 资源走 `src-tauri/src/runtime/resources.rs` 的 `include_bytes!` 落盘（Tauri 的 `asset://localhost` 不是文件路径）；TLS 用 `webpki-roots` 预置根证书绕开 `rustls-platform-verifier` 的 JNI 初始化；secret 暂存 `data_dir/secrets.json`（FileSecrets，后续换 Keystore）。
+- `src-tauri/tauri.android.conf.json` 只为 Android 打开 `windows[0].create=true`，桌面仍是 `false` + 手动建窗。

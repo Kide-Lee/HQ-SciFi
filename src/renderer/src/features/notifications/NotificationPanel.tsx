@@ -10,7 +10,7 @@ import { useContextMenu, type ContextMenuItem } from '../../components/menu/Cont
 import { readSelection } from '../../lib/selection'
 import type { AppNotification, ChatSession } from '../../../../shared/types'
 
-type NotificationGroup = 'interact' | 'chat' | 'notice'
+export type NotificationGroup = 'interact' | 'chat' | 'notice'
 
 /** v0.0.10：消息中心合并分类——互动（评论+评审）、私聊、通知（粉丝+系统+财务） */
 const CATEGORY_GROUPS: Array<{ key: NotificationGroup; label: string; categories: NotificationCategory[] }> = [
@@ -57,7 +57,15 @@ function ChatSessionCard({ session, onOpen }: { session: ChatSession; onOpen: ()
  * 分组 tab（互动/私聊/通知）复用评审界面的 tab 视觉；
  * 评论/评审消息直接复用最新讨论卡/最新评审卡。
  */
-export function NotificationPanel(): React.JSX.Element {
+export function NotificationPanel({
+  tab,
+  onTabChange,
+  hideTabs = false
+}: {
+  tab?: NotificationGroup
+  onTabChange?: (tab: NotificationGroup) => void
+  hideTabs?: boolean
+} = {}): React.JSX.Element {
   const notifications = useNotificationStore((s) => s.notifications)
   const loading = useNotificationStore((s) => s.loading)
   const error = useNotificationStore((s) => s.error)
@@ -68,7 +76,12 @@ export function NotificationPanel(): React.JSX.Element {
   const loadReviewTasks = useReaderStore((s) => s.loadReviewTasks)
   const openPanelTab = useUiStore((s) => s.openPanelTab)
   const openUserPage = useUiStore((s) => s.openUserPage)
-  const [groupKey, setGroupKey] = useState<NotificationGroup>('interact')
+  const [localGroupKey, setLocalGroupKey] = useState<NotificationGroup>('interact')
+  const groupKey = tab ?? localGroupKey
+  const setGroupKey = (next: NotificationGroup): void => {
+    onTabChange?.(next)
+    if (tab === undefined) setLocalGroupKey(next)
+  }
   // v0.0.10：私聊会话列表（hqChat/myChat），仅在「私聊」tab 加载并轮询
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
   const [chatLoading, setChatLoading] = useState(false)
@@ -216,7 +229,7 @@ export function NotificationPanel(): React.JSX.Element {
 
   return (
     <div className="notification-panel">
-      <div className="notification-tabs">
+      {!hideTabs && <div className="notification-tabs">
         {CATEGORY_GROUPS.map((g) => {
           const count =
             g.key === 'chat'
@@ -233,7 +246,7 @@ export function NotificationPanel(): React.JSX.Element {
             </button>
           )
         })}
-      </div>
+      </div>}
 
       <div className="notification-toolbar">
         <span className="notification-count muted">

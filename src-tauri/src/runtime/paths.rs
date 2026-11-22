@@ -28,6 +28,8 @@ use hqsf_core::error::{CoreError, CoreResult};
 use hqsf_core::ports::AppPaths;
 use tauri::{AppHandle, Manager};
 
+use crate::runtime::resources;
+
 /// 测试模式的命令行参数（与 1.x `src/main/testmode.ts` 一致：`--test` 或 `HQSF_TEST=1`）。
 pub const TEST_FLAG: &str = "--test";
 /// 测试模式的环境变量（1.x 同名）。
@@ -64,7 +66,7 @@ fn resolve_resource_dir(app: &AppHandle) -> CoreResult<PathBuf> {
         }
     }
 
-    #[cfg(debug_assertions)]
+    #[cfg(all(debug_assertions, desktop))]
     {
         // src-tauri/ 的父目录 = 仓库根（1.x dev 时 app.getAppPath() 就是仓库根）。
         let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -83,9 +85,23 @@ fn resolve_resource_dir(app: &AppHandle) -> CoreResult<PathBuf> {
         );
     }
 
-    app.path()
-        .resource_dir()
-        .map_err(|e| CoreError::app(format!("无法获取资源目录：{e}")))
+    #[cfg(mobile)]
+    {
+        // Android：bundle.resources 在 APK assets 里，`resource_dir()` 是 asset:// 虚拟 URL，
+        // 内核用 std::fs 读不到；把编译期嵌入的资源释放到私有目录，再交给内核。
+        let data_dir = app
+            .path()
+            .app_data_dir()
+            .map_err(|e| CoreError::app(format!("无法获取数据目录：{e}")))?;
+        return resources::materialize(&data_dir.join("resources"));
+    }
+
+    #[cfg(desktop)]
+    {
+        app.path()
+            .resource_dir()
+            .map_err(|e| CoreError::app(format!("无法获取资源目录：{e}")))
+    }
 }
 
 /// 数据目录：`app_data_dir()`；测试模式换成 `<appData>/hqsf-test`（见文件头差异 2）。
@@ -106,6 +122,18 @@ fn resolve_data_dir(app: &AppHandle, test_mode: bool) -> CoreResult<PathBuf> {
 }
 
 /// 文档目录：`document_dir()`；Linux 未装 xdg-user-dirs 时可能不存在/取不到，回退 `home/Documents`。
+#[cfg(mobile)]
+fn resolve_documents_dir(app: &AppHandle) -> CoreResult<PathBuf> {
+    // Android 没有桌面意义的「文档目录」，也没有 SAF 授权；v2.1.16 先用应用私有目录，
+    // 后续接 SAF 时只改这里（内核只看到 AppPaths.documents_dir）。
+    let data = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| CoreError::app(format!("无法获取数据目录：{e}")))?;
+    Ok(data.join("documents"))
+}
+
+#[cfg(desktop)]
 fn resolve_documents_dir(app: &AppHandle) -> CoreResult<PathBuf> {
     if let Ok(dir) = app.path().document_dir() {
         return Ok(dir);
@@ -131,6 +159,7 @@ fn resolve_documents_dir(app: &AppHandle) -> CoreResult<PathBuf> {
 /// 与旧的 `~/.config/hqsf-client` **不是同一个目录**，所以启动时要跑
 /// `hqsf_core::infra::migrate::migrate_legacy_data`（见 `lib.rs::build_core`）。
 /// 旧目录只读不写、永不删除，用户可随时回滚到 Electron 版。
+#[cfg(desktop)]
 pub fn legacy_data_dir(app: &AppHandle, test_mode: bool) -> CoreResult<PathBuf> {
     let app_data = app
         .path()

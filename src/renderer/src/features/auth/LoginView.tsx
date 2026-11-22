@@ -157,7 +157,7 @@ export function LoginView(): React.JSX.Element {
 
       {modal === 'own' && (
         <AgreementModal
-          title="黄芪饮片桌面客户端用户协议"
+          title="黄芪饮片客户端用户协议"
           state={ownFail ? 'fail' : own ? 'ok' : 'loading'}
           html={own?.html ?? ''}
           error={ownFail ? '协议文件缺失或损坏' : undefined}

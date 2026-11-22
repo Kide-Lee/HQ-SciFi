@@ -57,9 +57,22 @@ impl ReqwestHttp {
             .enable_all()
             .build()
             .map_err(|e| CoreError::app(format!("初始化网络运行时失败：{e}")))?;
-        let client = reqwest::Client::builder()
+        let builder = reqwest::Client::builder()
             .user_agent(USER_AGENT)
-            .timeout(Duration::from_millis(DEFAULT_TIMEOUT_MS))
+            .timeout(Duration::from_millis(DEFAULT_TIMEOUT_MS));
+        // Android：reqwest 0.13 的 rustls 配置会调用 rustls-platform-verifier，而它要求 JVM/JNI
+        // 初始化（否则 panic）。这里预配置一份用 webpki-roots 的 rustls 配置，绕开平台验证器。
+        #[cfg(target_os = "android")]
+        let builder = {
+            let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+            let mut roots = rustls::RootCertStore::empty();
+            roots.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+            let tls = rustls::ClientConfig::builder()
+                .with_root_certificates(roots)
+                .with_no_client_auth();
+            builder.use_preconfigured_tls(tls)
+        };
+        let client = builder
             .build()
             .map_err(|e| CoreError::app(format!("初始化网络客户端失败：{e}")))?;
         Ok(Self {

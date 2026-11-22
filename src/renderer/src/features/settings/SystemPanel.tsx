@@ -4,15 +4,18 @@ import { useUiStore } from '../../stores/ui'
 import { useSettingsStore } from '../../stores/settings'
 import { useDocsStore } from '../../stores/docs'
 import type { UpdateState } from '../../../../shared/types'
+import { bumpImageCacheEpoch } from '../../../../bridge/protocol'
 
 export function SystemPanel({
   onOpenChangelog,
   onOpenOwnAgreement,
-  onClose
+  onClose,
+  mobile = false
 }: {
   onOpenChangelog: () => void
   onOpenOwnAgreement: () => void
   onClose: () => void
+  mobile?: boolean
 }): React.JSX.Element {
   const app = useSettingsStore((s) => s.app)
   const updateAppSettings = useSettingsStore((s) => s.updateAppSettings)
@@ -83,6 +86,7 @@ export function SystemPanel({
     const res = await window.hqsf.clearCache()
     setBusy(null)
     if (res.ok) {
+      bumpImageCacheEpoch()
       await window.hqsf.showMessageBox({
         type: 'info',
         title: '已清除缓存',
@@ -121,6 +125,7 @@ export function SystemPanel({
             {version || '…'}
           </button>
         </div>
+        {!mobile && (
         <div className="settings-row">
           <span className="settings-label">自动更新</span>
           <label className="switch">
@@ -134,12 +139,15 @@ export function SystemPanel({
           </label>
           {isDeb && <span className="settings-hint">deb 包不支持自动更新，请前往 GitHub Releases 下载。</span>}
         </div>
+        )}
+        {!mobile && (
         <div className="settings-row">
           <span className="settings-label">检查更新</span>
           <button className="ghost-btn" disabled={busy === 'check'} onClick={() => void checkUpdate()}>
             {updateState.status === 'checking' ? '检查中…' : '检查更新'}
           </button>
         </div>
+        )}
         {updateState.status === 'available' && (
           <div className="settings-card settings-update">
             <strong>发现新版本 v{updateState.version}</strong>
@@ -155,6 +163,7 @@ export function SystemPanel({
 
       <section className="settings-section">
         <h3>功能</h3>
+        {!mobile && (
         <div className="settings-row">
           <span className="settings-label">本地存档</span>
           <span className="settings-value">{docsRoot || '…'}</span>
@@ -162,18 +171,21 @@ export function SystemPanel({
             更改
           </button>
         </div>
+        )}
         <div className="settings-row">
           <span className="settings-label">清除缓存</span>
           <button className="ghost-btn" disabled={busy === 'cache'} onClick={() => void clearCache()}>
             {busy === 'cache' ? '清除中…' : '清除缓存'}
           </button>
         </div>
+        {!mobile && (
         <div className="settings-row">
           <span className="settings-label">卸载</span>
           <button className="ghost-btn danger" onClick={() => void requestUninstall()}>
             <Trash2 size={14} /> 卸载
           </button>
         </div>
+        )}
       </section>
 
       <section className="settings-section">

@@ -109,7 +109,7 @@ export function UserView(): React.JSX.Element | null {
           <div className="user-head">
             <button
               className="user-avatar-btn"
-              onClick={() => useUserStore.getState().setTab('home')}
+              onClick={() => useUserStore.getState().setTab(user.isSelf ? 'dynamic' : 'home')}
               title="回到用户主页"
             >
               {avatar ? (

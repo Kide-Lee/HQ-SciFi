@@ -3,7 +3,12 @@ import ReactDOM from 'react-dom/client'
 import App from './App'
 import { applyInitialSettings } from './stores/settings'
 import './styles/index.css'
+import './styles/mobile.css'
 import { installTauriBridge } from '../../bridge/index'
+
+if (/Android/i.test(navigator.userAgent)) {
+  document.documentElement.classList.add('hqsf-mobile')
+}
 
 /**
  * 迁移来源（Tauri 2）：1.x 渲染层入口。Tauri WebView 没有 Electron preload，

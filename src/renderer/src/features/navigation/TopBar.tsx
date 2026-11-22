@@ -10,6 +10,7 @@ import {
   PanelRightClose,
   PanelRightOpen,
   PenLine,
+  Search,
   Settings,
   Square,
   Undo2,
@@ -240,7 +241,7 @@ export function TopBar(): React.JSX.Element {
             aria-label="文章栏"
             aria-expanded={articleActive}
           >
-            <MessageCircle size={14} className="panel-ico idle" />
+            {readingCid ? <MessageCircle size={14} className="panel-ico idle" /> : <Search size={14} className="panel-ico idle" />}
             <PanelRightOpen size={14} className="panel-ico peek" />
             <PanelRightClose size={14} className="panel-ico open" />
           </button>

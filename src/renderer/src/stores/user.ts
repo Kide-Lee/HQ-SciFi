@@ -98,7 +98,7 @@ export function followItemDisplay(f: UserFollowItem): { uid: string; name: strin
 export const useUserStore = create<UserState>((set, get) => ({
   uid: null,
   isSelf: false,
-  tab: 'home',
+  tab: 'dynamic',
   profile: null,
   stats: null,
   followTotal: null,
@@ -121,14 +121,16 @@ export const useUserStore = create<UserState>((set, get) => ({
     const id = String(uid ?? '')
     if (!id || id === '0') return
     if (get().uid === id) {
-      // 同一用户：回到主页预览，保持已加载数据
-      set({ tab: 'home' })
+      // 同一用户：回到默认页签，保持已加载数据
+      set({ tab: get().isSelf ? 'dynamic' : 'home' })
+      void get().loadTab()
       return
     }
+    const self = currentUid() === id
     set({
       uid: id,
-      isSelf: currentUid() === id,
-      tab: 'home',
+      isSelf: self,
+      tab: self ? 'dynamic' : 'home',
       profile: null,
       stats: null,
       followTotal: null,
@@ -148,6 +150,7 @@ export const useUserStore = create<UserState>((set, get) => ({
     })
     void get().loadHeader()
     void get().loadHome()
+    void get().loadTab()
   },
 
   close: () => {
