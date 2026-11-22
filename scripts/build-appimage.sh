@@ -76,7 +76,7 @@ Comment=荒启科幻：写作-阅读-评审 一站式桌面客户端
 Exec=$BINARY_NAME
 Icon=$BINARY_NAME
 Terminal=false
-Categories=Network;Office;Productivity;
+Categories=Network;
 StartupWMClass=huangqi-scifi
 EOF
 install -m 0644 "$APPDIR/$BINARY_NAME.desktop" "$APPDIR/usr/share/applications/$BINARY_NAME.desktop"
